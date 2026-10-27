@@ -22,6 +22,14 @@ import { cn } from "@/lib/utils"
 import { FIXTURE_OWNER_ID, SHARED_TASK } from "./fixtures"
 
 const VIEWER_ID = "fx-viewer"
+// Categories belong to each user's list; this viewer has not assigned one.
+const VIEWER_TASK: Todo = {
+  ...SHARED_TASK,
+  categoryId: undefined,
+  categoryName: undefined,
+  categoryIcon: undefined,
+  categoryColor: undefined,
+}
 
 /**
  * Block 3 — two lists, one task.
@@ -41,6 +49,8 @@ const VIEWER_ID = "fx-viewer"
  * The hidden copy is the server's projection, not a styled title: `HiddenTodoDtoFactory`
  * sends "Hidden task" with no author, no description, no audience list and none of the
  * owner's category — so that is exactly what your card is given.
+ * Categories are personal: Victoria keeps Home in every state, while your copy has no
+ * category even when open, completed, revealed or reset.
  *
  * The line between the lists is an illustration of where a change goes, not a network
  * trace, and the sentence under them says the same thing in words (it is the block's one
@@ -63,20 +73,17 @@ export function ViewerSide() {
     () =>
       viewerHidden && !viewerDone
         ? {
-            ...SHARED_TASK,
+            ...VIEWER_TASK,
             userId: "00000000-0000-0000-0000-000000000000",
             title: "Hidden task",
             description: undefined,
             authorName: undefined,
-            categoryName: undefined,
-            categoryIcon: undefined,
-            categoryColor: undefined,
             sharedWithUserIds: [],
             hasSharedAudience: true,
             hidden: true,
           }
         : {
-            ...SHARED_TASK,
+            ...VIEWER_TASK,
             hidden: false,
             ownerCompleted: ownerDone,
             isCompletedByViewer: ownTick,

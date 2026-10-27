@@ -7,6 +7,7 @@ vi.mock("@/components/todos/todo-card", () => ({
   TodoCard: ({ todo }: { todo: Todo }) => (
     <article
       data-testid="task"
+      data-category-id={todo.categoryId ?? ""}
       data-category={todo.categoryName ?? ""}
       data-icon={todo.categoryIcon ?? ""}
       data-color={todo.categoryColor ?? ""}
@@ -28,23 +29,55 @@ describe("landing sharing category projection", () => {
     })
   })
 
-  it("clears all owner category fields from the hidden viewer and restores them on reveal", () => {
+  it("keeps categories personal through completion, hiding, revealing and reset", () => {
     render(<ViewerSide />)
     const owner = within(screen.getByRole("region", { name: "Victoria's list" }))
     const viewer = within(screen.getByRole("region", { name: "Your list" }))
-    expect(viewer.getByTestId("task")).toHaveAttribute("data-icon", "Home")
-    expect(viewer.getByTestId("task")).toHaveAttribute("data-color", CATEGORY_COLOR_SWATCHES[1])
+
+    const expectPersonalCategories = () => {
+      for (const field of ["category-id", "category", "icon", "color"]) {
+        expect(viewer.getByTestId("task")).toHaveAttribute(`data-${field}`, "")
+      }
+      expect(owner.getByTestId("task")).toHaveAttribute("data-category", "Home")
+      expect(owner.getByTestId("task")).toHaveAttribute("data-icon", "Home")
+      expect(owner.getByTestId("task")).toHaveAttribute("data-color", CATEGORY_COLOR_SWATCHES[1])
+    }
+
+    expectPersonalCategories()
+    fireEvent.click(viewer.getByRole("button", { name: "Tick it off for yourself" }))
+    expect(viewer.getByText("Done for you")).toBeInTheDocument()
+    expectPersonalCategories()
+    fireEvent.click(viewer.getByRole("button", { name: "Reopen it for yourself" }))
+    expectPersonalCategories()
 
     fireEvent.click(viewer.getByRole("button", { name: "Hide it from your list" }))
     expect(viewer.getByTestId("task")).toHaveTextContent("Hidden task")
-    for (const field of ["category", "icon", "color"]) {
-      expect(viewer.getByTestId("task")).toHaveAttribute(`data-${field}`, "")
-    }
-    expect(owner.getByTestId("task")).toHaveAttribute("data-icon", "Home")
-    expect(owner.getByTestId("task")).toHaveAttribute("data-color", CATEGORY_COLOR_SWATCHES[1])
+    expectPersonalCategories()
 
     fireEvent.click(viewer.getByRole("button", { name: "Show it again" }))
-    expect(viewer.getByTestId("task")).toHaveAttribute("data-icon", "Home")
-    expect(viewer.getByTestId("task")).toHaveAttribute("data-color", CATEGORY_COLOR_SWATCHES[1])
+    expect(viewer.getByTestId("task")).toHaveTextContent(SHARED_TASK.title)
+    expectPersonalCategories()
+    fireEvent.click(owner.getByRole("button", { name: "Let Victoria finish it" }))
+    expect(viewer.getByText("Done for everyone")).toBeInTheDocument()
+    expectPersonalCategories()
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }))
+    expectPersonalCategories()
+
+    // Completion expands a previously hidden copy too.
+    fireEvent.click(viewer.getByRole("button", { name: "Hide it from your list" }))
+    fireEvent.click(viewer.getByRole("button", { name: "Tick it off for yourself" }))
+    expect(viewer.getByText("Done for you")).toBeInTheDocument()
+    expectPersonalCategories()
+    fireEvent.click(viewer.getByRole("button", { name: "Reopen it for yourself" }))
+    expect(viewer.getByTestId("task")).toHaveTextContent("Hidden task")
+    expectPersonalCategories()
+    fireEvent.click(owner.getByRole("button", { name: "Let Victoria finish it" }))
+    expect(viewer.getByTestId("task")).toHaveTextContent(SHARED_TASK.title)
+    expectPersonalCategories()
+    fireEvent.click(owner.getByRole("button", { name: "Let Victoria reopen it" }))
+    expect(viewer.getByTestId("task")).toHaveTextContent("Hidden task")
+    expectPersonalCategories()
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }))
+    expectPersonalCategories()
   })
 })
