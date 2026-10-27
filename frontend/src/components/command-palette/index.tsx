@@ -2,6 +2,7 @@
 
 import {
   memo,
+  startTransition,
   useCallback,
   useEffect,
   useId,
@@ -14,7 +15,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutGroup, useAnimationControls, useReducedMotion } from "framer-motion"
+import { LayoutGroup, animate, useMotionValue, useReducedMotion, useTransform, type AnimationPlaybackControls } from "framer-motion"
 import { CloudOff, Search, X } from "lucide-react"
 import { motion } from "@/components/ui/motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
@@ -27,7 +28,8 @@ import { useFriends } from "@/hooks/use-friends"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { api } from "@/lib/api"
 import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, SPRING_STANDARD } from "@/lib/animations"
-import { originTransform, type OriginRect, type OriginTransform } from "@/lib/shared-origin"
+import { tokens } from "@/lib/design-tokens"
+import type { OriginRect } from "@/lib/shared-origin"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import type { FriendDto } from "@/types/auth"
@@ -89,15 +91,101 @@ export const OPEN_PALETTE_EVENT = "planora:open-palette"
 export interface PaletteRequest {
   /** Where the control that asked sits: the palette grows out of it and folds back into it. */
   origin?: OriginRect
+  /** The control itself, measured again on close: the bar may have condensed meanwhile. */
+  from?: HTMLElement
 }
 
 /** Opens the palette, growing it out of `from` when one is given. */
 export function requestPalette(from?: HTMLElement | null): void {
-  const rect = from?.getBoundingClientRect()
-  const origin = rect && rect.width > 0 && rect.height > 0
+  const origin = rectOf(from)
+  window.dispatchEvent(
+    new CustomEvent<PaletteRequest>(OPEN_PALETTE_EVENT, { detail: { origin: origin ?? undefined, from: origin ? from ?? undefined : undefined } }),
+  )
+}
+
+/** Where the panel's surface starts (and ends) relative to where it rests. */
+interface Morph {
+  /** Grows out of a control and folds back into it, rather than dropping in. */
+  grow: boolean
+  x: number
+  y: number
+  sx: number
+  sy: number
+  /** Corner radius at the start, in screen pixels. */
+  radius: number
+  /** The control's rect, kept for a close whose control has gone. */
+  origin: OriginRect | null
+}
+
+const PANEL_RADIUS = parseFloat(tokens.radius.xl)
+/** Opened from the keyboard: from just above, a touch smaller. */
+const DROP: Morph = { grow: false, x: 0, y: -12, sx: 0.97, sy: 0.97, radius: PANEL_RADIUS, origin: null }
+/** Reduced motion: a fade, nothing moves. */
+const STILL: Morph = { grow: false, x: 0, y: 0, sx: 1, sy: 1, radius: PANEL_RADIUS, origin: null }
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+const mix = (from: number, to: number, t: number) => from + (to - from) * t
+const scalesAt = (p: number, m: Morph) => {
+  const t = clamp01(p)
+  return { t, sx: mix(m.sx, 1, t), sy: mix(m.sy, 1, t) }
+}
+
+/** The surface's start as `origin`'s own rectangle, centre on centre, with the control's corners. */
+function morphFrom(origin: OriginRect, target: OriginRect, control: Element | null): Morph {
+  const declared = control?.isConnected ? parseFloat(getComputedStyle(control).borderTopLeftRadius) : NaN
+  const radius = Math.min(Number.isFinite(declared) ? declared : origin.height / 2, origin.height / 2, origin.width / 2)
+  return {
+    grow: true,
+    x: Math.round(origin.left + origin.width / 2 - (target.left + target.width / 2)),
+    y: Math.round(origin.top + origin.height / 2 - (target.top + target.height / 2)),
+    sx: origin.width / target.width,
+    sy: origin.height / target.height,
+    radius,
+    origin,
+  }
+}
+
+/** The panel's rect at rest, read with its transform lifted for the one measurement. */
+function untransformedRect(panel: HTMLElement): OriginRect | null {
+  const previous = panel.style.transform
+  panel.style.transform = "none"
+  const rect = rectOf(panel)
+  panel.style.transform = previous
+  return rect
+}
+
+function rectOf(element: Element | null | undefined): OriginRect | null {
+  const rect = element?.getBoundingClientRect()
+  return rect && rect.width > 0 && rect.height > 0
     ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
-    : undefined
-  window.dispatchEvent(new CustomEvent<PaletteRequest>(OPEN_PALETTE_EVENT, { detail: { origin } }))
+    : null
+}
+
+/**
+ * Starts the palette's reads before it opens — when the pointer reaches the search button or
+ * the keyboard focuses it — so the rows are drawn with the palette's first frame instead of
+ * arriving in the middle of its entrance. An opening takes a read at most this old, which keeps
+ * the rule that every opening shows freshly read tasks; a read nobody took is dropped.
+ */
+const PREPARED_MAX_AGE_MS = 3_000
+
+let prepared: { viewer: string; at: number; snapshot: Snapshot | null; promise: Promise<Snapshot> } | null = null
+
+export function preparePalette(): void {
+  const viewer = useAuthStore.getState().user?.userId
+  if (!viewer) return
+  if (prepared && prepared.viewer === viewer && performance.now() - prepared.at < PREPARED_MAX_AGE_MS) return
+  const entry: NonNullable<typeof prepared> = { viewer, at: performance.now(), snapshot: null, promise: readSnapshot() }
+  void entry.promise.then((snapshot) => { entry.snapshot = snapshot })
+  prepared = entry
+}
+
+/** The prepared read for `viewer` if it is fresh, taken so that no later opening reuses it. */
+function takePrepared(viewer: string | null | undefined) {
+  const entry = prepared
+  prepared = null
+  if (!entry || !viewer || entry.viewer !== viewer || performance.now() - entry.at >= PREPARED_MAX_AGE_MS) return null
+  return entry
 }
 
 // ─── Data ───────────────────────────────────────────────────────────────────
@@ -308,6 +396,11 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const originRef = useRef<OriginRect | null>(null)
+  const originElement = useRef<HTMLElement | null>(null)
+  /** The opening came with a prepared snapshot; its read is not repeated. */
+  const preparedSnapshot = useRef(false)
+  /** A prepared read still on its way when the palette opened. */
+  const pendingRead = useRef<Promise<Snapshot> | null>(null)
   const openRef = useRef(open)
   openRef.current = open
   const keyboardMove = useRef(false)
@@ -324,15 +417,19 @@ export function CommandPalette() {
    * user delete their previous search before they can start the next one. The
    * task read must be fresh too: its hidden preference may have changed elsewhere.
    */
-  const show = useCallback((origin: OriginRect | null) => {
+  const show = useCallback((origin: OriginRect | null, from: HTMLElement | null = null) => {
     originRef.current = origin
+    originElement.current = from
+    const ready = takePrepared(viewerId)
+    preparedSnapshot.current = Boolean(ready?.snapshot)
+    pendingRead.current = ready && !ready.snapshot ? ready.promise : null
     setQuery("")
     setTab("all")
     setScope(null)
     setHighlight(TOP)
     setNow(new Date())
     setRecent(readRecent(viewerId))
-    setSnapshot(null)
+    setSnapshot(ready?.snapshot ?? null)
     setOpen(true)
   }, [viewerId])
 
@@ -352,7 +449,8 @@ export function CommandPalette() {
     }
     const onRequest = (event: Event) => {
       if (openRef.current) return
-      show((event as CustomEvent<PaletteRequest | null>).detail?.origin ?? null)
+      const detail = (event as CustomEvent<PaletteRequest | null>).detail
+      show(detail?.origin ?? null, detail?.from ?? null)
     }
     window.addEventListener("keydown", onKey, true)
     window.addEventListener(OPEN_PALETTE_EVENT, onRequest)
@@ -364,12 +462,20 @@ export function CommandPalette() {
 
   // ── data ──────────────────────────────────────────────────────────────────
 
+  // A transition: the rows that arrive while the palette is still opening render between the
+  // entrance's frames instead of holding one of them.
   useEffect(() => {
     if (!open) return
+    if (preparedSnapshot.current) {
+      preparedSnapshot.current = false
+      return
+    }
     let cancelled = false
-    void readSnapshot().then((fresh) => {
+    const read = pendingRead.current ?? readSnapshot()
+    pendingRead.current = null
+    void read.then((fresh) => {
       if (cancelled) return
-      setSnapshot(fresh)
+      startTransition(() => setSnapshot(fresh))
     })
     return () => {
       cancelled = true
@@ -661,12 +767,22 @@ export function CommandPalette() {
   // ── entrance and exit ─────────────────────────────────────────────────────
 
   /**
-   * It grows out of the search button and folds back into it — the task editor's
-   * card-to-dialog move, with the same critically damped spring, so it lands
-   * without passing its size. Opened from the keyboard it drops in from just
-   * above. Measured untransformed before the first frame, once per opening.
+   * Opened from the search button, the palette is that button, grown. The surface starts as the
+   * button itself — its rectangle and its round ends — and opens into the panel on the task
+   * editor's critically damped spring; the content keeps its natural size, is uncovered by the
+   * growing surface and fades in once there is room for it. Closing runs the same path back into
+   * the button where it is now (measured again: the bar may have condensed meanwhile): the content
+   * fades first, the surface folds into the button and is gone as it lands. It used to scale the
+   * whole panel uniformly with a floor of 0.55, so a palette closing into a 98×44 button ended as a
+   * 445×333 box centred on it — mostly above the screen, under the bar — and read as flying away.
+   *
+   * The x and y scales differ, so the surface's corners are drawn counter-scaled (the radius is
+   * given per axis) and the content is counter-scaled to its own size: nothing is ever stretched.
+   * Opened from the keyboard it drops in from just above instead. One progress value drives every
+   * part, so a close interrupted by a reopening turns round where it is.
    */
-  const controls = useAnimationControls()
+  const progress = useMotionValue(0)
+  const morph = useMotionValue<Morph>(DROP)
   const [panel, setPanel] = useState<HTMLDivElement | null>(null)
   const attachPanel = useCallback((node: HTMLDivElement | null) => {
     trapRef(node)
@@ -674,48 +790,67 @@ export function CommandPalette() {
     setPanel(node)
   }, [trapRef])
   const wasOpen = useRef(false)
-  const entrance = useRef<OriginTransform | null>(null)
   const animationRun = useRef(0)
+  const running = useRef<AnimationPlaybackControls | null>(null)
+
+  const surfaceX = useTransform(() => mix(morph.get().x, 0, clamp01(progress.get())))
+  const surfaceY = useTransform(() => mix(morph.get().y, 0, clamp01(progress.get())))
+  const surfaceScaleX = useTransform(() => scalesAt(progress.get(), morph.get()).sx)
+  const surfaceScaleY = useTransform(() => scalesAt(progress.get(), morph.get()).sy)
+  const surfaceRadius = useTransform(() => {
+    const m = morph.get()
+    const { t, sx, sy } = scalesAt(progress.get(), m)
+    const r = mix(m.radius, PANEL_RADIUS, t)
+    return `${r / sx}px / ${r / sy}px`
+  })
+  const surfaceOpacity = useTransform(() => {
+    const p = progress.get()
+    return morph.get().grow ? clamp01(p / 0.16) : clamp01(p)
+  })
+  const contentScaleX = useTransform(() => (morph.get().grow ? 1 / scalesAt(progress.get(), morph.get()).sx : 1))
+  const contentScaleY = useTransform(() => (morph.get().grow ? 1 / scalesAt(progress.get(), morph.get()).sy : 1))
+  const contentOpacity = useTransform(() => (morph.get().grow ? clamp01((progress.get() - 0.42) / 0.33) : 1))
 
   useLayoutEffect(() => {
     if (!panel) return
     if (!open) {
       if (!wasOpen.current) return
       wasOpen.current = false
-      controls.stop()
+      running.current?.stop()
       const exitRun = ++animationRun.current
-      const from = reduce ? null : entrance.current
-      void controls
-        .start(
-          from ? { opacity: 0, ...from } : { opacity: 0, scale: reduce ? 1 : 0.98, x: 0, y: reduce ? 0 : -8 },
-          { duration: from ? DURATION_UI : DURATION_FAST, ease: EASE_STANDARD },
-        )
-        .then(() => {
-          // An interrupted close must never remove a palette that reopened meanwhile.
-          if (animationRun.current === exitRun && !wasOpen.current) finishExit()
-        })
+      if (!reduce) {
+        const control = originElement.current?.isConnected ? originElement.current : null
+        const origin = rectOf(control) ?? morph.get().origin
+        const target = untransformedRect(panel)
+        if (origin && target) morph.set(morphFrom(origin, target, originElement.current))
+      }
+      const grow = morph.get().grow && !reduce
+      running.current = animate(progress, 0, { duration: grow ? DURATION_UI : DURATION_FAST, ease: EASE_STANDARD })
+      void running.current.then(() => {
+        // An interrupted close must never remove a palette that reopened meanwhile.
+        if (animationRun.current === exitRun && !wasOpen.current) finishExit()
+      })
       return
     }
     if (wasOpen.current) return
     wasOpen.current = true
     ++animationRun.current
-    controls.stop()
-    const previous = panel.style.transform
-    panel.style.transform = "none"
-    const target = panel.getBoundingClientRect()
-    panel.style.transform = previous
+    running.current?.stop()
     const origin = originRef.current
     originRef.current = null
-    const from = !reduce && origin && target.width > 0 && target.height > 0 ? originTransform(origin, target) : null
-    entrance.current = from
-    controls.set(from ? { opacity: 0, ...from } : { opacity: 0, scale: reduce ? 1 : 0.97, x: 0, y: reduce ? 0 : -12 })
-    void controls.start({ opacity: 1, scale: 1, x: 0, y: 0 }, SPRING_LAYOUT)
-  }, [panel, open, reduce, controls, finishExit])
+    const target = untransformedRect(panel)
+    morph.set(reduce ? STILL : origin && target ? morphFrom(origin, target, originElement.current) : DROP)
+    running.current = animate(
+      progress,
+      1,
+      reduce ? { duration: DURATION_FAST, ease: EASE_STANDARD } : { ...SPRING_LAYOUT, restDelta: 0.0005, restSpeed: 0.005 },
+    )
+  }, [panel, open, reduce, finishExit, morph, progress])
 
   useLayoutEffect(() => () => {
     ++animationRun.current
-    controls.stop()
-  }, [controls])
+    running.current?.stop()
+  }, [])
 
   if (!isAuthenticated) return null
 
@@ -780,11 +915,22 @@ export function CommandPalette() {
             aria-modal="true"
             aria-label="Command palette"
             tabIndex={-1}
-            initial={{ opacity: 0 }}
-            animate={controls}
+            style={{
+              x: surfaceX,
+              y: surfaceY,
+              scaleX: surfaceScaleX,
+              scaleY: surfaceScaleY,
+              borderRadius: surfaceRadius,
+              opacity: surfaceOpacity,
+            }}
             onKeyDown={isolateKeys}
             className="relative flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-xl outline-none"
           >
+            {/* The content at its own size, uncovered by the surface as it grows. */}
+            <motion.div
+              style={{ scaleX: contentScaleX, scaleY: contentScaleY, opacity: contentOpacity }}
+              className="flex min-h-0 flex-1 flex-col"
+            >
             <LayoutGroup id="palette">
               {/* The question */}
               <div className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-line px-4">
@@ -947,6 +1093,7 @@ export function CommandPalette() {
               />
               <div role="status" aria-live="polite" className="sr-only">{status}</div>
             </LayoutGroup>
+            </motion.div>
           </motion.div>
         </div>
       ) : null}

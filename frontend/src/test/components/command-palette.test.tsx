@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CommandPalette, OPEN_PALETTE_EVENT, requestPalette } from "@/components/command-palette"
+import { CommandPalette, OPEN_PALETTE_EVENT, preparePalette, requestPalette } from "@/components/command-palette"
 import { CREATE_TASK_EVENT, takeCreateTaskRequest } from "@/lib/create-task-request"
 import { OPEN_SHORTCUTS_EVENT } from "@/components/ui/shortcuts-overlay"
 import { invalidateFriends } from "@/hooks/use-friends"
@@ -157,6 +157,42 @@ describe("CommandPalette — opening and closing", () => {
     expect(dialog()).toBeNull()
   })
 
+  it("reads ahead from the search button and opens with the rows already drawn", async () => {
+    render(<CommandPalette />)
+    const taskReads = () => get.mock.calls.filter(([url]) => url === "/todos/api/v1/todos").length
+
+    // The pointer reaches the button: the reads start before anything opens.
+    act(() => preparePalette())
+    act(() => preparePalette())
+    expect(taskReads()).toBe(2)
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+
+    const button = document.createElement("button")
+    button.getBoundingClientRect = () => ({ top: 20, left: 800, width: 96, height: 44, right: 896, bottom: 64, x: 800, y: 20, toJSON: () => ({}) })
+    act(() => requestPalette(button))
+
+    // Drawn with the first render, and the opening reads nothing again.
+    await screen.findByRole("dialog", { name: "Command palette" })
+    expect(screen.queryByText("Loading tasks")).toBeNull()
+    expect(screen.getByText("Up next")).toBeInTheDocument()
+    expect(taskReads()).toBe(2)
+  })
+
+  it("reads afresh when the palette is opened again, past the read it was handed", async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette />)
+    act(() => preparePalette())
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    await user.keyboard("{Control>}k{/Control}")
+    await screen.findByRole("dialog", { name: "Command palette" })
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(dialog()).toBeNull())
+
+    await user.keyboard("{Control>}k{/Control}")
+    await screen.findByRole("dialog", { name: "Command palette" })
+    await waitFor(() => expect(get.mock.calls.filter(([url]) => url === "/todos/api/v1/todos")).toHaveLength(4))
+  })
+
   it("opens when the app bar asks, once however often it asks", async () => {
     render(<CommandPalette />)
     const button = document.createElement("button")
@@ -167,7 +203,7 @@ describe("CommandPalette — opening and closing", () => {
     await screen.findByRole("dialog", { name: "Command palette" })
     act(() => requestPalette())
     expect(screen.getAllByRole("dialog")).toHaveLength(1)
-    expect((received[0] as CustomEvent).detail).toEqual({ origin: { top: 20, left: 800, width: 96, height: 44 } })
+    expect((received[0] as CustomEvent).detail).toEqual({ origin: { top: 20, left: 800, width: 96, height: 44 }, from: button })
     expect((received[1] as CustomEvent).detail).toEqual({ origin: undefined })
   })
 
@@ -271,7 +307,8 @@ describe("CommandPalette — nothing typed", () => {
     await waitFor(() => expect(dialog()).toBeNull())
     await user.keyboard("{Control>}k{/Control}")
     await screen.findByRole("dialog", { name: "Command palette" })
-    expect(screen.getByText("Recent")).toBeInTheDocument()
+    // The rows arrive with the read, rendered as a transition.
+    expect(await screen.findByText("Recent")).toBeInTheDocument()
     expect(options()[0]).toHaveTextContent("Renew the household insurance policy")
   })
 

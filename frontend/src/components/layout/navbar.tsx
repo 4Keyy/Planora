@@ -12,7 +12,7 @@ import { Wordmark } from "@/components/ui/wordmark"
 import { MENU_ITEM, POPOVER_SURFACE } from "@/components/ui/surfaces"
 import { useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
 import { NotificationBell } from "@/components/notifications/notification-bell"
-import { requestPalette } from "@/components/command-palette"
+import { preparePalette, requestPalette } from "@/components/command-palette"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { api } from "@/lib/api"
@@ -389,8 +389,11 @@ export function Navbar() {
             {/* Search: the ⌘K palette, which also creates tasks. Labelled from lg while whole. */}
             <motion.button
               type="button"
-              // The palette grows out of this button and folds back into it.
+              // The palette grows out of this button and folds back into it. Its reads start on
+              // the way in, so the rows are there with its first frame.
               onClick={(event) => requestPalette(event.currentTarget)}
+              onPointerEnter={preparePalette}
+              onFocus={preparePalette}
               whileTap={reduce ? undefined : TAP_PRESS}
               aria-label="Search"
               aria-keyshortcuts={isApple ? "Meta+K" : "Control+K"}

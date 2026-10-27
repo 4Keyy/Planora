@@ -153,7 +153,7 @@ describe("Navbar", () => {
     await user.click(search)
     expect(received).toHaveLength(1)
     // The palette grows out of the button, so the request says where the button is.
-    expect((received[0] as CustomEvent).detail).toEqual({ origin: { top: 22, left: 834, width: 98, height: 44 } })
+    expect((received[0] as CustomEvent).detail).toEqual({ origin: { top: 22, left: 834, width: 98, height: 44 }, from: search })
     window.removeEventListener(OPEN_PALETTE_EVENT, listener)
   })
 

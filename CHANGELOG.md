@@ -113,6 +113,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(palette): search folds back into its button and opens without a stall (2026-10-28)
+
+Closing the palette sent it flying past the search button instead of folding into it: it scaled
+the whole panel uniformly with a floor of 0.55, so it ended as a 445×333 box centred on a 98×44
+button, mostly above the screen and under the bar. The surface now starts and ends as the
+button's own rectangle and round ends — separate x and y scales, corners drawn per axis — while
+the content keeps its natural size, is uncovered as the surface grows and fades first on the way
+back; the button is measured again on close. The first opening after a load showed its first frame
+210 ms after the click and then dropped frames (up to 190 ms each) as the rows arrived mid-spring;
+the reads now start when the pointer reaches the button and the rows render as a transition. On a
+production build (headless Edge, 1440×900) the first frame now comes 39 ms after the click (warm:
+33 ms, was 86 ms), every warm frame is under 11 ms, and the last visible close frame is 103×48 on
+the 98×44 button.
+
 ### fix(notices): notices leave on their own again (2026-10-28)
 
 After a notice was closed from its own button (✕, Undo or Escape), every later notice stayed on

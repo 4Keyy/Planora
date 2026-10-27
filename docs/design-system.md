@@ -1407,11 +1407,15 @@ session are irreversible on the server, and five seconds is not consent.
 the user's tasks, categories, friends, the smart views, every screen and the global
 actions; `docs/features.md` § Command palette has the behaviour. The design decisions:
 
-- **It grows out of the button that opened it.** The same shared-origin move as the task
-  editor (`originTransform`, critically damped `SPRING_LAYOUT`): a uniform scale from the
-  search button's rect, landing without passing its size, and folding back into the
-  button on close. From the keyboard it drops in 12px from above. The scrim is the
-  dialogs' `.backdrop-surface`.
+- **It grows out of the button that opened it.** A container transform, not the task
+  editor's uniform scale: the button is a 98×44 pill and the panel 768px wide, so a
+  uniform scale (floored at 0.55) could not land on it. The surface starts as the
+  button's exact rectangle and round ends — x and y scaled apart, the corner radius
+  drawn per axis — and springs open on the critically damped `SPRING_LAYOUT`; the content
+  stays at its natural size (counter-scaled) and is uncovered as the surface grows, fading
+  in from 42% of the way. Closing fades the content first and folds the bare surface
+  into the button, re-measured, in 220ms. From the keyboard it drops in 12px from above.
+  The scrim is the dialogs' `.backdrop-surface`.
 - **The droplet's language.** The selected tab is the app bar's ink drop (`layoutId`,
   `SPRING_STANDARD`); the highlighted row is a lighter drop, `ink/5`, that glides from
   row to row instead of switching, and glows in the task's category colour the way a
