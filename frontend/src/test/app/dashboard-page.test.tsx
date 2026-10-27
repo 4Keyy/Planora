@@ -3,11 +3,11 @@ import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import DashboardPage from "@/app/(app)/dashboard/page"
-import { api, setViewerPreference } from "@/lib/api"
+import { api, duplicateTodo, fetchTaskById, joinTodo, leaveTodo, setViewerPreference } from "@/lib/api"
 import { localDay } from "@/lib/calendar-date"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
-import { TodoPriority, TodoStatus, type CreateTodoPayload, type Todo } from "@/types/todo"
+import { TodoPriority, TodoStatus, type CreateTodoPayload, type Todo, type UpdateTodoPayload } from "@/types/todo"
 
 // The dashboard reads three things — the active page, the week's completed tasks and the
 // categories — and acts on cards through handlers it hands to each card. Cards, the create panel
@@ -32,13 +32,22 @@ vi.mock("@/components/ui/masonry-columns", () => ({
   ),
 }))
 
-type CardProps = { todo: Todo; onComplete: () => void; onDelete: () => void; onEdit: () => void }
+type CardProps = {
+  todo: Todo
+  onComplete: () => void
+  onDelete: () => void
+  onEdit: () => void
+  onJoin?: () => Promise<void>
+  onPriority?: (level: number) => void
+}
 vi.mock("@/components/todos/todo-card", () => ({
-  TodoCard: ({ todo, onComplete, onDelete, onEdit }: CardProps) => (
+  TodoCard: ({ todo, onComplete, onDelete, onEdit, onJoin, onPriority }: CardProps) => (
     <article aria-label={todo.title}>
       <button type="button" onClick={onComplete}>Complete</button>
       <button type="button" onClick={onDelete}>Delete</button>
       <button type="button" onClick={onEdit}>Edit</button>
+      {onJoin && <button type="button" onClick={() => void onJoin()}>Join</button>}
+      {onPriority && <button type="button" onClick={() => onPriority(5)}>Priority 5</button>}
     </article>
   ),
 }))
@@ -51,8 +60,21 @@ vi.mock("next/dynamic", () => ({
     return <div data-testid="create-panel" data-open={String(props.isOpen)} />
   },
 }))
+type EditorProps = {
+  todo: Todo
+  onSave: (payload: UpdateTodoPayload) => Promise<void>
+  onSaveViewerPreference: (preference: { viewerCategoryId: string | null }) => Promise<void>
+  onDeleteCategory: (id: string) => Promise<void>
+  onStartWork?: () => Promise<void>
+  onLeave?: () => Promise<void>
+  onDuplicate?: () => Promise<void>
+}
+const editor = vi.hoisted(() => ({ props: undefined as EditorProps | undefined }))
 vi.mock("@/components/todos/edit-todo-modal/lazy", () => ({
-  LazyEditTodoModal: ({ todo }: { todo: Todo }) => <div role="dialog" aria-label={`Editing ${todo.title}`} />,
+  LazyEditTodoModal: (props: EditorProps) => {
+    editor.props = props
+    return <div role="dialog" aria-label={`Editing ${props.todo.title}`} />
+  },
 }))
 
 vi.mock("@/lib/api", () => ({
@@ -117,12 +139,15 @@ beforeEach(() => {
     if (url === "/categories/api/v1/categories") return { data: [] }
     if ((config?.params as { isCompleted?: boolean } | undefined)?.isCompleted) return { data: { items: completed, totalCount: completed.length } }
     if (failActive) throw new Error("The task service is unavailable")
-    return { data: { items: active, totalCount: active.length } }
+    const page = (config?.params as { pageNumber?: number } | undefined)?.pageNumber ?? 1
+    return { data: { items: active.slice((page - 1) * 6, page * 6), totalCount: active.length } }
   })
   vi.mocked(api.post).mockReset()
   vi.mocked(api.put).mockReset()
   vi.mocked(api.delete).mockReset().mockResolvedValue({ data: null })
   vi.mocked(setViewerPreference).mockReset()
+  for (const fn of [fetchTaskById, joinTodo, leaveTodo, duplicateTodo]) vi.mocked(fn).mockReset()
+  editor.props = undefined
   useAuthStore.setState({
     user: { userId: ME, email: "me@example.com", firstName: "Grace", lastName: "Hopper" },
     accessToken: "access-token",
@@ -318,6 +343,113 @@ describe("Dashboard", () => {
 
     act(() => live.feed!({ actorId: FRIEND }))
     await waitFor(() => expect(reads()).toBe(before + 2))
+  })
+
+  it("takes its own task into work through its status, and a friend's as a worker", async () => {
+    active = [task(), task({ id: "f-1", userId: FRIEND, title: "Their task", isPublic: true })]
+    vi.mocked(api.put).mockResolvedValue({ data: null })
+    vi.mocked(joinTodo).mockResolvedValue(task({ id: "f-1", userId: FRIEND, title: "Their task", isPublic: true, isWorking: true }))
+    render(<DashboardPage />)
+    const user = userEvent.setup()
+
+    await user.click(within(await screen.findByRole("article", { name: "Write the report" })).getByRole("button", { name: "Join" }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { status: "inProgress" }))
+    await user.click(within(screen.getByRole("article", { name: "Their task" })).getByRole("button", { name: "Join" }))
+    await waitFor(() => expect(joinTodo).toHaveBeenCalledWith("f-1"))
+    expect(toastTitles().filter((title) => title === "Task taken").length).toBeGreaterThanOrEqual(1)
+  })
+
+  it("says so when a task cannot be taken", async () => {
+    active = [task({ id: "f-1", userId: FRIEND, title: "Their task", isPublic: true })]
+    vi.mocked(joinTodo).mockRejectedValue(new Error("Full"))
+    render(<DashboardPage />)
+
+    await userEvent.setup().click(within(await screen.findByRole("article", { name: "Their task" })).getByRole("button", { name: "Join" }))
+
+    await waitFor(() => expect(toastTitles()).toContain("Couldn't take task"))
+  })
+
+  it("sets the priority of the viewer's own task only", async () => {
+    const user = userEvent.setup()
+    active = [task(), task({ id: "f-1", userId: FRIEND, title: "Their task", isPublic: true })]
+    vi.mocked(api.put).mockResolvedValue({ data: task({ priority: TodoPriority.Urgent }) })
+    render(<DashboardPage />)
+
+    await user.click(within(await screen.findByRole("article", { name: "Their task" })).getByRole("button", { name: "Priority 5" }))
+    expect(api.put).not.toHaveBeenCalled()
+    await user.click(within(screen.getByRole("article", { name: "Write the report" })).getByRole("button", { name: "Priority 5" }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { priority: 5 }))
+  })
+
+  it("saves the editor's changes with the task's status, and tells the editor when that fails", async () => {
+    const user = userEvent.setup()
+    active = [task({ status: TodoStatus.InProgress })]
+    vi.mocked(api.put).mockResolvedValueOnce({ data: task({ title: "Renamed", status: TodoStatus.InProgress }) })
+    render(<DashboardPage />)
+
+    await user.click(within(await screen.findByRole("article", { name: "Write the report" })).getByRole("button", { name: "Edit" }))
+    await screen.findByRole("dialog", { name: "Editing Write the report" })
+    await act(() => editor.props!.onSave({ title: "Renamed" } as UpdateTodoPayload))
+    expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { title: "Renamed", status: "inprogress" })
+    expect(await screen.findByRole("article", { name: "Renamed" })).toBeInTheDocument()
+
+    vi.mocked(api.put).mockRejectedValueOnce(new Error("Title is too long"))
+    await expect(editor.props!.onSave({ title: "x" } as UpdateTodoPayload)).rejects.toThrow()
+    await waitFor(() => expect(toastTitles()).toContain("Couldn't save changes"))
+  })
+
+  it("saves the viewer's own category, leaves, and duplicates from the editor", async () => {
+    const user = userEvent.setup()
+    const theirs = task({ id: "f-1", userId: FRIEND, title: "Their task", isPublic: true, isWorking: true, workerCount: 1 })
+    active = [theirs]
+    vi.mocked(setViewerPreference).mockResolvedValue({} as Awaited<ReturnType<typeof setViewerPreference>>)
+    vi.mocked(fetchTaskById).mockResolvedValue({ ...theirs, title: "Their task, filed" })
+    vi.mocked(leaveTodo).mockResolvedValue(undefined)
+    vi.mocked(duplicateTodo).mockResolvedValueOnce(task({ id: "t-copy" })).mockRejectedValueOnce(new Error("Limit"))
+    render(<DashboardPage />)
+
+    await user.click(within(await screen.findByRole("article", { name: "Their task" })).getByRole("button", { name: "Edit" }))
+    await screen.findByRole("dialog", { name: "Editing Their task" })
+    await act(() => editor.props!.onSaveViewerPreference({ viewerCategoryId: "cat-2" }))
+    expect(setViewerPreference).toHaveBeenCalledWith("f-1", { viewerCategoryId: "cat-2", updateViewerCategory: true })
+    expect(await screen.findByRole("article", { name: "Their task, filed" })).toBeInTheDocument()
+
+    await act(() => editor.props!.onLeave!())
+    expect(leaveTodo).toHaveBeenCalledWith("f-1")
+    expect(toastTitles()).toContain("Left task")
+
+    await act(() => editor.props!.onDuplicate!())
+    expect(toastTitles()).toContain("Task duplicated")
+    await expect(editor.props!.onDuplicate!()).rejects.toThrow()
+    expect(toastTitles()).toContain("Couldn't duplicate task")
+  })
+
+  it("deletes a category from the editor and reads everything again", async () => {
+    const user = userEvent.setup()
+    active = [task()]
+    vi.mocked(api.delete).mockResolvedValue({ data: null })
+    render(<DashboardPage />)
+
+    await user.click(within(await screen.findByRole("article", { name: "Write the report" })).getByRole("button", { name: "Edit" }))
+    await screen.findByRole("dialog", { name: "Editing Write the report" })
+    const reads = vi.mocked(api.get).mock.calls.length
+    await act(() => editor.props!.onDeleteCategory("cat-1"))
+
+    expect(api.delete).toHaveBeenCalledWith("/categories/api/v1/categories/cat-1")
+    expect(vi.mocked(api.get).mock.calls.length).toBeGreaterThanOrEqual(reads + 3)
+  })
+
+  it("pages through the active tasks six at a time", async () => {
+    const user = userEvent.setup()
+    active = Array.from({ length: 8 }, (_, i) => task({ id: `t-${i}`, title: `Task ${i}` }))
+    render(<DashboardPage />)
+
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(6))
+    await user.click(screen.getByRole("button", { name: "Page 2" }))
+
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2))
+    expect(vi.mocked(api.get).mock.calls.some(([url, config]) =>
+      url === "/todos/api/v1/todos" && (config as { params?: { pageNumber?: number } })?.params?.pageNumber === 2)).toBe(true)
   })
 
   it("sends a signed-out visitor to sign in", async () => {
