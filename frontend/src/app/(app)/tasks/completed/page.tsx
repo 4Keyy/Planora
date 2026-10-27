@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
+import { describeError } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageHeader } from "@/components/layout/page-header"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { useListNavigation } from "@/hooks/use-list-navigation"
+import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
@@ -84,6 +85,12 @@ export default function CompletedTasksPage() {
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
+  // The archive only ever reopens, and every non-owner reopens their own completion.
+  const actions = useTaskActions({
+    viewerId: user?.userId,
+    completion: { direction: "reopen", viewerPreference: "non-owner" },
+    log: true,
+  })
   // The editor's chunk, fetched before the first open (`useWarmEditor`).
   useWarmEditor()
   const todosRequest = useRef<AbortController | null>(null)
@@ -297,42 +304,11 @@ export default function CompletedTasksPage() {
     }
   }, [loading, totalCount, currentPage, todos.length, lastFetchedPage])
 
-  const handleComplete = async (todoId: string) => {
-    const existing = todosRef.current.find((t) => t.id === todoId)
-    if (!existing) return
-
-    // A viewer may reopen THEIR OWN completion (clears CompletedByViewer); the owner reopens the task
-    // globally. Either is blocked once the AUTHOR has completed the whole task — then it is closed for
-    // everyone and the only path forward is to duplicate it.
-    if (!isTodoOwner(existing, user?.userId)) {
-      if (existing.ownerCompleted === true) {
-        addToast(AUTHOR_COMPLETED_TOAST)
-        return
-      }
-      try {
-        await setViewerPreference(todoId, { completedByViewer: false })
-        await fetchCompletedTodos()
-        addToast({ type: "success", title: "Task reopened" })
-      } catch (error) {
-        console.error("Failed to reopen viewer completion:", describeError(error))
-        if (isAuthorAlreadyCompletedError(error)) {
-          addToast(AUTHOR_COMPLETED_TOAST)
-        } else {
-          addToast({ type: "error", title: "Couldn't update task" })
-        }
-      }
-      return
-    }
-
-    try {
-      await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
-      await fetchCompletedTodos()
-      addToast({ type: "success", title: "Task reopened" })
-    } catch (error) {
-      console.error("Failed to reopen todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't update task" })
-    }
-  }
+  // A viewer reopens THEIR OWN completion (clears CompletedByViewer); the owner reopens the task
+  // globally. Either is refused once the AUTHOR has completed the whole task — then it is closed
+  // for everyone and the only path forward is to duplicate it (`useTaskActions`, `reopen` rules).
+  const handleComplete = (todoId: string) =>
+    actions.complete(todosRef.current.find((t) => t.id === todoId), () => fetchCompletedTodos())
 
   const handleDuplicate = async (todoId: string) => {
     try {

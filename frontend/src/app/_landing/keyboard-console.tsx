@@ -6,6 +6,7 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useTaskActions } from "@/hooks/use-task-actions"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { KeyLegendRow, useLitKey } from "@/components/ui/key-legend"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
@@ -83,19 +84,13 @@ export function KeyboardConsole() {
     void load()
   }, [load])
 
-  const toggleComplete = async (id: string) => {
-    const task = tasks.find((t) => t.id === id)
-    if (!task) return
-    // Every task in this list is open (it is loaded with isCompleted=false), so the only
-    // direction is done — the same PUT `/tasks` sends, confirmed before the row leaves.
-    try {
-      await api.put(`/todos/api/v1/todos/${id}`, { status: "done" })
-      setTasks((prev) => prev.filter((t) => t.id !== id))
-      addToast({ type: "success", title: "Task completed" })
-    } catch {
-      addToast({ type: "error", title: "Couldn't update task" })
-    }
-  }
+  // Every task in this list is open (it is loaded with isCompleted=false), so the only
+  // direction is done — the request `/tasks` sends (`useTaskActions`), confirmed before the
+  // row leaves.
+  const actions = useTaskActions({ viewerId: DEMO_USER.userId, completion: { direction: "complete" } })
+
+  const toggleComplete = (id: string) =>
+    actions.complete(tasks.find((t) => t.id === id), () => setTasks((prev) => prev.filter((t) => t.id !== id)))
 
   // Memoised cards keep the handlers of their first render; the writer reads the list
   // through this ref, so an old handler still sees today's tasks.

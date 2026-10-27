@@ -361,6 +361,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
 | `use-new-task-shortcut.ts` | page-scoped `C` and palette requests open `CreateTodoPanel` on Dashboard or Tasks and request title focus |
 | `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
+| `use-task-actions.ts` | what a task's actions send and say on every page that shows tasks (complete / reopen); each page passes its rules and an `apply` that puts the answer into its own lists |
 
 ### `lib`
 
@@ -408,7 +409,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `tests/Planora.UnitTests` | unit and contract tests for building blocks and services, including the security-stamp, JWT-wiring and runtime contract suites |
 | `tests/Planora.ErrorHandlingTests` | middleware/error-handling and integration-style checks |
 | `frontend/src/test/components` | component tests, including `presence-row`, `redaction-badge`, `update-pill`, `selection-bar`, `shortcuts-overlay` |
-| `frontend/src/test/hooks` | hook tests, including `use-list-navigation` and [use-new-task-shortcut](../frontend/src/test/hooks/use-new-task-shortcut.test.tsx) |
+| `frontend/src/test/hooks` | hook tests, including `use-list-navigation`, [use-new-task-shortcut](../frontend/src/test/hooks/use-new-task-shortcut.test.tsx) and [use-task-actions](../frontend/src/test/hooks/use-task-actions.test.tsx) (every page rule a task action can take) |
 | `frontend/src/test/lib`, `store`, `types`, `utils`, `app` | the rest of the frontend suite |
 | `frontend/src/test/quality` | the contract tests: `design-tokens.contract.test.ts`, `usability-contract.test.tsx`, `text-limits.contract.test.ts` and `api-contract.contract.test.ts` (runtime response schemas against the C# DTOs) |
 | `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts` | Docker-backed auth/sharing/hidden flow through the API Gateway |

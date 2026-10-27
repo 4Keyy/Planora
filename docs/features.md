@@ -808,6 +808,35 @@ entry is not in a list anyone is scanning and the undo bar has nowhere to sit th
 | Bulk complete | runs the completions **sequentially**, not with `Promise.all` — the completion path refetches and rewrites the list, and ten of those racing produce ten different answers about what the list contains |
 | Keyboard | no shortcut triggers a bulk action. Every selection-bar action is a press, and the destructive one is drawn in the product's one saturated colour and placed last |
 
+### Task actions on every page
+
+Dashboard, Tasks, the archive (`/tasks/completed`), the branch page (`/branch/{id}`) and the
+landing page's keyboard console send a task's actions through one hook,
+`frontend/src/hooks/use-task-actions.ts` (audit FE-24). The hook owns the request each action sends,
+the author-closed refusal and the notices; a page keeps only how the result lands in its own lists
+(the `apply` callback) and the rules it has always had, passed where it creates the hook. Each page
+used to carry its own copy of these handlers, and the copies had drifted. The extraction kept every
+page's behaviour; the differences that remain are listed here, and each is one option at the page.
+
+**Completing and reopening** (`complete`, rules in `CompletionRules`):
+
+| | Dashboard | Tasks | Archive | Branch page | Landing console |
+|---|---|---|---|---|---|
+| Direction | both ways | both ways | reopen only | both ways | complete only (its list holds open tasks) |
+| Through the viewer's own mark (`PATCH …/viewer-preferences`) | a non-owner of a shared task | a non-owner of a shared task | every non-owner | a non-owner of a shared task | a non-owner of a shared task (its demo tasks are all the visitor's own) |
+| Otherwise | `PUT {status}` | `PUT {status}` | `PUT {status: "todo"}` | `PUT {status}` | `PUT {status: "done"}` |
+| Reads "done" from | the viewer's mark on the viewer route, the status on the status route | as Dashboard | — | the status for the owner, the viewer's own mark for any non-owner | — |
+| Refused before any request once the author closed the task | any press on the viewer route | as Dashboard | a non-owner's reopening | a non-owner's reopening only; completing it for themselves still goes through | as Dashboard |
+| After the server agrees | a completed card leaves the page and the count drops; a reopened one returns with a silent re-read of the page; the week's figures take the server's answer | a completed card leaves and the Completed row is read again; a reopened one has both lists read again; the notice waits for the reads | the archive is read again, then the notice | the task takes the server's answer (the branch is caught up on the status route) | the row leaves |
+| Failure | "Couldn't update task" | as Dashboard, also logged to the console | as Tasks | the server's message as the notice's description | as Dashboard |
+
+A task hidden by its viewer reads as unshared (its masked copy carries no audience), so on the
+lists a friend's hidden task goes through `PUT {status}`, which the server also records for that
+viewer alone. Whatever the route, a server refusal with `AUTHOR_ALREADY_COMPLETED` shows the
+"Couldn't reopen task" notice. Before the extraction only the branch page recognised it on the
+status route; on the lists and the console that route only reaches the server for the owner or to
+complete a hidden friend's task, and the server never refuses either, so nothing visible changed.
+
 ### Realtime arrivals on the task list
 
 A remote change that reconciles on arrival moves every card below the insertion point — under

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
+import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
@@ -53,6 +53,7 @@ import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
@@ -173,6 +174,7 @@ export default function TasksPage() {
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
+  const actions = useTaskActions({ viewerId: user?.userId, log: true })
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -455,67 +457,21 @@ export default function TasksPage() {
     incoming.push(signal.taskId)
   }, [incoming, fetchCompletedPreview, user?.userId]))
 
+  /*
+   * What the press sends and says is `useTaskActions`'s. Here: a completed card leaves the active
+   * list and the Completed row is read again; a reopened one has both lists read again.
+   */
   const handleComplete = async (id: string) => {
     const existingTodo = todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id)
-    if (!existingTodo) return
-
-    const currentUserId = user?.userId
-    const isOwner = isTodoOwner(existingTodo, currentUserId)
-    const isShared = existingTodo.isPublic || (existingTodo.sharedWithUserIds?.length ?? 0) > 0
-
-    if (!isOwner && isShared) {
-      const wasCompleted = existingTodo.isCompletedByViewer === true
-      // Once the author closes the whole task globally it is done for EVERYONE: block any non-owner
-      // toggle up-front (regardless of their per-viewer state) so the "can't restore" toast fires
-      // immediately instead of after a premature "Task completed!".
-      if (existingTodo.ownerCompleted === true) {
-        addToast(AUTHOR_COMPLETED_TOAST)
-        return
-      }
-      try {
-        const result = await setViewerPreference(id, { completedByViewer: !wasCompleted })
-        setTodos((prev) => prev.map((t) =>
-          t.id !== id ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }
-        ))
-        if (!wasCompleted) {
-          setTodos((prev) => prev.filter((t) => t.id !== id))
-          await fetchCompletedPreview()
-        } else {
-          await Promise.all([fetchActiveTodos({ silent: true }), fetchCompletedPreview()])
-        }
-        addToast({ type: "success", title: wasCompleted ? "Task reopened" : "Task completed" })
-      } catch (error) {
-        console.error("Failed to update viewer completion:", describeError(error))
-        if (isAuthorAlreadyCompletedError(error)) {
-          addToast(AUTHOR_COMPLETED_TOAST)
-        } else {
-          addToast({ type: "error", title: "Couldn't update task" })
-        }
-      }
-      return
-    }
-
-    const isCompleted = isCompletedTodoStatus(existingTodo.status)
-    const newStatus = isCompleted ? "todo" : "done"
-
-    try {
-      await api.put(`/todos/api/v1/todos/${id}`, { status: newStatus })
-
-      if (isCompleted) {
+    await actions.complete(existingTodo, async (done) => {
+      if (done.via === "viewer") setTodos((prev) => prev.map((t) => (t.id !== id ? t : done.patch(t))))
+      if (done.reopened) {
         await Promise.all([fetchActiveTodos({ silent: true }), fetchCompletedPreview()])
       } else {
         setTodos((prev) => prev.filter((t) => t.id !== id))
         await fetchCompletedPreview()
       }
-
-      addToast({
-        type: "success",
-        title: isCompleted ? "Task reopened" : "Task completed",
-      })
-    } catch (error) {
-      console.error("Failed to update todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't update task" })
-    }
+    })
   }
 
   const handleDuplicate = async (id: string) => {

@@ -37,7 +37,7 @@ frontend/src/
     layout/         navbar, shells
     notifications/  the bell and its dropdown
     backgrounds/    the WebGL gradient and its static fallback
-  hooks/            cross-cutting behaviour (focus trap, scroll lock, autosave)
+  hooks/            cross-cutting behaviour (focus trap, scroll lock, autosave, task actions)
   lib/              shared API/auth/configuration, formatting, tokens, geometry and realtime support
   store/            zustand stores (auth, notifications, toast)
   types/            DTO shapes shared with the backend
@@ -212,6 +212,22 @@ the middleware's `CSRF_VALIDATION_FAILED` code (`isCsrfRejection` in `lib/csrf.t
 the readable CSRF cookie and gets one retry, on a mutating request or in the public auth
 client's refresh; any other 403 (a denied action, a locked account on sign-in) surfaces at once,
 so a mutation or a password is never sent twice.
+
+### Task actions
+
+A task's actions are written once, in `hooks/use-task-actions.ts`, and every page that shows tasks
+— Dashboard, Tasks, the archive, the branch page and the landing console — wires them to its own
+state (audit FE-24). The hook sends the request, refuses what the author has closed and says what
+happened; the page passes an `apply` callback that puts the server's answer into its lists, and runs
+before the success notice so the notice never describes a list that has not changed yet. Whatever
+`apply` throws is the action's failure. An action takes the task as the page holds it now and
+does nothing when that is `undefined` — a card removed while its handler was on its way — so pages
+pass their lookup straight in instead of guarding it. Where pages have always behaved
+differently — the archive only reopens, the branch page reads a non-owner's own mark — the page
+says so in options it passes to the hook (`completion`, `log`, `describe`), and
+`docs/features.md` § Task actions on every page lists each one. The returned actions never change identity and read the latest options through a
+ref, so a memoized `TodoCard` holding an old handler still acts for today's viewer. A new page that
+acts on tasks uses this hook rather than calling `lib/api.ts` for these actions itself.
 
 ### The error-state contract
 

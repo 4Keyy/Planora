@@ -113,6 +113,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(tasks): one completion action for every page (2026-10-27)
+
+Dashboard, Tasks, the archive, the branch page and the landing console each completed and reopened
+a task with their own copy of the handler, and the copies had drifted (audit FE-24). They now share
+`complete` from `hooks/use-task-actions.ts`: it picks the route (the task's status or the viewer's
+own mark), refuses a task the author has closed before anything is sent, and says what happened;
+each page only puts the answer into its own lists. The differences the pages always had — the
+archive only reopens, the console only completes, the branch page reads a non-owner's own mark and
+refuses only their reopening — are options where each page creates the hook, listed in
+`docs/features.md`. Requests, lists and notices are unchanged on every page.
+
 ### fix(branch): a subtask can be deleted from the keyboard (2026-10-27)
 
 A subtask's delete button existed only while the pointer was over the strip at the card's right

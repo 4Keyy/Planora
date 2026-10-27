@@ -6,7 +6,7 @@ import {
   api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference,
   parseApiResponse, getApiErrorMessage, type ApiResponse,
 } from "@/lib/api"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
+import { useTaskActions } from "@/hooks/use-task-actions"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/types/todo"
@@ -62,9 +62,11 @@ export default function BranchPage() {
   useEffect(() => { void fetchCategories() }, [fetchCategories])
 
   const isOwner = todo ? isTodoOwner(todo, viewerId) : false
-
-  const statusKey = String(todo?.status ?? "").toLowerCase().replace(/\s/g, "")
-  const isShared = !!todo && (todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0)
+  // A non-owner's "done" is always their own mark here, and the server's message rides on every
+  // failure notice: the editor is the whole page, with no list behind it to explain anything.
+  const actions = useTaskActions({ viewerId, completion: { reading: "for-viewer" }, describe: true })
+  /** A change to the task on the page; there is nothing to change while there is none. */
+  const patchTodo = useCallback((change: (todo: Todo) => Todo) => setTodo((p) => (p ? change(p) : p)), [])
 
   // ── Editor actions (owner autosave + the branch's task actions) ──
   // Owner autosave: persist the full payload, preserving the current status (the editor payload
@@ -118,33 +120,17 @@ export default function BranchPage() {
     } catch (e) { addToast({ type: "error", title: "Couldn't stop working", description: getApiErrorMessage(e, "Couldn't stop working") }) }
   }, [todo, isOwner, patchStatus, load, addToast])
 
-  const handleComplete = useCallback(async () => {
-    if (!todo) return
-    const completed = isOwner
-      ? (statusKey === "done" || statusKey === "completed")
-      : (todo.isCompletedByViewer ?? false)
-    // A viewer may reopen THEIR OWN completion — unless the author has completed the whole task
-    // globally, in which case it is closed for everyone and they must duplicate it instead.
-    if (completed && !isOwner && todo.ownerCompleted === true) {
-      addToast(AUTHOR_COMPLETED_TOAST)
-      return
+  // A viewer may reopen THEIR OWN completion — unless the author has completed the whole task
+  // globally, in which case it is closed for everyone and they must duplicate it instead
+  // (`useTaskActions`, `for-viewer` reading).
+  const handleComplete = useCallback(() => actions.complete(todo, (done) => {
+    if (done.via === "viewer") {
+      patchTodo(done.patch)
+    } else {
+      setTodo(done.updated)
+      setRefreshKey((k) => k + 1)
     }
-    try {
-      if (!isOwner && isShared) {
-        const r = await setViewerPreference(todo.id, { completedByViewer: !completed })
-        setTodo((p) => (p ? { ...p, isCompletedByViewer: r.completedByViewer ?? false, ownerCompleted: r.ownerCompleted } : p))
-      } else {
-        await patchStatus(completed ? "todo" : "done")
-      }
-      addToast({ type: "success", title: completed ? "Task reopened" : "Task completed" })
-    } catch (e) {
-      if (isAuthorAlreadyCompletedError(e)) {
-        addToast(AUTHOR_COMPLETED_TOAST)
-      } else {
-        addToast({ type: "error", title: "Couldn't update task", description: getApiErrorMessage(e, "Couldn't update task") })
-      }
-    }
-  }, [todo, isOwner, isShared, statusKey, patchStatus, addToast])
+  }), [todo, actions, patchTodo])
 
   const handleDuplicate = useCallback(async () => {
     if (!todo) return
@@ -181,7 +167,7 @@ export default function BranchPage() {
             onStartWork={handleStartWork}
             onCompleteTask={handleComplete}
             onDuplicate={handleDuplicate}
-            onDescriptionChange={(desc: string) => setTodo((p) => (p ? { ...p, description: desc } : p))}
+            onDescriptionChange={(desc: string) => patchTodo((t) => ({ ...t, description: desc }))}
           />
         </BranchCard>
       )}

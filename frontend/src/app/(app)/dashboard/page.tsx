@@ -9,7 +9,7 @@ import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } f
 import axios from "axios"
 import { api, parseApiResponse, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
+import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,7 @@ import { useNewTaskShortcut } from "@/hooks/use-new-task-shortcut"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
@@ -157,6 +158,7 @@ export default function DashboardPage() {
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
+  const actions = useTaskActions({ viewerId: user?.userId })
   const [mounted, setMounted] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
   const firstRunAutoOpenedRef = useRef(false)
@@ -522,73 +524,28 @@ export default function DashboardPage() {
     })
   }, [undoable, addToast])
 
+  /*
+   * What the press sends and says is `useTaskActions`'s; here only where it lands. A completed card
+   * leaves the active page at once and a reopened one comes back with the page's next read, while
+   * the week's numbers take the server's answer.
+   */
   const handleComplete = useCallback(async (todoId: string) => {
     const existing = todosRef.current.find(t => t.id === todoId) || statsTodosRef.current.find(t => t.id === todoId)
-    if (!existing) return
-
-    const isOwner = isTodoOwner(existing, user?.userId)
-    const isShared = existing.isPublic || (existing.sharedWithUserIds?.length ?? 0) > 0
-
-    // Non-owner viewing a shared task: toggle per-viewer completion only
-    if (!isOwner && isShared) {
-      const wasCompleted = existing.isCompletedByViewer === true
-      // Once the author closes the whole task globally it is done for EVERYONE: a non-owner can
-      // neither reopen nor re-complete it, so block any toggle up-front (regardless of their own
-      // per-viewer state) and tell them to duplicate instead — no premature "Task completed!" toast.
-      if (existing.ownerCompleted === true) {
-        addToast(AUTHOR_COMPLETED_TOAST)
-        return
-      }
-      try {
-        const result = await setViewerPreference(todoId, { completedByViewer: !wasCompleted })
-        if (!wasCompleted) {
-          setTodos(prev => prev.filter(t => t.id !== todoId))
-          setTotalCount(prev => Math.max(0, prev - 1))
-        } else {
-          void fetchTodos(undefined, { silent: true })
-        }
-        setStatsTodos(prev => prev.map(t =>
-          t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }
-        ))
-        addToast({ type: "success", title: wasCompleted ? "Task reopened" : "Task completed" })
-      } catch (e) {
-        if (isAuthorAlreadyCompletedError(e)) {
-          addToast(AUTHOR_COMPLETED_TOAST)
-        } else {
-          addToast({ type: "error", title: "Couldn't update task" })
-        }
-      }
-      return
-    }
-
-    const status = String(existing.status).toLowerCase()
-    const isCompleted = status === "done" || status === "completed"
-    const newStatus = isCompleted ? "todo" : "done"
-
-    try {
-      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, { status: newStatus })
-      const updated = parseApiResponse(res.data)
-
-      if (!isCompleted) {
+    await actions.complete(existing, (done) => {
+      if (!done.reopened) {
         setTodos(prev => prev.filter(t => t.id !== todoId))
         setTotalCount(prev => Math.max(0, prev - 1))
       } else {
         void fetchTodos(undefined, { silent: true })
       }
-
       setStatsTodos(prev => prev.map(t => {
         if (t.id !== todoId) return t
-        const authorName = t.authorName ?? friendNameCache.current.get(updated.userId)
-        return { ...updated, authorName }
+        if (done.via === "viewer") return done.patch(t)
+        const authorName = t.authorName ?? friendNameCache.current.get(done.updated.userId)
+        return { ...done.updated, authorName }
       }))
-      addToast({
-        type: "success",
-        title: isCompleted ? "Task reopened" : "Task completed",
-      })
-    } catch {
-      addToast({ type: "error", title: "Couldn't update task" })
-    }
-  }, [user?.userId, addToast, fetchTodos])
+    })
+  }, [actions, fetchTodos])
 
 
   const handleUpdate = async (todoId: string, payload: UpdateTodoPayload) => {
