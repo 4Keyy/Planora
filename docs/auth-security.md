@@ -586,6 +586,13 @@ response contract check — and every form message stays the same. The
 [zod review](../.github/security/zod-2026-10.md) records the exposure, the behaviour checked and the
 verification.
 
+The `undici` override moved from 7.30.0 to 7.30.1 for three advisories the full audit reported
+(GHSA-xjj6-f33q-929c high; GHSA-4qv8-2p9j-2685 and GHSA-f72v-6w45-q472 moderate). undici is used
+only by jsdom in the unit tests; the production graph was already clean. The
+[undici review](../.github/security/undici-2026-10.md) has the details. The same change moved
+postcss-selector-parser, used by Tailwind 3, from 6.1.4 to 6.1.5 within Tailwind's range for
+GHSA-rj75-hqrm-r3gf (moderate); with both, the full audit reports no vulnerable package.
+
 ## Frozen All friends Authorization
 
 `TodoAccessPolicy` applies the same rule to runtime guards and translated list predicates:

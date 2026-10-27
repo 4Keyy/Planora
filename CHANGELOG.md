@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(security): the full dependency audit is clean (2026-10-27)
+
+The full audit reported undici 7.30.0 — used only by jsdom in the unit tests — for one high and two
+moderate advisories, and postcss-selector-parser 6.1.4, used by Tailwind 3, for a moderate one. The
+undici override moves to 7.30.1 and postcss-selector-parser to 6.1.5, which fix them; the full
+audit now reports no vulnerable package. The production graph was already clean.
+
 ### build(deps): react-hook-form 7.91.0 (2026-10-27)
 
 The forms move to react-hook-form 7.91.0, the one update in Dependabot's regenerated group (#142)

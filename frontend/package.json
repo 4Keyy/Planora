@@ -63,6 +63,6 @@
   },
   "overrides": {
     "postcss": "8.5.31",
-    "undici": "7.30.0"
+    "undici": "7.30.1"
   }
 }
