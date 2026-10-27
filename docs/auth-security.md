@@ -399,6 +399,15 @@ accepts individual IP addresses with `IPAddress.TryParse`, **not CIDR ranges** d
 comments suggesting CIDR support. Configure actual trusted proxy addresses and verify
 `RemoteIpAddress`; otherwise multiple clients can share one proxy bucket.
 
+Behind the gateway the Auth service sees the gateway's address, so its anonymous per-IP
+windows (`auth` for refresh, `login`, `register`, `client-errors`) would otherwise be one
+bucket for every client. The anonymous Auth routes in `ocelot.json` / `ocelot.Docker.json`
+(`/auth/api/v1/auth/*`, `/auth/api/v1/users/verify-email`, `/auth/api/v1/client-errors`) set
+`UpstreamHeaderTransform: { "X-Forwarded-For": "{RemoteIpAddress}" }`: the header is
+replaced with the address the gateway itself resolved, so a client cannot spoof it. Auth
+honours it only from a trusted proxy — loopback by default (the local launcher), and the
+gateway's address in `ForwardedHeaders:KnownProxies` in Docker or on Fly.
+
 Gateway and service rejections return `429` with `Retry-After` and JSON
 `{ "error": "Too many requests. Please try again later.", "retryAfter": <seconds> }`.
 Both values use the rejecting lease's `RetryAfter` metadata, rounded up to whole seconds
