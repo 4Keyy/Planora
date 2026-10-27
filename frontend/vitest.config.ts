@@ -36,10 +36,10 @@ export default defineConfig({
       thresholds: {
         lines: 88,
         functions: 81,
-        branches: 78,
+        branches: 79,
         statements: 85,
         '!src/{app,components/todos/edit-todo-modal}/**': { lines: 85, functions: 85, branches: 85, statements: 85 },
-        'src/components/todos/edit-todo-modal/**': { lines: 78, functions: 63, branches: 67, statements: 72 },
+        'src/components/todos/edit-todo-modal/**': { lines: 79, functions: 64, branches: 67, statements: 73 },
         // The root layout and landing composition are framework entry points (next/font, the
         // landing's blocks); the build and the E2E landing specs exercise them.
         'src/app/*.{ts,tsx}': { lines: 18, functions: 16, branches: 9, statements: 16 },

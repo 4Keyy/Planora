@@ -290,6 +290,12 @@ participants.
 - the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
   Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
   **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
+- the delete panel slides in while the pointer is over the **50px strip** at the card's right edge,
+  or while **keyboard focus** is on its **"Delete subtask"** button: the button stays mounted,
+  parked outside the strip that clips it (so the pointer cannot hit it until it slides in), and is
+  the **last Tab stop in the card**, after Reply and the work controls; Enter or Space deletes.
+  Focus from a pointer press does not hold the panel open (`isKeyboardFocus`, the browser's
+  `:focus-visible`). The button exists only for the parent owner or the subtask's creator;
 - a subtask is **taken into work and completed through that one marker — exactly like a normal
   task, with no separate "lightning" button.** The first click on an idle subtask **takes it into
   work** (per-user join; hovering an idle marker hints this with a small amber dot, not a bolt); a

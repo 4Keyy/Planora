@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(branch): a subtask can be deleted from the keyboard (2026-10-27)
+
+A subtask's delete button existed only while the pointer was over the strip at the card's right
+edge, so neither the keyboard nor a screen reader could reach it. The button now stays in the card,
+parked outside the strip, as the last Tab stop after Reply and the work controls; reaching it
+slides in the same red panel, and Enter or Space deletes. Pointer users see what they saw before,
+since focus from a press does not hold the panel open, and only the task owner or the subtask's
+creator gets the button.
+
 ### fix(security): the full dependency audit is clean (2026-10-27)
 
 The full audit reported undici 7.30.0 — used only by jsdom in the unit tests — for one high and two

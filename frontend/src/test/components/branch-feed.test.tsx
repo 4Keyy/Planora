@@ -93,8 +93,9 @@ function serve(comments: TodoComment[], subtasks: Todo[] = []) {
 const hoverUser = () => userEvent.setup({ skipHover: true })
 
 /**
- * A subtask's delete button slides in only while the pointer is over a 50px strip at the card's
- * right edge, which has no role or name of its own: found here by its position.
+ * A subtask's delete button stays mounted but parked outside a 50px strip at the card's right
+ * edge, which clips it. The pointer slides it in by hovering that strip, keyboard focus by
+ * reaching the button. The strip has no role or name of its own: found here by its position.
  */
 function deleteStripOf(title: string): HTMLElement {
   let node: HTMLElement | null = screen.getByText(title)
@@ -105,6 +106,15 @@ function deleteStripOf(title: string): HTMLElement {
     node = node.parentElement
   }
   throw new Error(`no delete strip around "${title}"`)
+}
+
+/** Where the delete button sits: parked to the right of its clipping strip, or slid in. */
+const PARKED = { transform: "translateX(100%)" }
+const SLID_IN = { transform: "none" }
+
+async function tabTo(user: ReturnType<typeof userEvent.setup>, target: HTMLElement) {
+  for (let presses = 0; presses < 40 && document.activeElement !== target; presses++) await user.tab()
+  expect(target).toHaveFocus()
 }
 
 function renderFeed(props: Partial<ComponentProps<typeof BranchFeed>> = {}) {
@@ -292,15 +302,84 @@ describe("BranchFeed", () => {
     renderFeed()
 
     await screen.findByText("Book the venue")
-    await user.hover(deleteStripOf("Book the venue"))
-    await user.click(await screen.findByRole("button", { name: "Delete subtask" }))
+    const venueStrip = deleteStripOf("Book the venue")
+    await user.hover(venueStrip)
+    await user.click(within(venueStrip).getByRole("button", { name: "Delete subtask" }))
     await waitFor(() => expect(screen.queryByText("Book the venue")).not.toBeInTheDocument())
     expect(api.deleteSubtask).toHaveBeenCalledWith("s-1")
 
-    await user.hover(deleteStripOf("Send invites"))
-    await user.click(await screen.findByRole("button", { name: "Delete subtask" }))
+    const invitesStrip = deleteStripOf("Send invites")
+    await user.hover(invitesStrip)
+    await user.click(within(invitesStrip).getByRole("button", { name: "Delete subtask" }))
     expect(await screen.findByText("Only the author can delete this subtask")).toBeInTheDocument()
     expect(screen.getByText("Send invites")).toBeInTheDocument()
+  })
+
+  it("deletes a subtask from the keyboard alone, the panel sliding in when Tab reaches it", async () => {
+    const user = userEvent.setup()
+    serve([], [subtask()])
+    api.deleteSubtask.mockResolvedValue(undefined)
+    renderFeed()
+    await screen.findByText("Book the venue")
+
+    // The delete button comes last in the card, after the controls the card already had.
+    const [marker] = screen.getAllByRole("button", { name: "Take subtask into work" })
+    await tabTo(user, marker)
+    for (const name of ["Edit subtask", "Reply to subtask", "Take subtask into work", "Delete subtask"]) {
+      await user.tab()
+      expect(document.activeElement).toHaveAccessibleName(name)
+    }
+    const remove = screen.getByRole("button", { name: "Delete subtask" })
+    await waitFor(() => expect(remove).toHaveStyle(SLID_IN))
+
+    await user.tab({ shift: true })
+    await waitFor(() => expect(remove).toHaveStyle(PARKED))
+    await user.tab()
+    await waitFor(() => expect(remove).toHaveStyle(SLID_IN))
+
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(screen.queryByText("Book the venue")).not.toBeInTheDocument())
+    expect(api.deleteSubtask).toHaveBeenCalledWith("s-1")
+  })
+
+  it("slides the delete panel in for the pointer only over the strip, and pointer focus does not hold it", async () => {
+    const user = userEvent.setup()
+    serve([], [subtask()])
+    renderFeed()
+    const title = await screen.findByText("Book the venue")
+    const remove = screen.getByRole("button", { name: "Delete subtask" })
+    expect(remove).toHaveStyle(PARKED)
+
+    // The card's own actions hide under an open panel, so showing them means it is closed.
+    const cardActions = screen.getByRole("button", { name: "Edit subtask" }).parentElement!
+    await user.hover(title)
+    expect(cardActions).toHaveStyle({ opacity: "1" })
+    expect(remove).toHaveStyle(PARKED)
+    await user.hover(deleteStripOf("Book the venue"))
+    expect(cardActions).toHaveStyle({ opacity: "0" })
+    await waitFor(() => expect(remove).toHaveStyle(SLID_IN))
+
+    // Pressing the button focuses it, as a click does on Windows; dragging off before letting go
+    // must park the panel all the same, because that focus came from the pointer.
+    await user.pointer({ keys: "[MouseLeft>]", target: remove })
+    expect(remove).toHaveFocus()
+    await user.pointer({ target: title })
+    await user.pointer({ keys: "[/MouseLeft]", target: title })
+    await waitFor(() => expect(remove).toHaveStyle(PARKED))
+    expect(remove).toHaveFocus()
+    expect(api.deleteSubtask).not.toHaveBeenCalled()
+  })
+
+  it("gives the delete button only to the task owner or the subtask's creator", async () => {
+    serve([], [
+      subtask({ title: "Mine" }),
+      subtask({ id: "s-2", title: "Ada's", userId: "user-ada", createdByUserId: "user-ada", createdAt: "2026-10-26T08:30:00Z" }),
+    ])
+    renderFeed({ isOwner: false })
+    await screen.findByText("Ada's")
+
+    expect(screen.getAllByRole("button", { name: "Delete subtask" })).toHaveLength(1)
+    expect(within(deleteStripOf("Mine")).getByRole("button", { name: "Delete subtask" })).toBeInTheDocument()
   })
 
   it("writes the task description from the + menu and reloads the note", async () => {

@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { FriendAvatar } from "./friend-avatar"
+import { isKeyboardFocus } from "@/components/layout/droplet"
 import { tokens } from "@/lib/design-tokens"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
@@ -2210,6 +2211,9 @@ function SubtaskCard({
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
+  // Keyboard focus on the delete button slides its panel in, as the pointer does over the strip.
+  const [deleteFocused, setDeleteFocused] = useState(false)
+  const deleteOpen = deleteHovered || deleteFocused
   const [workPillHovered, setWorkPillHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(subtask.title)
@@ -2423,8 +2427,8 @@ function SubtaskCard({
           {!editing && isOwner && (
             <div style={{
               display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginTop: 1,
-              opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
-              pointerEvents: hovered && !deleteHovered ? "auto" : "none",
+              opacity: hovered && !deleteOpen ? 1 : 0, transition: "opacity 140ms",
+              pointerEvents: hovered && !deleteOpen ? "auto" : "none",
             }}>
               <SubtaskIconButton label="Edit subtask" title="Edit" color="var(--pl-ink-muted)" hoverBg="var(--pl-line)" onClick={beginEdit} disabled={pending}>
                 <Pencil size={13} strokeWidth={2} />
@@ -2555,7 +2559,11 @@ function SubtaskCard({
             </div>
           )}
 
-          {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel */}
+          {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel.
+              The button stays mounted, parked to the right of the strip that clips it, so Tab
+              reaches it last in the card (the pointer cannot: a clipped button takes no hits).
+              Keyboard focus slides it in; focus from a press does not, so a pointer that drags
+              off the strip parks it just as before. */}
           {isOwner && !editing && (
             <div
               onMouseEnter={() => setDeleteHovered(true)}
@@ -2567,42 +2575,39 @@ function SubtaskCard({
                 overflow: "hidden", cursor: pending ? "default" : "pointer",
               }}
             >
-              <AnimatePresence>
-                {deleteHovered && (
-                  <motion.button
-                    key="sub-delete-panel"
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
-                    disabled={pending}
-                    aria-label="Delete subtask"
-                    variants={{
-                      hidden: { x: "100%", transition: TWEEN_EXIT },
-                      visible: { x: 0, transition: TWEEN_UI },
-                    }}
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                    whileHover={{ filter: "brightness(1.1)" }}
-                    style={{
-                      position: "absolute", inset: 0, border: "none", padding: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "var(--pl-paper)", cursor: pending ? "default" : "pointer",
-                      background: "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 38%, var(--pl-alert) 100%)",
-                      
-                    }}
-                  >
-                    <motion.div
-                      variants={{
-                        hidden: { scale: 0.5, opacity: 0, y: 6 },
-                        visible: { scale: 1, opacity: 1, y: 0, transition: { ...SPRING_RESPONSIVE, delay: 0.06 } },
-                      }}
-                      style={{ display: "flex" }}
-                    >
-                      {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
-                    </motion.div>
-                  </motion.button>
-                )}
-              </AnimatePresence>
+              <motion.button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
+                onFocus={(e) => setDeleteFocused(isKeyboardFocus(e.currentTarget))}
+                onBlur={() => setDeleteFocused(false)}
+                disabled={pending}
+                aria-label="Delete subtask"
+                // Ring inside the edge: the strip clips its overflow, which would cut an outward one away.
+                className="focus-visible:-outline-offset-2"
+                variants={{
+                  hidden: { x: "100%", transition: TWEEN_EXIT },
+                  visible: { x: 0, transition: TWEEN_UI },
+                }}
+                initial="hidden"
+                animate={deleteOpen ? "visible" : "hidden"}
+                whileHover={{ filter: "brightness(1.1)" }}
+                style={{
+                  position: "absolute", inset: 0, border: "none", padding: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--pl-paper)", cursor: pending ? "default" : "pointer",
+                  background: "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 38%, var(--pl-alert) 100%)",
+                }}
+              >
+                <motion.div
+                  variants={{
+                    hidden: { scale: 0.5, opacity: 0, y: 6 },
+                    visible: { scale: 1, opacity: 1, y: 0, transition: { ...SPRING_RESPONSIVE, delay: 0.06 } },
+                  }}
+                  style={{ display: "flex" }}
+                >
+                  {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
+                </motion.div>
+              </motion.button>
             </div>
           )}
         </div>

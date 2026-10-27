@@ -655,9 +655,13 @@ their rollbacks, writing and editing the author's note, the warning before compl
 open subtasks, and loading earlier messages. A message's actions exist only while it is hovered,
 and a plain `user.click` moves the pointer first — React reads that move as leaving the row, so the
 buttons unmount before the click lands; those cases use `userEvent.setup({ skipHover: true })` and
-hover the row themselves. A subtask's delete button appears only while the pointer is over a 50px
-strip at the card's right edge, which has no role or name; the test finds the strip by its position,
-and the strip is the only way to delete a subtask — there is no keyboard path to it.
+hover the row themselves. A subtask's delete button stays mounted but parked outside a 50px strip
+at the card's right edge, which clips it; the strip has no role or name, so the tests find it by its
+position. They delete a subtask through the strip with the pointer and with the keyboard alone (Tab
+past the card's own controls to "Delete subtask", then Enter), read the button's `transform` to
+check that the panel slides in only over the strip or under keyboard focus — focus from a pointer
+press does not hold it — and check that only the task owner or the subtask's creator gets the
+button.
 
 Layout and motion that jsdom cannot measure are covered by `frontend/e2e/ui/motion-geometry.ui.spec.ts` against a production frontend and real services. Its create-panel checks seed nine tasks and verify unfocused opening and type-to-focus. Its separate two-user API fixtures exercise own, friend take-it, in-progress, completed, revealed, tall/Expected, multi-line title and unread-cluster cards on `/tasks` (including its completed preview), `/dashboard` and `/tasks/completed`, at widths 390/768/1280/1600 and DPR 1/1.25/1.5/2. All possible states are measured on first/repeated mounts after entrance and during card, circle and eye hover; only states excluded by the page's actual filters are N/A. Rect assertions require centre error ≤0.5 CSS px, eye insets 23px left / 22px bottom, actual semantic hit areas ≥44px without intersection, preserved circle spring, a minimal 160px short active card, unchanged hover/repeat heights and zero CLS in each settled control window. Programmatic scroll and its intentional fixed-bar morph finish before that window. Every case saves a credential-free `card-geometry.json` with measurements, layout-shift sources and captured real rate-limit cooldowns. The droplet test reads each frame after RAF writers and uses actual sample timestamps; it retains the early peak and adjacent-displacement checks that reject the recorded late 70.6px snap. Unavailable services and failures other than a captured real 429 fail the suite; limiter settings and API responses are not mocked.
 
@@ -1039,14 +1043,14 @@ Frontend coverage:
   `profile`, `tasks`) are held at their measured level less half a point, rounded down —
   a ratchet: raise a number when tests raise coverage, never lower one. Vitest checks the
   global numbers against every file, so they too are the measured level of the whole
-  frontend (88 / 81 / 78 / 85 lines / functions / branches / statements). Globs use `*`
+  frontend (88 / 81 / 79 / 85 lines / functions / branches / statements). Globs use `*`
   for the `(app)` segment, because picomatch reads parentheses as a pattern group. The
   root layout and landing composition (`src/app/*.tsx`) are framework entry points that
   the build and the E2E landing specs exercise; they are held at their low measured level;
-- on 2026-10-27, 166 files / 2,165 tests measured lines 89.04%, statements 86.14%,
-  branches 79.44% and functions 82.19% over the whole frontend, and at least 70% of lines
-  in every page directory and the editor (dashboard 78.1, tasks 73.5, profile 74.7,
-  branch 87.6, categories 70.4, landing 75.4, editor 79.3);
+- on 2026-10-27, after the subtask keyboard-delete tests, 166 files / 2,168 tests measured
+  lines 89.06%, statements 86.17%, branches 79.55% and functions 82.32% over the whole
+  frontend, and at least 70% of lines in every page directory and the editor (dashboard
+  78.1, tasks 73.5, profile 74.7, branch 87.6, categories 70.4, landing 75.4, editor 79.5);
 - per-test timeout: 15 s (`testTimeout`). The heaviest jsdom tests render whole editors,
   panels and pages; under V8 instrumentation with every worker busy they ran past Vitest's
   default 5 s on an ordinary laptop, failing different tests on every run (on an unchanged
