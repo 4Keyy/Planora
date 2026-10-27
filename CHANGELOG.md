@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(notices): closing the Undo notice deletes the task (2026-10-27)
+
+Closing a "Task deleted" notice with ✕, Escape or a flick took it away but did not send the
+deletion: reading the notices had paused its five-second window, and nothing resumed it. The task
+was deleted only when you left the page, and closing the tab kept it. Closing the notice now
+deletes the task at once.
+
 ### fix(dashboard): Try again brings the tasks back (2026-10-27)
 
 When the dashboard could not read your tasks it offered **Try again**, but the retry only read the

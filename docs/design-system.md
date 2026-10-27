@@ -693,6 +693,7 @@ delete with a "restore" button would be a lie.
 |---|---|---|
 | A second action starts | The first commits immediately | Dropping it loses a deletion silently; queueing stacks bars nobody can read |
 | The component unmounts | Anything pending commits | Navigating away is not taking it back |
+| Its notice is closed (✕, Escape, a flick) | It commits at once | Closing the offer accepts it |
 | The server refuses after the window | The card comes back | Better than leaving the user believing a task is gone when it is not |
 | A whole selection is deleted | **One** action carrying every id | Looping the single-action hook would commit all but the last instantly |
 
@@ -1391,11 +1392,15 @@ Three cases the hook handles deliberately:
 |---|---|---|
 | A second action starts while one is pending | The first commits immediately | Dropping it loses a deletion silently; queueing stacks bars nobody can read |
 | The component unmounts | Anything pending commits | Navigating away is not taking it back |
+| Its notice is closed — the ✕, Escape or a flick | The action commits at once | Closing the offer accepts it. Reading the stack holds the window, and a notice that is gone never releases it: until 2026-10-27 the request waited for the page to unmount, and closing the tab lost it |
 | The server refuses after the window closed | The card comes back | Better than leaving the user believing a task is gone when it is not |
 
 The offer is a notice (above): `UndoBar` puts it into the stack and takes it out again,
 and renders nothing itself. Its ring is the window, and the window holds while the stack
-is being read — `useUndoableAction` exposes `hold` / `release` for that.
+is being read — `useUndoableAction` exposes `hold` / `release` for that, and `settle`, which
+`UndoBar` (`onDismiss`) calls with the action whose notice was closed. `settle` does nothing when
+another action, or none, is pending, so a notice that leaves because its action was undone,
+committed or replaced commits nothing.
 
 **Confirmation still guards what this cannot.** Deleting an account and revoking every
 session are irreversible on the server, and five seconds is not consent.

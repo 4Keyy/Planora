@@ -1230,7 +1230,7 @@ export default function TasksPage() {
         ]}
       />
 
-      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} onDismiss={undoable.settle} />
 
       <CategoryFilterModal
         isOpen={isCategoryModalOpen}

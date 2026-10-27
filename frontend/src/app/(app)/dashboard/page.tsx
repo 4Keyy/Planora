@@ -1113,7 +1113,7 @@ export default function DashboardPage() {
           owns the screen. */}
       <KeyHintsDock hidden={!!editingTodo || isCreateOpen} />
 
-      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} onDismiss={undoable.settle} />
 
     </div>
   )

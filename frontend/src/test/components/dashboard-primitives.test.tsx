@@ -116,7 +116,7 @@ function UndoHarness({ onCommit, onRollback }: { onCommit: () => void; onRollbac
       <button onClick={() => undoable.run({ label: "Task deleted", commit: onCommit, rollback: onRollback })}>
         delete
       </button>
-      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} onDismiss={undoable.settle} />
       <Toaster />
     </>
   )
@@ -208,6 +208,46 @@ describe("UndoBar", () => {
     act(() => (document.activeElement as HTMLElement).blur())
     act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS + 50))
     await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
+  })
+
+  // Closing the offer — the ✕, Escape or a flick — accepts the deletion. Reading the stack had
+  // stopped the window's clock, and a notice that is gone never resumes it: the deletion used to
+  // wait for the page to unmount, and closing the tab lost it.
+  it.each([
+    ["the close button", async () => { await userEvent.click(screen.getByRole("button", { name: "Dismiss notification" })) }],
+    ["Escape", async () => { await userEvent.keyboard("{Escape}") }],
+  ])("sends the deletion at once when the notice is closed with %s", async (_how, close) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const commit = vi.fn()
+    const rollback = vi.fn()
+    render(<UndoHarness onCommit={commit} onRollback={rollback} />)
+    await userEvent.click(screen.getByText("delete"))
+    await screen.findByRole("status")
+
+    act(() => screen.getByRole("button", { name: /Undo/ }).focus())
+    await close()
+
+    await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS * 2))
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(rollback).not.toHaveBeenCalled()
+  })
+
+  it("sends a superseded deletion once and leaves the new one its window", async () => {
+    // The first offer's notice leaves when the second deletion replaces it; that is not the
+    // person closing the second one.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const commit = vi.fn()
+    render(<UndoHarness onCommit={commit} onRollback={vi.fn()} />)
+
+    await userEvent.click(screen.getByText("delete"))
+    await userEvent.click(screen.getByText("delete"))
+    await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS - 500))
+    expect(commit).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(600))
+    await waitFor(() => expect(commit).toHaveBeenCalledTimes(2))
   })
 })
 

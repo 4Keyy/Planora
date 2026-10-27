@@ -117,6 +117,25 @@ export function useUndoableAction() {
     schedule(remaining.current)
   }, [schedule])
 
+  /**
+   * Commits `action` now, if it is still the pending one: its notice was closed — the ✕,
+   * Escape or a flick — which accepts the deletion rather than waiting out the window.
+   *
+   * Reading the stack holds the window, and a notice that is gone never releases it, so a
+   * closed offer used to keep its request until the page unmounted; closing the tab lost it.
+   * A notice that leaves because its action was undone, committed or superseded finds another
+   * action pending, or none, and does nothing.
+   */
+  const settle = useCallback(
+    (action: PendingAction) => {
+      if (current.current !== action) return
+      take()
+      void action.commit()
+      setPending(null)
+    },
+    [take],
+  )
+
   const undo = useCallback(() => {
     const undone = take()
     if (!undone) return
@@ -139,32 +158,35 @@ export function useUndoableAction() {
     [take],
   )
 
-  return { pending, run, undo, hold, release }
+  return { pending, run, undo, hold, release, settle }
 }
 
 /**
  * Puts the pending action's offer into the notice stack, and takes it out again when the
  * window closes or the action is taken back. Renders nothing itself: the `Toaster` in the
  * root layout draws every notice. `onHold` / `onRelease` pause the window while the stack
- * is being read — pass the hook's `hold` and `release`.
+ * is being read — pass the hook's `hold` and `release` — and `onDismiss` receives the action
+ * whose notice was closed: pass the hook's `settle`.
  */
 export function UndoBar({
   pending,
   onUndo,
   onHold,
   onRelease,
+  onDismiss,
 }: {
   pending: PendingAction | null
   onUndo: () => void
   onHold?: () => void
   onRelease?: () => void
+  onDismiss?: (action: PendingAction) => void
 }) {
   const id = `undo-${useId()}`
   const addToast = useToastStore((state) => state.addToast)
   const removeToast = useToastStore((state) => state.removeToast)
   // The latest handlers, read when they fire: the notice outlives the render that made it.
-  const handlers = useRef({ onUndo, onHold, onRelease })
-  handlers.current = { onUndo, onHold, onRelease }
+  const handlers = useRef({ onUndo, onHold, onRelease, onDismiss })
+  handlers.current = { onUndo, onHold, onRelease, onDismiss }
 
   useEffect(() => {
     if (!pending) return
@@ -178,6 +200,7 @@ export function UndoBar({
       countdown: true,
       onPause: () => handlers.current.onHold?.(),
       onResume: () => handlers.current.onRelease?.(),
+      onDismiss: () => handlers.current.onDismiss?.(pending),
     })
     return () => removeToast(id)
   }, [pending, id, addToast, removeToast])
