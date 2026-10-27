@@ -25,13 +25,14 @@ import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useFriends } from "@/hooks/use-friends"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
-import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api } from "@/lib/api"
 import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, SPRING_STANDARD } from "@/lib/animations"
 import { originTransform, type OriginRect, type OriginTransform } from "@/lib/shared-origin"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import type { FriendDto } from "@/types/auth"
-import { toCategoryList, type Category, type CategoryListResponse } from "@/types/category"
+import type { Category } from "@/types/category"
+import { getCachedCategories } from "@/hooks/use-categories"
 import type { PagedTodosResponse, Todo } from "@/types/todo"
 import { EmptyState, Footer, RollingHint, ScopeBar, ScopeChip, SkeletonRows, TabBar, ViewChips } from "./chrome"
 import { Preview } from "./preview"
@@ -102,8 +103,6 @@ export function requestPalette(from?: HTMLElement | null): void {
 // ─── Data ───────────────────────────────────────────────────────────────────
 
 const TODOS_URL = "/todos/api/v1/todos"
-const CATEGORIES_URL = "/categories/api/v1/categories"
-
 /** The screens that mount New task; anywhere else the request waits for Tasks. */
 const CREATE_ROUTES = new Set(["/dashboard", "/tasks"])
 
@@ -126,6 +125,8 @@ const quiet = (params?: Record<string, unknown>) => ({ params, suppressErrorLog:
  * searches tasks, and one that cannot reach the tasks at all is still a palette
  * of screens and shortcuts. One page of each is plenty — a task that is not among
  * the hundred most recent open ones wants the task list, not a longer dropdown.
+ * The categories come from the list every screen shares (`use-categories.ts`), usually
+ * already in memory.
  *
  * `revealHidden`: the lists send a hidden task redacted ("Hidden task", nothing else)
  * so that a list never holds what its owner hid. The palette is the one place a hidden
@@ -137,7 +138,7 @@ async function readSnapshot(): Promise<Snapshot> {
   const [open, done, categories] = await Promise.allSettled([
     api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 100, isCompleted: false, revealHidden: true })),
     api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 30, isCompleted: true, revealHidden: true })),
-    api.get<ApiResponse<CategoryListResponse>>(CATEGORIES_URL, quiet()),
+    getCachedCategories(),
   ])
 
   // Deduplicated by id, open first: a task shared with the viewer can arrive both as
@@ -153,9 +154,7 @@ async function readSnapshot(): Promise<Snapshot> {
     }
   }
 
-  const list = categories.status === "fulfilled"
-    ? toCategoryList(parseApiResponse<CategoryListResponse>(categories.value.data))
-    : []
+  const list = categories.status === "fulfilled" ? categories.value : []
   return {
     todos,
     categories: list.filter((c) => Boolean(c?.id) && typeof c.name === "string" && c.name.trim() !== ""),

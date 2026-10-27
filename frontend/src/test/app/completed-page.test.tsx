@@ -7,6 +7,7 @@ import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { ensureFriendNames } from "@/lib/friend-names"
+import { resetCategoriesCache } from "@/hooks/use-categories"
 import type { Todo } from "@/types/todo"
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }))
@@ -86,6 +87,8 @@ describe("Completed page stable loading", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    // The category list is shared and kept in memory; each test reads its own.
+    resetCategoriesCache()
     useToastStore.setState({ toasts: [] })
     vi.mocked(ensureFriendNames).mockResolvedValue(undefined)
     useAuthStore.setState({

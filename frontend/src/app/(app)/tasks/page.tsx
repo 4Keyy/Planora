@@ -19,7 +19,7 @@ import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { useToastStore } from "@/store/toast"
-import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
+import { useCategories } from "@/hooks/use-categories"
 import dynamic from "next/dynamic"
 // Heavy task-editing components are lazy-loaded: they only mount when the user
 // opens the create panel or clicks edit on a card, so deferring their JS
@@ -153,7 +153,8 @@ export default function TasksPage() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [completedPreview, setCompletedPreview] = useState<Todo[]>([])
   const [completedTotalCount, setCompletedTotalCount] = useState(0)
-  const [categories, setCategories] = useState<Category[]>([])
+  // Shared with every screen and read as soon as the session is restored (`use-categories.ts`).
+  const { categories, reload: fetchCategories } = useCategories(isAuthenticated && hasHydrated)
   const [loading, setLoading] = useState(true)
   /** Each list has been read once: the header's counts may arrive, already right. */
   const [activeLoaded, setActiveLoaded] = useState(false)
@@ -239,16 +240,6 @@ export default function TasksPage() {
     setFilterCategoryIds(ids)
     writeFilter(user?.userId, ids)
   }, [user?.userId])
-
-  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories", { signal })
-      setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
-    } catch (error) {
-      if (axios.isCancel(error) || signal?.aborted) return
-      console.error("Failed to fetch categories:", describeError(error))
-    }
-  }, [])
 
   const fetchActiveTodos = useCallback(async ({ signal, silent = false }: { signal?: AbortSignal; silent?: boolean } = {}) => {
     // Mutation-triggered refreshes pass silent:true so the list reconciles in the
@@ -339,10 +330,9 @@ export default function TasksPage() {
     void Promise.all([
       fetchActiveTodos({ signal: controller.signal }),
       fetchCompletedPreview(controller.signal),
-      fetchCategories(controller.signal),
     ])
     return () => controller.abort()
-  }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, fetchCategories, clearAuth])
+  }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, clearAuth])
 
   // ── Live cross-user sync ──────────────────────────────────────────────────
   // A friend created/updated/deleted/completed a task we can see. Reconcile the single affected

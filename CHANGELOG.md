@@ -113,6 +113,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(categories): New task has its categories from the first open (2026-10-28)
+
+Opening New task right after the site loaded often showed no categories while the title,
+priority and date worked, and they came back only after a reload. Every page read the category
+list on its own when it mounted and swallowed a failure — a read that met a 429 or lost a race with
+the session restore left the picker empty for the page's life. One list now serves New task, the
+task editor, a task's page, the archive and the command palette (`hooks/use-categories.ts`): it is
+read the moment the session is restored, shared by everyone who asks at once, kept in memory per
+account for 60 seconds and revalidated with the old list on screen, retried after a lost
+connection, a 5xx or a 429 (honouring `Retry-After` up to 10 s), and asked for again when New task
+opens and it is missing or old. The Categories screen hands it what it reads and edits; signing out
+drops it. Moving between pages no longer reads the list again, and the palette no longer reads it
+on every opening.
+
 ### fix(rate-limit): every user gets their own allowance, two and a half times larger (2026-10-28)
 
 The app answered 429 after 15–30 seconds of ordinary use. Every service ran `UseRateLimiter()`

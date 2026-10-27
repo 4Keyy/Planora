@@ -16,7 +16,7 @@ import { Todo, isCompletedTodoStatus, isTodoOwner, sameUserId, type CreateTodoPa
 import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
-import { Category } from "@/types/category"
+import { useCategories } from "@/hooks/use-categories"
 import dynamic from "next/dynamic"
 // The editing surface loads on first use, from the one import `useWarmEditor` warms ahead of it
 // (`components/todos/edit-todo-modal/lazy.tsx`). Cuts dashboard First Load JS without touching UX.
@@ -82,13 +82,6 @@ const DASH = {
   cards: 360,
   pager: 440,
 } as const
-type CategoryResponse = Category[] | { items?: Category[]; value?: Category[] | { items?: Category[] } }
-
-const normalizeCategoryResponse = (response: CategoryResponse): Category[] => {
-  const data = Array.isArray(response) ? response : response.value ?? response
-  return Array.isArray(data) ? data : data.items ?? []
-}
-
 function ProgressCircle({ value, total }: { value: number; total: number }) {
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0
   const reduce = useReducedMotion() ?? false
@@ -139,7 +132,6 @@ export default function DashboardPage() {
   const [statsLoaded, setStatsLoaded] = useState(false)
   /** The active list has been read once: the counts may arrive, already right. */
   const [todosLoaded, setTodosLoaded] = useState(false)
-  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pageSize] = useState(6)
@@ -183,15 +175,8 @@ export default function DashboardPage() {
   // The editor's chunk, fetched before the first open (`useWarmEditor`).
   useWarmEditor()
 
-  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await api.get<CategoryResponse>("/categories/api/v1/categories", { signal })
-      if (signal?.aborted) return
-      setCategories(normalizeCategoryResponse(res.data))
-    } catch (err) {
-      if (axios.isCancel(err) || signal?.aborted) return
-    }
-  }, [])
+  // Shared with every screen and read as soon as the session is restored (`use-categories.ts`).
+  const { categories, reload: fetchCategories } = useCategories(isAuthenticated && hasHydrated && mounted)
 
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -336,16 +321,15 @@ export default function DashboardPage() {
       return
     }
 
-    // Cancel all three mount-time fetches on unmount or auth change so a
+    // Cancel both mount-time fetches on unmount or auth change so a
     // rapid route switch does not race setState on an unmounted component.
     const controller = new AbortController()
     void Promise.all([
       fetchTodos(currentPageRef.current, { signal: controller.signal }),
       fetchStats(controller.signal),
-      fetchCategories(controller.signal),
     ])
     return () => controller.abort()
-  }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
+  }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, clearAuth, router])
 
   const activeStatsCount = totalCount
 

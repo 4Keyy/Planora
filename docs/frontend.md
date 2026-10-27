@@ -293,8 +293,10 @@ wording, and `test/quality/api-contract.contract.test.ts` fails when app code im
 | `store/notifications.ts` | Unread counts, the notification list | No |
 | `store/toast.ts` | The transient message queue | No |
 
-Task/category lists and open forms mostly use component state. There is no query-cache
-framework, but `use-friends.ts` has a module-global friend cache with a 60-second TTL
+Task lists and open forms mostly use component state. There is no query-cache
+framework. `use-categories.ts` keeps the viewer's category list in memory per account,
+read once when the session is restored, shared by every screen and dropped on sign-out
+(see `docs/features.md` § Categories). `use-friends.ts` has a module-global friend cache with a 60-second TTL
 and a shared in-flight request. It pages at 200 entries, bounded to 50 pages, and
 `invalidateFriends()` is called after relevant profile friend mutations. That cache
 is currently not keyed by user id or cleared by `clearAuth()`; do not treat it as a

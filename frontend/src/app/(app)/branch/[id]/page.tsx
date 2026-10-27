@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { api, fetchTaskById, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { fetchTaskById } from "@/lib/api"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useAuthStore } from "@/store/auth"
 import { Todo, type UpdateTodoPayload } from "@/types/todo"
-import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
+import { useCategories } from "@/hooks/use-categories"
 import { TodoEditor } from "@/components/todos/edit-todo-modal"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { MissingTaskScene } from "@/components/errors/scenes"
@@ -24,7 +24,8 @@ export default function BranchPage() {
   const viewerId = useAuthStore((s) => s.user?.userId)
 
   const [todo, setTodo] = useState<Todo | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
+  // Shared with every screen and read as soon as the session is restored (`use-categories.ts`).
+  const { categories, reload: fetchCategories } = useCategories(Boolean(viewerId))
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   // Bumped after an action whose system event is materialised asynchronously, so the branch
@@ -44,17 +45,7 @@ export default function BranchPage() {
     }
   }, [todoId])
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
-      setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
-    } catch {
-      /* categories are optional enrichment — a failure just leaves the picker empty */
-    }
-  }, [])
-
   useEffect(() => { void load() }, [load])
-  useEffect(() => { void fetchCategories() }, [fetchCategories])
 
   // A non-owner's "done" is always their own mark here, and the server's message rides on every
   // failure notice: the editor is the whole page, with no list behind it to explain anything.

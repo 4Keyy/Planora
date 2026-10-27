@@ -27,6 +27,7 @@ import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
 import { VisibilityPopover } from "@/components/todos/edit-todo-modal/popovers/visibility"
 import { formatDueRange, getPriorityLabel, getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
+import { ensureCategories } from "@/hooks/use-categories"
 import { isTextEntry } from "@/hooks/use-list-navigation"
 import { cn } from "@/lib/utils"
 import { DURATION_FAST, DURATION_INSTANT, DURATION_SLOW, DURATION_UI, TWEEN_FAST, TWEEN_UI, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
@@ -236,6 +237,11 @@ export function CreateTodoPanel({
 
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
+  // The categories are read when the session starts; opening asks again if that read failed
+  // or is old, so the picker never stays empty until a reload.
+  useEffect(() => {
+    if (isOpen) ensureCategories()
+  }, [isOpen])
   const titleRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)

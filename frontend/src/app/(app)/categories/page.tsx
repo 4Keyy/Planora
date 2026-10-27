@@ -19,6 +19,7 @@ import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { forgetOrigin, rememberOrigin } from "@/lib/shared-origin"
 import { canHandleCreateShortcut } from "@/lib/create-task-request"
 import { describeError } from "@/lib/errors"
+import { setCachedCategories } from "@/hooks/use-categories"
 
 /**
  * When the page's parts arrive, in ms after it starts: the header line by line, then the
@@ -40,6 +41,8 @@ export default function CategoriesPage() {
 
   // Data state
   const [categories, setCategories] = useState<Category[]>([])
+  // True once the list has been read here, so a failed read never empties the shared copy.
+  const [listRead, setListRead] = useState(false)
   /** Open tasks per category; null until read, or when the count could not be read. */
   const [openCounts, setOpenCounts] = useState<Map<string, number> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -78,6 +81,7 @@ export default function CategoriesPage() {
           .catch(() => null),
       ])
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(response.data)))
+      setListRead(true)
       setOpenCounts(counts)
     } catch (error) {
       console.error("Failed to fetch categories:", describeError(error))
@@ -86,6 +90,12 @@ export default function CategoriesPage() {
       setLoading(false)
     }
   }, [addToast])
+
+  // Every other screen reads the shared copy (`use-categories.ts`): what this screen reads,
+  // creates, edits and deletes is what New task offers next, without a second read.
+  useEffect(() => {
+    if (listRead) setCachedCategories(categories)
+  }, [categories, listRead])
 
   // Press "C" — open create modal
   useEffect(() => {

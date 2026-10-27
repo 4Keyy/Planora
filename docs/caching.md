@@ -17,6 +17,7 @@ For deployment variables, see [configuration.md](configuration.md).
 | Rate-limit counters | Configured Redis rate limiter | Counter state; see [auth-security.md](auth-security.md). |
 | Browser assets | Next.js / Auth avatar static files | Framework-managed asset caching; avatar URLs are content-addressed and immutable. |
 | Browser friend/affinity data | `use-friends.ts` / `use-friend-affinity.ts` | Separate module-level 60-second caches with shared in-flight reads; see [frontend lifecycle limitations](frontend.md#5-state). |
+| Browser category list | `use-categories.ts` | Module-level, per account: read when the session is restored, one shared in-flight read with retries for transient failures, served for 60 seconds and then revalidated while the old list stays on screen; reloaded after category writes, dropped on sign-out. Memory only. |
 
 `CategoryGrpcClient` does **not** cache category metadata. Todo category enrichment performs
 live gRPC calls scoped to the category owner. `ICacheService` has `GetAsync`, `SetAsync`,

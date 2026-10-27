@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
-import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { TaskDeletionBadge } from "@/components/todos/task-deletion-badge"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { useToastStore } from "@/store/toast"
-import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
+import { useCategories } from "@/hooks/use-categories"
 // Edit modal mounts only when the user clicks a completed task. Lazy-loaded, from the one import
 // `useWarmEditor` warms ahead of it (`components/todos/edit-todo-modal/lazy.tsx`).
 import { LazyEditTodoModal as EditTodoModal } from "@/components/todos/edit-todo-modal/lazy"
@@ -62,7 +62,8 @@ export default function CompletedTasksPage() {
   const user = useAuthStore(s => s.user)
 
   const [todos, setTodos] = useState<Todo[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  // Shared with every screen and read as soon as the session is restored (`use-categories.ts`).
+  const { categories, reload: fetchCategories } = useCategories(hasHydrated && isAuthenticated)
   const [loading, setLoading] = useState(true)
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -169,16 +170,6 @@ export default function CompletedTasksPage() {
     setCurrentPage(1)
   }, [])
 
-  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories", { signal })
-      if (signal?.aborted) return
-      setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
-    } catch (error) {
-      if (signal?.aborted) return
-      console.error("Failed to fetch categories:", describeError(error))
-    }
-  }, [])
 
   // Read current criteria even when a memoized card retains an older mutation callback.
   const fetchCompletedTodos = useCallback(async (page = queryRef.current.page) => {
@@ -248,14 +239,6 @@ export default function CompletedTasksPage() {
     void fetchCompletedTodos()
     return () => todosRequest.current?.abort()
   }, [isAuthenticated, hasHydrated, router, fetchCompletedTodos, clearAuth, currentPage, searchStart, searchEnd])
-
-  useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || !useAuthStore.getState().isTokenValid()) return
-    const controller = new AbortController()
-    setCategories([])
-    void fetchCategories(controller.signal)
-    return () => controller.abort()
-  }, [hasHydrated, isAuthenticated, user?.userId, fetchCategories])
 
   useEffect(() => {
     if (loading) return
