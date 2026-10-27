@@ -1,7 +1,7 @@
 # Dependabot Integration Review — 2026-10-27
 
-Dependabot opened seven pull requests on 2026-10-26. All seven were reviewed and integrated
-into `main` the way the [2026-10-20 review](dependabot-2026-10-20.md) records: merging through
+Dependabot opened eight pull requests on 2026-10-26 (#142 replaced #141 late that night). All
+were reviewed and integrated into `main` the way the [2026-10-20 review](dependabot-2026-10-20.md) records: merging through
 GitHub's API is blocked by the owner's local agent policy, so each reviewed change was applied as
 a direct commit on `main` and the pull request was closed with a link to it.
 
@@ -13,7 +13,8 @@ a direct commit on `main` and the pull request was closed with a link to it.
 | [#140](https://github.com/4Keyy/Planora/pull/140) | actions/setup-node 6.4.0 → 7.1.0, 6 uses | `fa4af05` |
 | [#138](https://github.com/4Keyy/Planora/pull/138) | actions/upload-artifact 7.0.1 → 7.0.2, 8 uses | `fa4af05` |
 | [#139](https://github.com/4Keyy/Planora/pull/139), [#137](https://github.com/4Keyy/Planora/pull/137) | github/codeql-action init and upload-sarif 4.38.3 → 4.39.1; analyze aligned to the same commit | `fa4af05` |
-| [#141](https://github.com/4Keyy/Planora/pull/141), [#136](https://github.com/4Keyy/Planora/pull/136) | Next.js and eslint-config-next 16.4.3, zustand 5.0.16, postcss 8.5.31 (direct pin and override), jsdom 30.1.3 | the `build(deps)` commit that adds this review |
+| [#141](https://github.com/4Keyy/Planora/pull/141), [#136](https://github.com/4Keyy/Planora/pull/136) | Next.js and eslint-config-next 16.4.3, zustand 5.0.16, postcss 8.5.31 (direct pin and override), jsdom 30.1.3 | `27feb12` |
+| [#142](https://github.com/4Keyy/Planora/pull/142) | The same group regenerated with react-hook-form 7.90.0 → 7.91.0; the rest was already on `main` | the `build(deps)` commit for react-hook-form |
 
 Each action revision was resolved from its upstream release tag, annotated tags dereferenced:
 

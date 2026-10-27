@@ -113,6 +113,11 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### build(deps): react-hook-form 7.91.0 (2026-10-27)
+
+The forms move to react-hook-form 7.91.0, the one update in Dependabot's regenerated group (#142)
+that `main` did not already have. Every form test passes unchanged.
+
 ### build(deps): Next.js 16.4.3, jsdom 30 and the October 26 Dependabot updates (2026-10-27)
 
 The frontend moves to Next.js and eslint-config-next 16.4.3, zustand 5.0.16, postcss 8.5.31 and,
