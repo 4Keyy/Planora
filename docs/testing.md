@@ -707,7 +707,7 @@ friendship requests require verified active users. An unavailable frontend or a
 response >=500 fails the reachability hook; required services cannot silently skip
 the browser suite. Inspect test totals and the process exit code before claiming success.
 
-CI invokes `node e2e/run-ci.cjs --shard=N/4` from `frontend/`; arguments after the
+CI invokes `node e2e/run-ci.cjs --shard=N/6` from `frontend/`; arguments after the
 script go to Playwright. It streams child stdout/stderr line by line and redacts query
 tokens, JWTs and secret JSON fields in each line before printing it, so a run stopped
 by the job's time limit still shows which tests ran and how the failed ones failed.
@@ -1080,10 +1080,13 @@ main, pull requests to main/develop, and manual dispatch. Push and PR paths matc
 environment secrets, waits for gateway health, installs Chromium, builds and
 starts Next.js, runs `node e2e/run-ci.cjs`, publishes redacted diagnostics and
 only failure PNGs, and cleans up frontend/containers and `.env.e2e`. The suite runs in
-four shards — one job each, with its own Docker stack and a 45-minute limit, and whole
-spec files per shard. With one worker it runs for well over 30 minutes: every run on
+six shards — one job each, with its own Docker stack and a 75-minute limit, and whole
+spec files per shard. With one worker it runs for well over two hours: every run on
 `main` until 2026-10-26 hit the former single job's 30-minute limit about half-way
-through the browser specs and was cancelled. An `always()` step
+through the browser specs and was cancelled, and four 45-minute shards still cut two
+off before their summaries — Playwright balances shards by test count, and the live
+motion matrices (`motion-geometry`, `motion-regressions`) take tens of minutes each. An
+`always()` step
 summarizes skipped tests, retried tests and retry attempts from private Playwright JSON.
 Only numeric aggregates are published; the raw report is deleted. Missing or invalid
 reports are marked unavailable rather than reported as zero skips/retries.

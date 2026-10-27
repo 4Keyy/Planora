@@ -34,16 +34,17 @@ concurrency:
 
 jobs:
   auth-todos-sharing-hidden:
-    name: e2e (shard ${{ matrix.shard }}/4)
+    name: e2e (shard ${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
-    # One worker runs the whole suite in well over 30 minutes, so every run hit the old 30-minute
-    # limit and was cancelled half-way. Four shards each start their own stack (about 6 minutes
-    # with the build) and run about a quarter of the tests, whole spec files at a time.
-    timeout-minutes: 45
+    # One worker runs the whole suite for well over two hours. Each shard starts its own stack
+    # (about 6 minutes with the build) and runs whole spec files; Playwright balances shards by
+    # test count, not duration, so the live motion matrices still make some shards take over 40
+    # minutes — with four shards and 45 minutes two were cut off before their summaries.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -138,7 +139,7 @@ jobs:
           exit 1
 
       - name: Run Playwright e2e (api + ui projects)
-        run: node e2e/run-ci.cjs --shard=${{ matrix.shard }}/4
+        run: node e2e/run-ci.cjs --shard=${{ matrix.shard }}/6
         working-directory: frontend
         env:
           E2E_API_URL: http://127.0.0.1:5132

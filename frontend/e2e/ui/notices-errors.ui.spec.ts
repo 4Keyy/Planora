@@ -231,7 +231,8 @@ test.describe('notices and error scenes: public production routes', () => {
     const card = section.locator('[data-task-card]');
     await expect(card).toBeVisible();
     const measure = () => card.evaluate(element => {
-      const reserve = element.closest('[class*="min-h-[10.375rem]"]') as HTMLElement | null;
+      // The reserve holds a settled sparse card, 148px since 6f22fd8 (it was 166px).
+      const reserve = element.closest('[class*="min-h-[9.25rem]"]') as HTMLElement | null;
       const box = element.getBoundingClientRect();
       return { cardHeight: box.height, reservedHeight: reserve?.getBoundingClientRect().height, minimumHeight: reserve ? getComputedStyle(reserve).minHeight : null };
     });
@@ -242,7 +243,7 @@ test.describe('notices and error scenes: public production routes', () => {
     const hidden = await measure();
     await section.screenshot({ path: info.outputPath('landing-viewer-reserve.png') });
     await evidence(info, 'landing-viewer-reserve', { open, hidden, browser: page.context().browser()?.version() });
-    expect(open.minimumHeight).toBe('166px');
+    expect(open.minimumHeight).toBe('148px');
     expect(hidden.cardHeight).toBeLessThan(open.cardHeight);
   });
 });
@@ -450,7 +451,9 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
       const categoryNameInput = categoryDialog.getByRole('textbox', { name: 'Name', exact: true });
       await expect(categoryNameInput).toBeVisible();
       await categoryNameInput.fill(categoryName);
-      // The API accepts six-digit hex; choose it through the actual colour field.
+      // The API accepts six-digit hex; choose it through the actual colour field, which folds
+      // out under the swatches when "Custom colour" is pressed.
+      await categoryDialog.getByRole('radio', { name: 'Custom colour', exact: true }).click();
       const categoryColour = categoryDialog.getByRole('textbox', { name: 'Hex colour', exact: true });
       await expect(categoryColour).toBeVisible();
       await categoryColour.fill('0ea5e9');
@@ -660,8 +663,10 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
     });
   }
 
+  // The floating capture button was removed with quick capture (efdfb61): the selection bar on
+  // /tasks is the one thing docked at the bottom, and the dashboard has nothing there.
   for (const surface of ['/dashboard', '/tasks']) {
-    test('390px dock clearance above capture and selection on ' + surface, async ({ browser: _browser }, info) => {
+    test('390px notices clear the dock on ' + surface, async ({ browser: _browser }, info) => {
       const first = await ownTask('Notice dock first', true);
       const second = await ownTask('Notice dock second');
       await page.setViewportSize({ width: 390, height: 844 });
@@ -670,21 +675,21 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
       await expect(complete).toBeVisible();
       await complete.click();
       await expect(notices(page).locator('[data-toast-id]').first()).toBeVisible();
-      await expect(page.getByRole('button', { name: 'New task', exact: true })).toBeVisible();
-      const measure = async (label: string) => {
+      const measure = async (label: string, docked: boolean) => {
         const geometry = await page.evaluate(() => {
           const notice = document.querySelector('[aria-label="Notifications"] [data-toast-id]')?.getBoundingClientRect();
-          const bubble = document.querySelector('[aria-label="New task"]')?.getBoundingClientRect();
           const selection = document.querySelector('[aria-label="Clear the selection"]')?.closest('[role="status"]')?.getBoundingClientRect();
-          return { label: '', clearance: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pl-dock-clearance')), noticeBottom: notice?.bottom, bubbleTop: bubble?.top, selectionTop: selection?.top };
+          const clearance = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pl-dock-clearance'));
+          return { label: '', clearance: Number.isNaN(clearance) ? 0 : clearance, noticeBottom: notice?.bottom, selectionTop: selection?.top, viewportHeight: window.innerHeight };
         });
         geometry.label = label;
-        expect(geometry.clearance).toBeGreaterThan(0);
-        expect(geometry.noticeBottom).toBeLessThanOrEqual(Math.min(geometry.bubbleTop ?? Infinity, geometry.selectionTop ?? Infinity));
+        if (docked) expect(geometry.clearance).toBeGreaterThan(0);
+        else expect(geometry.clearance).toBe(0);
+        expect(geometry.noticeBottom).toBeLessThanOrEqual(Math.min(geometry.selectionTop ?? Infinity, geometry.viewportHeight));
         return geometry;
       };
       await page.waitForTimeout(450);
-      const result = [await measure('capture')];
+      const result = [await measure('nothing docked', false)];
       if (surface === '/tasks') {
         const row = cardFor(page, second.title).locator('..');
         await expect(row).toBeVisible();
@@ -697,7 +702,7 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
         await expect(row).toHaveAttribute('data-selected', '');
         await expect(page.getByRole('button', { name: 'Clear the selection', exact: true })).toBeVisible();
         await page.waitForTimeout(450);
-        result.push(await measure('selection'));
+        result.push(await measure('selection', true));
       }
       await noHorizontalOverflow(page);
       await evidence(info, 'mobile-dock', result);
