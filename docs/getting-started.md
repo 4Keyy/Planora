@@ -159,7 +159,7 @@ The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `htt
 1. Confirm the Todo schema/migration baseline is ready, then open `http://localhost:3000`.
 2. Register a new user.
 3. Create a category.
-4. Create a todo assigned to that category — press `C` for quick capture, or use the create panel.
+4. Create a todo assigned to that category with the New task panel; `C` opens it and requests title focus on Dashboard or Tasks.
 5. Mark the todo as done or move it through status changes.
 6. Press `?` to confirm the shortcut map renders; the task list should answer `J`/`K`.
 7. Open the profile/security page and confirm the user profile loads.

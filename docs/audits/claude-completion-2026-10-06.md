@@ -1,5 +1,8 @@
 # Отчёт для Claude: завершение работы над Planora
 
+> Historical handoff report for the 2026-10-06 work. Commit IDs and verification results
+> below describe that stage; use [the maintained documentation](../index.md) for current behavior.
+
 Пользователь передал Codex завершение твоей работы после остановки по лимиту.
 Панель поиска явно исключена из задачи; её код и тесты не изменялись.
 

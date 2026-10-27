@@ -700,19 +700,14 @@ delete with a "restore" button would be a lie.
 Confirmation still guards what this cannot reverse: deleting an account, revoking every
 session. Five seconds is not consent.
 
-### 9.7 Capture
+### 9.7 New task
 
-`components/todos/quick-capture.tsx`. A 56×56 control in the phone's easy thumb arc
-(blueprint 10.1: y 560–844 of 844) that **becomes** the input bar — both surfaces share
-one `layoutId`, projected by `SPRING_LAYOUT` (critically damped: the 56px circle and the 358px pill meet their size without bouncing past it). A crossfade between two separate
-elements would read as "one thing vanished, another appeared", which is the wrong
-story: the user pressed a button and it opened.
-
-No selectors on the first step, and this is a product decision rather than an
-unfinished one. Priority, date, category and audience are each a decision, and a
-decision at the moment of capture is why a thought stops being written down at all.
-Structure is added later from the card or the branch, where the user is sitting down
-and looking at the work.
+`components/todos/create-todo-panel.tsx` is the task-create surface on Dashboard and
+Tasks. `hooks/use-new-task-shortcut.ts` and `lib/create-task-request.ts` open this
+existing panel for keyboard/palette requests and request title focus; pointer
+opening leaves focus with the control the user pressed. The separate title-only
+floating capture control has been removed. See
+[New task from the keyboard and palette](features.md#new-task-from-the-keyboard-and-palette).
 
 ### 9.8 Somebody else's change
 
@@ -763,7 +758,7 @@ Between the signed-in pages there is no route fade any more: each page arrives p
 part (§ 9.13), and a whole-page fade over that only dimmed its first beat. What follows
 is why the arrival never moves an *ancestor* of the page — the measurement still holds,
 and it is why every entrance sits on a block, a card or a line, never on a wrapper of
-the page, and why quick capture's dock rises by itself rather than inside anything.
+the page; fixed controls must remain anchored to the viewport.
 
 The public pages keep the fade, over `base` 220ms. **Opacity only** — and that is a
 measured decision rather than an argued one.
@@ -771,7 +766,7 @@ measured decision rather than an argued one.
 BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform on
 `app/template.tsx` creates a containing block, and a `position: fixed` descendant
 anchors to that block instead of the viewport; this page tree has fixed descendants
-(quick capture, the selection bar, the undo bar). That objection had been stated for
+(the selection bar and the undo bar). That objection had been stated for
 a long time without being tested, so it was tested.
 
 framer-motion genuinely cleans up after itself. On the shipped build, an element
@@ -791,7 +786,8 @@ block disappears. The fixed control is laid out against the transformed ancestor
 for the length of the animation and against the viewport from one frame later, and
 the browser records the difference as a layout shift.
 
-`/tasks` at 390px, four runs each:
+Historical measurement from before the QuickCapture removal: `/tasks` at 390px,
+four runs each. These are not measurements of the current New task panel:
 
 | Template | CLS |
 |---|---|
@@ -1076,7 +1072,7 @@ field's own geometry:
 |---|---|---|
 | `field-rule` (container) + `field-naked` (fields) | the create panel's title and details | the 2px left rule: an ink rule draws itself over the `line` track top-down on focus (`duration-slow`, `ease-emphasized`, a `scaleY` transform) and retracts on `ease-exit` |
 | `field-box` | `<Input>`, `<Textarea>`, the task editor's title while it is edited, the branch's Author's Note, subtask-title and comment editors, the new-category name, the (unused) advanced search bar | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the field's own colour/shadow transition; a field with `data-over-limit` or `aria-invalid` keeps a red edge (and the over-limit pink surface) while focused |
-| `field-shell` (container) + `field-naked` (field) | quick capture's pill, the branch composer, the colour picker's hex box | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`: quick capture keeps its `shadow-xl`) |
+| `field-shell` (container) + `field-naked` (field) | the branch composer and the colour picker's hex box | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`) |
 | `field-naked` alone | the command palette's query | none: the palette opens with the caret in its only field and keeps it there, so the whole dialog is the focused surface — a ring would only box the caret |
 | `field-naked` + its own cells | the one-time-code input (login 2FA) | one transparent input over six cells; the cell where the next digit lands draws the `field-box` look (1px ink edge, 3px `ink/8%` ring), so the row is never boxed |
 
@@ -1182,7 +1178,7 @@ geometry with the rendered `Wordmark` and check PNG dimensions, the top cut and 
 | Component | Owns |
 |---|---|
 | `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and shortcuts, narrow into one, create from a query |
-| `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map, and the single list every other surface reads its key spellings from |
+| `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map. Palette actions and contextual hints declare their own labels; update the handler, overlay map, palette labels and documentation together when changing a binding |
 | `useListNavigation` | The list cursor, the selection, and every bare-letter binding over a list of ids |
 | `SelectionBar` | What to do with a gathered selection, with the count stated before the verb |
 | `UndoBar` + `useUndoableAction` | Deferred destructive actions with a five-second window |
@@ -1362,7 +1358,7 @@ undo, which looked, moved and stacked nothing alike.
 | Kind | A 24px mark on the left: a check on `positive`, a warning on `alert` or `warn`, an "i" on `accent`, the undo arrow on `paper/15` |
 | Words | Title in `body-sm` semibold, sentence case, at most 40 characters, without a final full stop or exclamation mark; errors say "Couldn't …". Details use the optional `caption` description at `paper/70`; server-supplied notification titles retain their producer text |
 | Action | At most one ("Undo", "Retry"); pressing it runs it and dismisses the notice |
-| Place | One stack, bottom-centre on every screen, above the safe area — and above anything docked there (quick capture, the selection bar), which publish `--pl-dock-clearance` (`useDockClearance`) |
+| Place | One stack, bottom-centre on every screen, above the safe area — and above docked controls such as the selection bar, which publish `--pl-dock-clearance` (`useDockClearance`) |
 | Stack | A deck: the newest in front, the two before it peeking 10px above, scaled back 5% each, their words hidden. Pointing at it or tabbing into it fans it out into a list (8px gaps); at most five are kept |
 | Time | success 4s · info 5s · warning 6s · error 7s, +1.5s with a description. Every clock stops while the stack is read (pointer, focus) or the tab is hidden, and resumes where it stopped |
 | Countdown | A window you can act within (undo) shows its time as a ring draining round the mark — linear, like the window |
@@ -1566,19 +1562,12 @@ It sits on the `sticky` tier, not `toast`, and while it is up it publishes its h
 `--pl-dock-clearance`: the undo a bulk delete raises appears above the bar, not on top of
 it.
 
-### `QuickCapture` — the circle becomes the bar
+### `CreateTodoPanel` — one task-create surface
 
-Both surfaces share one `layoutId`, so framer-motion projects the 56px circle into the
-pill and back. A crossfade between two separate elements reads as "one thing vanished,
-another appeared", which is the wrong story: the user pressed a button and it opened.
-
-Deliberately absent, and not an oversight to be fixed later: priority, due date,
-category, audience, description. Each is a decision, and a decision at the moment of
-capture is why a thought stops being written down at all.
-
-Escape collapses and **discards** the draft. A stale sentence reappearing in the field
-three hours later is more surprising than retyping six words. Blur does not collapse
-while there is text — a tap landing just outside the pill is easy on a 390px screen.
+Dashboard and Tasks use the existing panel for both pointer creation and
+keyboard/palette requests. `titleRequest` distinguishes the latter so they focus the
+title; pointer opening keeps its existing focus behavior. See § 9.7 and
+[the creation contract](features.md#new-task-from-the-keyboard-and-palette).
 
 ---
 
@@ -1598,12 +1587,9 @@ the same person sits down, plans, and works through a list.
 | 360 – 560 | Content, cards |
 | 560 – 844 | **Every primary action** |
 
-The capture control sits in the last band, bottom-right, because that is the only
-corner a right-handed grip reaches without the phone moving in the hand. Anything
-`position: fixed` over the bottom of a scroll region has to be paid for: the region
-needs `pb-28` (112px — the 56px control, its 16px gutter, 16px of air, and the home
-indicator) or the last card is permanently half-covered. That is the item people report
-as "the one I cannot tap".
+The former fixed capture control has been removed; creation uses the New task panel.
+For remaining controls fixed over a scroll region, reserve clearance for their actual
+height and the safe area so the last row remains reachable.
 
 Safe areas are `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` in `globals.css`. Any fixed
 element touching an edge uses them.

@@ -83,7 +83,7 @@ rows instead have a unique `SourceEventId`.
 
 **INV-AUTH-3.** State-changing browser requests to Auth API carry the double-submit CSRF token (`X-CSRF-Token` header + readable `XSRF-TOKEN` cookie). Validation is constant-time.
 
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003, ADR-0005 (CSRF coverage is intentionally bounded to Auth API).
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003 and the current-implementation section of ADR-0005. Auth, Todo, Category, Messaging and Collaboration currently validate double-submit tokens on HTTP mutations; Gateway and Realtime do not register this middleware. The original Auth-only scope is historical.
 
 **INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list of *currently-shipped* rotation points:
 

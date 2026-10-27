@@ -258,12 +258,12 @@ Critical files:
 | `frontend/src/components/*.tsx` | the headless singletons mounted near the root: `auth-guard`, `error-boundary`, `motion-preferences-provider`, `realtime-manager`, `security-initializer` |
 | `frontend/src/components/command-palette/` | the ⌘K palette, mounted in the root layout: `index.tsx` (state, reads, keys, motion), `search.ts` and `sections.ts` (pure matching and list building), `rows.tsx`, `preview.tsx`, `chrome.tsx`, `recent.ts` |
 | `frontend/src/hooks` | cross-cutting behaviour: list navigation, focus trap, scroll lock, autosave, friends, collapse-on-scroll |
-| `frontend/src/lib` | non-React: api client, tokens, animations, realtime, formatting, geometry |
+| `frontend/src/lib` | shared API/auth/configuration, formatting, tokens, geometry and realtime support; most utilities are non-React, while `lib/realtime/hooks.ts` contains React lifecycle hooks |
 | `frontend/src/store` | Zustand stores (`auth`, `notifications`, `toast`) |
 | `frontend/src/types` | DTO shapes shared with the backend (`todo`, `auth`, `category`) |
 | `frontend/src/utils` | pure helpers: sorting, category filter, completion window, deletion countdown |
 | `frontend/src/test` | Vitest tests, mirroring the tree above; `test/quality/` holds the contract tests |
-| `frontend/e2e` | Playwright: one API spec through the gateway, plus `e2e/ui/` browser specs |
+| `frontend/e2e` | Playwright API specs cover auth/sharing/hidden flows, frozen All friends audiences and native avatar uploads through the gateway; Chromium UI specs cover selected browser flows; see [the E2E guide](../frontend/e2e/README.md) for the current catalog |
 | `frontend/next.config.js` | Next.js config, rewrites, static security headers |
 | `frontend/tailwind.config.ts` | derives the whole theme from `lib/design-tokens.ts`; replaces Tailwind's own scales |
 | `frontend/components.json` | shadcn/ui generator config |
@@ -275,15 +275,15 @@ Critical files:
 
 | Path | Purpose |
 |---|---|
-| `app/layout.tsx` | fonts, CSP nonce consumer, providers, `ShortcutsHelp`, `force-dynamic` |
+| `app/layout.tsx` | fonts, metadata, providers, `ShortcutsHelp` and `force-dynamic`; Next.js consumes the proxy's forwarded request CSP when generating framework script nonces; the layout does not read `x-nonce` itself |
 | `app/template.tsx` | per-navigation transition wrapper |
 | `app/globals.css` | the focus indicator, `.touch-target`, reduced-motion collapse, `--pl-*` variables |
 | `app/page.tsx` | landing |
 | `app/(app)/layout.tsx` | the signed-in route group: renders `AppShell` (the sticky app bar, `<main id="main">`, the `container-app` column, the `AuthGuard`) once for all five signed-in routes, so the bar persists across them |
 | `app/(app)/template.tsx` | the page fade between signed-in routes (opacity only; nothing on the first page of a visit) |
 | `app/auth/layout.tsx` + `app/auth/template.tsx` | the auth frame and the card's entrance between auth routes |
-| `app/(app)/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, quick capture, undo-window delete |
-| `app/(app)/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, quick capture, undo-window delete |
+| `app/(app)/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, New task panel, undo-window delete |
+| `app/(app)/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, New task panel, undo-window delete |
 | `app/(app)/tasks/completed/page.tsx` | the archive, with the completion-date filter inside the QuickFilter plate |
 | `app/(app)/branch/[id]/page.tsx` | the same full task editor the modal shows, on its own URL so a card can be opened in a new tab |
 | `app/(app)/categories/page.tsx` | category management |
@@ -334,7 +334,6 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `create-todo-panel.tsx` | the full create surface: title plus the four selector plates (priority, due date, category, share) |
 | `date-filter-popover.tsx` | the completion-date filter, opened as a floating popover from inside the QuickFilter plate |
 | `friend-multi-select.tsx` | the audience picker |
-| `quick-capture.tsx` | the 56×56 thumb-zone capture button: one field, one key, and it owns the bare `c` |
 | `quick-filter-bar.tsx` | the QuickFilter plate shared by `/tasks` and `/tasks/completed` |
 | `task-comments.tsx` | the standalone comment list (2000-character limit) |
 | `task-deletion-badge.tsx` | the "deletes in N days" pill on a completed task |
@@ -360,6 +359,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `use-focus-trap.ts` | remembers focus, traps Tab inside a dialog, restores it on close |
 | `use-friends.ts` | the shared friend cache; `invalidateFriends()` after any mutation |
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
+| `use-new-task-shortcut.ts` | page-scoped `C` and palette requests open `CreateTodoPanel` on Dashboard or Tasks and request title focus |
 | `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
 
 ### `lib`
@@ -368,12 +368,13 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 |---|---|
 | `analytics.ts` | `PRODUCT_EVENTS`, `trackProductEvent`, and the queue for an ended session's events (`queueProductEvent`, `flushQueuedProductEvents`) |
 | `animations.ts` | motion presets; the numbers come from `design-tokens.ts`, never from here |
-| `api.ts` | the axios instance, every endpoint wrapper, the refresh/backoff interceptors |
+| `api.ts` | the shared Axios instance, task/comment wrappers and refresh/backoff interceptors; pages and hooks also call it directly, while public auth bootstrap uses `auth-public.ts` |
 | `auth-broadcast.ts` | cross-tab logout over `BroadcastChannel` |
 | `auth-public.ts` | the unauthenticated auth calls, with refresh de-duplication |
 | `config.ts` | `getApiBaseUrl()` — resolves the gateway against the host the page was opened from |
+| `create-task-request.ts` | a single pending New task request survives navigation to Tasks for up to five seconds |
 | `csrf.ts` | the double-submit token: read the cookie, echo the header |
-| `datetime.ts` | all date formatting, with the locale pinned so SSR and hydration agree |
+| `datetime.ts` | shared date formatting pins `en-US`, not the time zone; the same instant can render differently near a day boundary when server and browser time zones differ |
 | `design-tokens.ts` | the single source of truth for every visual value; `tailwind.config.ts` derives from it |
 | `errors.ts` | failure classification and the copy for refusals a user cannot act their way out of |
 | `friend-names.ts` | id → display name, resolved from the shared friend cache |
@@ -406,8 +407,8 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 |---|---|
 | `tests/Planora.UnitTests` | unit and contract tests for building blocks and services, including the security-stamp, JWT-wiring and runtime contract suites |
 | `tests/Planora.ErrorHandlingTests` | middleware/error-handling and integration-style checks |
-| `frontend/src/test/components` | component tests, including `presence-row`, `redaction-badge`, `update-pill`, `selection-bar`, `shortcuts-overlay`, `quick-capture` |
-| `frontend/src/test/hooks` | hook tests, including `use-list-navigation` |
+| `frontend/src/test/components` | component tests, including `presence-row`, `redaction-badge`, `update-pill`, `selection-bar`, `shortcuts-overlay` |
+| `frontend/src/test/hooks` | hook tests, including `use-list-navigation` and [use-new-task-shortcut](../frontend/src/test/hooks/use-new-task-shortcut.test.tsx) |
 | `frontend/src/test/lib`, `store`, `types`, `utils`, `app` | the rest of the frontend suite |
 | `frontend/src/test/quality` | the contract tests: `design-tokens.contract.test.ts`, `usability-contract.test.tsx`, `text-limits.contract.test.ts` and `api-contract.contract.test.ts` (runtime response schemas against the C# DTOs) |
 | `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts` | Docker-backed auth/sharing/hidden flow through the API Gateway |

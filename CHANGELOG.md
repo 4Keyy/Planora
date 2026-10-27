@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### docs: bring the documentation back in line with the code (2026-10-27)
+
+Twenty documentation statements had drifted from the code (audit FE-33). They now describe the New
+task panel that replaced quick capture, the palette's and category list's hidden-task reveal,
+priority shortcuts that send only the priority, where CSRF is enforced, what the email log
+records, the browser's friend and affinity caches, the session store's memory fallback and the
+security workflow's blocking and advisory audits. The October 6 handoff report is marked as
+historical.
+
 ### fix(notices): closing the Undo notice deletes the task (2026-10-27)
 
 Closing a "Task deleted" notice with ✕, Escape or a flick took it away but did not send the

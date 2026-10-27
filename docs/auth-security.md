@@ -132,9 +132,9 @@ endpoints still require bearer JWTs.
 
 ## Email Verification Delivery
 
-Registration, password reset, and account-security notifications use `IEmailService`. The default provider is `Email__Provider=Log`, which writes links to Auth API logs and sends no email. Real Gmail delivery is enabled with `Email__Provider=GmailSmtp`, `Email__Username=<gmail address>`, and `Email__Password=<Google App Password>`.
+Registration, password reset, and account-security notifications use `IEmailService`. The default `Email__Provider=Log` does not deliver mail and logs only the server-defined subject, never recipients or action links. Exercise verification/reset links through SMTP; the disposable E2E overlay uses Mailpit. Real Gmail delivery is enabled with `Email__Provider=GmailSmtp`, `Email__Username=<gmail address>`, and `Email__Password=<Google App Password>`.
 
-Gmail delivery uses `smtp.gmail.com:587` with TLS by default. The Gmail app password is a secret and must stay in `.env`, Docker/CI secrets, or a production secret manager. The service does not log SMTP passwords and logs successful real sends by subject and recipient. The `Log` provider exposes reset/verification bearer links in logs: treat those logs as sensitive and use actual delivery in production.
+Gmail delivery uses `smtp.gmail.com:587` with TLS by default. The Gmail app password is a secret and must stay in `.env`, Docker/CI secrets, or a production secret manager. The service logs successful real sends by provider and subject, without SMTP passwords, recipient addresses or action links. Use actual delivery in production.
 
 Email verification status is exposed in user DTOs as both `isEmailVerified` and `emailVerifiedAt`. The email verification frontend route automatically confirms `?token=...` links (once per token, guarded against StrictMode's double effect, since a second request would find the token spent) and refreshes the current access token when an authenticated session is present.
 

@@ -16,6 +16,7 @@ For deployment variables, see [configuration.md](configuration.md).
 | Data Protection keys | Auth `PersistKeysToStackExchangeRedis` | Persistent encryption key ring; not an entity cache and not covered by application invalidation. |
 | Rate-limit counters | Configured Redis rate limiter | Counter state; see [auth-security.md](auth-security.md). |
 | Browser assets | Next.js / Auth avatar static files | Framework-managed asset caching; avatar URLs are content-addressed and immutable. |
+| Browser friend/affinity data | `use-friends.ts` / `use-friend-affinity.ts` | Separate module-level 60-second caches with shared in-flight reads; see [frontend lifecycle limitations](frontend.md#5-state). |
 
 `CategoryGrpcClient` does **not** cache category metadata. Todo category enrichment performs
 live gRPC calls scoped to the category owner. `ICacheService` has `GetAsync`, `SetAsync`,

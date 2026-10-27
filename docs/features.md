@@ -93,7 +93,7 @@ Let users manage profile data, password/email changes, email verification, sessi
 
 ### Frontend Behavior
 
-- The profile route presents account work as a single continuously scrolling profile center rendered in a monochrome "spec-grid" style with full light/dark theming: an identity header (avatar with click-or-drag upload, status pills, and a metric grid) followed by stacked sections for identity, security, sessions, login history, friends, and admin tools.
+- The profile is a continuously scrolling center using the product's light-only semantic palette: an identity header (avatar with click-or-drag upload, status pills, and a metric grid), identity, security, sessions, login history, friends and role-gated administration.
 - Navigation is a sticky side rail (horizontal scroller on mobile) driven by a scroll-spy: the rail highlights whichever section is in view via `aria-current`, and clicking a rail item smooth-scrolls to that section. All sections render at once; each section's data is fetched lazily the first time it scrolls into view, and per-section `Refresh` buttons re-fetch on demand.
 - Motion is deliberately restrained and never moves layout on scroll (which read as jank): the route-level `template.tsx` handles the page-enter fade (opacity only), the active rail item is tracked by a spring-animated sliding pill via a shared `layoutId`, and friend cards lift subtly on hover. The page root uses no entrance transform and `overflow-x: clip` (not `hidden`) so the sticky section rail anchors to the viewport correctly — a transform or `overflow: hidden` on the root would create a containing block / scroll context and break `position: sticky`. The rail sticks at `--bar-clearance`, clear of the floating droplet bar. Every animation collapses under `useReducedMotion()` (including switching smooth scroll to instant and the rail pill to zero duration). All existing Auth API calls are preserved unchanged for profile update, password/email changes, email verification, 2FA setup, session revocation, friend requests, and admin user lookup.
 - Character-limited profile fields use the shared input counter and warning styling used elsewhere in the frontend.
@@ -879,8 +879,9 @@ selected IDs do not affect coverage. Clicking a friend while All friends is enab
 switches to a direct share with that friend, even if they are the only friend.
 
 An unchanged All friends task keeps `isPublic: true`, sends an empty client share list and has
-unlimited workers. The same owner payload seeds autosave and preserves the audience during
-priority shortcuts; opening an unchanged task does not cause an unnecessary save. Direct and
+unlimited workers. The owner payload seeds autosave and preserves an unchanged All friends
+audience; priority shortcuts preserve it by omitting audience fields. Opening an unchanged
+task does not cause an unnecessary save. Direct and
 private tasks retain their existing payloads. The direct-share viewer count is the length of
 that shared list.
 
@@ -1590,7 +1591,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 | The sandbox is disclosed on screen | It seeds a session and answers its own API; saying so is what separates a demo from a deception |
 | The sandbox installs only after the real session restore, and never over a real session | Installing on mount raced `restoreSession()`: an anonymous visitor's failed refresh wiped the seeded session (the keys went dead) and broadcast a logout to other tabs; a seeded token already in the store was POSTed to the real `validate-token` through `auth-public.ts`, which the adapter does not cover; a signed-in visitor's real token was overwritten and later erased on leaving `/`. `DemoSandbox` now waits for `hasRestoredSession`, installs only for a visitor with no real session, and shows a signed-in visitor a link to their own list instead |
 | The sandbox leaves nothing behind | It saves and restores the page's real `XSRF-TOKEN` (overwriting it made the first write after `/` fail until the 403 retry), removes the persisted demo identity on `pagehide`, and re-seeds silently if a logout broadcast from another tab clears it |
-| The console behaves like `/tasks` | Completing waits for the server and says "Task completed"; failures are toasts, never silent rollbacks; priority is owner-only and sends the whole task (the endpoint is a PUT); the list stops listening while the task editor is open |
+| The console behaves like `/tasks` | Completing waits for the server and says "Task completed"; failures are toasts, never silent rollbacks; priority is owner-only and uses the shared priority writer, sending only `{ priority }`; the list stops listening while the task editor is open |
 | The key legend lights the key just pressed | A passive listener, so it cannot change what a key does; row keys light only while the cursor is shown, because with a hidden cursor they do nothing. Keys and meanings are two left-aligned columns — the meanings used to be pushed to the far right, a ragged edge with a column-wide gap between each key and what it does |
 | The sandbox never starts realtime | A WebSocket handshake needs a server. Left on, it retried forever — 486 console errors on one page view. With no socket the product falls back to the 9s poll it already documents, and the sandbox answers that, so the demo behaves exactly as the product does when realtime is down |
 | `enableDemo` restores the previous adapter on teardown | `api` is a module singleton shared with every authenticated route; an adapter left installed would mean a real session talking to a fake server |

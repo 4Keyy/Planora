@@ -28,7 +28,7 @@ The core workflow is:
 | Direct messages | implemented | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
 | Realtime notifications and branch/feed sync | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs` |
 | Durable notification list/unread counts | implemented, conditional on `ConnectionStrings__RealtimeDatabase`; no server-side toast replay on reconnect | `Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs` |
-| Keyboard-driven task list, command palette, quick capture | implemented | `frontend/src/components/command-palette/`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
+| Keyboard-driven task list, command palette, New task panel | implemented; keyboard and palette creation use `CreateTodoPanel`, with a pending title request when navigating to Tasks | `frontend/src/components/command-palette/`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/hooks/use-new-task-shortcut.ts`, `frontend/src/lib/create-task-request.ts` |
 | Undo window in place of a delete confirmation | implemented | `frontend/src/components/ui/undo-bar.tsx` (`UNDO_WINDOW_MS` = 5000), `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |
 
@@ -152,13 +152,13 @@ the reachability bands and where the phone measurably runs out of room, is in
 
 The user creates categories, creates todos, assigns category/priority/dates, filters active tasks, and views completed tasks. The frontend pages are `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/tasks/completed/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx`, and `frontend/src/app/(app)/categories/page.tsx`; backend behavior is in `TodosController.cs` and `CategoriesController.cs`.
 
-Most of this is reachable without the mouse: `C` opens quick capture on every screen that has it, `⌘K` / `Ctrl K` opens the command palette — whose one creation entry is the same "Capture a task" — and the task list answers `J`/`K`, `G G`, `Shift G`, `Enter`, `Space`, `E`, `1`–`5`, `X`, and `Delete`. `?` prints the whole map. See [`features.md` § The keyboard over the task list](features.md#the-keyboard-over-the-task-list).
+Most of this is reachable without the mouse: `C` opens the New task panel and requests title focus on Dashboard or Tasks; on Categories it opens New category. `⌘K` / `Ctrl K` opens the command palette, whose creation entry is "New task"; from other routes it navigates to Tasks with a pending title request. The task list answers `J`/`K`, `G G`, `Shift G`, `Enter`, `Space`, `E`, `1`–`5`, `X`, and `Delete`. `?` prints the whole map. See [`features.md` § The keyboard over the task list](features.md#the-keyboard-over-the-task-list).
 
 ### Share Tasks With Friends
 
 The user sends a friend request, the other user accepts, and then todos can be shared with accepted friends. The frontend exposes all-friends visibility inside `Share With`, while selected-friend sharing persists `TodoItemShare` rows. Todo creation/update checks the accepted friend list via Auth gRPC before persisting direct shares.
 
-`IsPublic` on a task means "every accepted friend", not "the internet": `GetPublicTodosQueryHandler` resolves the viewer's friend list over gRPC first and only ever returns tasks owned by those friends. The task editor writes `isPublic: false` on every save and expresses reach through the named-share list instead, which is why its visibility token reads `private`, `all friends`, or `shared · N` and never `public`.
+`IsPublic` on a task means "every accepted friend", not "the internet": `GetPublicTodosQueryHandler` resolves the viewer's friend list over gRPC first and only ever returns tasks owned by those friends. The editor preserves All friends as `isPublic: true` with an empty client share list and unlimited workers. Named sharing sends selected friend IDs; private mode clears the audience. The UI labels are Private, All friends and Shared, rather than Public.
 
 Implementation:
 

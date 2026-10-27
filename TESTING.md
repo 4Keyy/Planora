@@ -64,7 +64,9 @@ npm --prefix frontend run e2e
 
 Playwright has `api` (gateway HTTP) and `ui` (Chromium) projects. The latter
 needs a separately built/running Next.js server; configuration does not launch
-it. A UI file may skip when the frontend is unreachable. Follow
+it. The frontend must already be running. An unreachable frontend or a non-successful
+reachability response fails the prerequisite check; selected optional investigations
+have their own explicit skip conditions. Follow
 [`frontend/e2e/README.md`](frontend/e2e/README.md) and inspect skipped tests.
 
 E2E config:

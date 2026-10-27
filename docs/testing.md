@@ -1130,7 +1130,8 @@ documentation audit; record a dated report before claiming an achieved score.
 - CodeQL SAST (`csharp` and `javascript-typescript`, `security-extended` queries);
 - Trivy IaC/Dockerfile misconfiguration scan;
 - `.NET` vulnerable package check;
-- `npm audit --audit-level=moderate`;
+- blocking `npm audit --omit=dev --audit-level=high`;
+- advisory full dependency audit with counts in the job summary;
 - weekly scheduled run on Monday at 02:00.
 
 CodeQL and Trivy publish SARIF results to the repository Security tab.

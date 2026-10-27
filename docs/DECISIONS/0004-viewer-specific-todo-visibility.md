@@ -45,15 +45,15 @@ Do not interpret this ADR as proof that every mutation response is redacted.
 
 ### Implementation Note — 2026-10-07
 
-By the owner's decision, hidden tasks can be found in the command palette. Only the palette
-requests `GET /todos/api/v1/todos?revealHidden=true`, which returns the normal DTO while
-retaining `hidden: true` and all ordinary access, category and audience-redaction rules. The
-palette keeps those rows blurred until the user hovers over them or selects them with the
-keyboard. This option changes the projection only: filters, paging and archive exclusions
-stay the same.
+The command palette and category-detail task list explicitly request
+`GET /todos/api/v1/todos?revealHidden=true`, which returns the normal DTO while
+retaining `hidden: true` and all ordinary access, category and audience-redaction
+rules. Both surfaces keep hidden rows blurred until reached by pointer or keyboard.
+This option changes the projection only: filters, paging and archive exclusions stay
+the same.
 
-Task lists and the task detail page retain their existing redacted presentation and the
-no eager hydration rule. This backend contract does not implement or change the palette UI.
+Ordinary task feeds omit the flag; detail reads retain the normal redaction contract
+and no eager hydration rule. This backend projection does not implement the reveal UI.
 
 ### Original Tradeoffs
 

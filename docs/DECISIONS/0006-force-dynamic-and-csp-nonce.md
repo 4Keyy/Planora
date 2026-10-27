@@ -60,9 +60,11 @@ production/development differences.
 and the route tests exercise selected rendering behavior; they do not prove
 all production inline scripts are allowed by the browser.
 
-The Playwright UI project uses a production frontend in CI. It covers selected
-auth/profile/task flows, with skip behavior when the frontend is unreachable;
-it is not a dedicated complete CSP conformance test. Before changing this
+The Playwright UI project uses a production frontend in CI and covers selected
+auth/profile/task flows. The frontend must already be running. An unreachable
+frontend or a non-successful reachability response fails the prerequisite check;
+selected optional investigations have their own explicit skip conditions. This is
+not a dedicated complete CSP conformance test. Before changing this
 trade-off, inspect actual HTML and response headers, verify hydration under
 production CSP, and check the browser console for blocked framework scripts.
 

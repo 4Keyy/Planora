@@ -781,12 +781,12 @@ Effective hidden state uses the owner's `Hidden` flag for their own tasks, plus 
 another owner's `Hidden` flag does not hide a shared task for the caller.
 
 `revealHidden` (default `false`) changes only the projection of hidden rows in
-`GET /todos/api/v1/todos`. With `revealHidden=true`, the command palette receives the normal
+`GET /todos/api/v1/todos`. With `revealHidden=true`, the palette and category-detail list receive the normal
 `TodoItemDto` with `hidden: true`: real title, description, dates, tags, viewer category and worker
 metadata, subject to the ordinary sharing and viewer-specific DTO rules. Access checks, filters,
 ordering, totals, paging and completed-archive exclusions are unchanged; the flag cannot add an
-otherwise inaccessible task. Other task lists omit the flag, and detail reads retain their usual
-redaction behavior.
+otherwise inaccessible task. The palette and category-detail list blur hidden rows until reached
+for. Ordinary task feeds omit the flag; detail reads retain their usual redaction behavior.
 
 `includeSubtasks` (default `false`) is the only way to see subtasks in a task list: every list query
 filters to `parentTodoId == null` unless it is set. The dashboard statistics fetch opts in so

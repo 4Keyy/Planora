@@ -38,12 +38,14 @@ frontend/src/
     notifications/  the bell and its dropdown
     backgrounds/    the WebGL gradient and its static fallback
   hooks/            cross-cutting behaviour (focus trap, scroll lock, autosave)
-  lib/              non-React: api client, tokens, animations, realtime, formatting
+  lib/              shared API/auth/configuration, formatting, tokens, geometry and realtime support
   store/            zustand stores (auth, notifications, toast)
   types/            DTO shapes shared with the backend
   utils/            pure helpers
   test/             mirrors the tree above; `test/quality/` holds contract tests
 ```
+
+Most `lib/` utilities are non-React; `lib/realtime/hooks.ts` contains React lifecycle hooks.
 
 The rule that keeps this honest: **`components/ui/` knows nothing about tasks.** A
 primitive that imports a `Todo` type has stopped being a primitive.
@@ -150,6 +152,10 @@ not treat missing sessionStorage metadata as proof that the cookie is absent.
 The store persists only `user`, token expiry metadata, `roles` and `emailVerified`
 under the per-tab sessionStorage key `planora-auth`. Neither authentication flags
 nor token strings are part of the persisted slice.
+
+The persistence adapter uses no-op storage during SSR and when sessionStorage access
+throws. In that fallback, Zustand still holds current identity in memory, but metadata
+is not persisted; cookie-based restoration remains the reload path.
 
 `lib/auth-broadcast.ts` uses `BroadcastChannel` for best-effort logout notification
 to other tabs. `clearAuth()` clears local state and broadcasts; it does not itself
@@ -276,6 +282,14 @@ and a shared in-flight request. It pages at 200 entries, bounded to 50 pages, an
 is currently not keyed by user id or cleared by `clearAuth()`; do not treat it as a
 session-isolated cache. Category-filter preferences in `localStorage` are separately
 keyed by user id. Lightweight warning preferences use `planora:pref:*`.
+
+`useFriendAffinity` shares a separate module-level 60-second cache and one in-flight
+request across audience maps. `invalidateFriendAffinity()` clears its cached result
+and request reference; it does not cancel an ongoing request or update already mounted
+hooks. TTL is checked on reads rather than by background polling. With no cached
+affinity, a failed read leaves the map ordering friends by name. Like the friend cache,
+this cache is not keyed by user id or cleared by `clearAuth()`; neither cache is a
+query-cache framework.
 
 `useAutosave` debounces by 600 ms by default, serializes writes, compares against
 the last saved baseline and sends a newer value after the current save succeeds.
