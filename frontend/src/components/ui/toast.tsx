@@ -43,6 +43,16 @@ const MARK: Record<ToastType | "undo", { icon: typeof Check; className: string }
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
 
+/** Focus that came from the keyboard (`:focus-visible`); true where the selector is unknown. */
+function isKeyboardFocus(element: EventTarget): boolean {
+  if (!(element instanceof Element)) return false
+  try {
+    return element.matches(":focus-visible")
+  } catch {
+    return true
+  }
+}
+
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
   const paused = useToastStore((state) => state.paused)
@@ -72,10 +82,38 @@ export function Toaster() {
     return () => document.removeEventListener("visibilitychange", sync)
   }, [])
 
-  // Nothing left to read: the pointer may still be resting where the stack was.
-  useEffect(() => {
-    if (toasts.length === 0) setPointerIn(false)
-  }, [toasts.length])
+  // Whenever the stack changes, check that it is still being read. A notice closed from its own
+  // button kept the focus inside the stack — on its button while it played its exit, then on
+  // nothing, since React runs no blur handler while it commits a removal — so `focusIn` stayed
+  // true, the clocks stayed stopped, and every later notice waited to be closed by hand. Focus
+  // left on a notice that is leaving moves to the next one (a keyboard keeps its place in the
+  // stack), or out of the stack when none is left. The pointer may also be resting where a
+  // shorter stack used to be.
+  const listRef = useRef<HTMLOListElement>(null)
+  const focusInRef = useRef(focusIn)
+  focusInRef.current = focusIn
+  useIsomorphicLayoutEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const active = document.activeElement
+    const focused = active instanceof HTMLElement && list.contains(active) ? active : null
+    const leaving = focused?.closest<HTMLElement>("[data-toast-id]")?.dataset.toastId
+    if (focused && leaving && !toasts.some((toast) => toast.id === leaving)) {
+      const next = list.querySelector<HTMLElement>(
+        `[data-toast-id]:not([data-toast-id="${CSS.escape(leaving)}"]) button[aria-label="Dismiss notification"]`,
+      )
+      if (next && toasts.length > 0) {
+        // Handed on, the focus is read the way it was before: by a keyboard, or not at all.
+        const reading = focusInRef.current
+        next.focus()
+        setFocusIn(reading)
+      } else {
+        focused.blur()
+      }
+    }
+    if (!list.contains(document.activeElement)) setFocusIn(false)
+    if (toasts.length === 0 || !list.matches(":hover")) setPointerIn(false)
+  }, [toasts])
 
   const onHeight = useCallback((id: string, height: number) => {
     setHeights((current) => (current[id] === height ? current : { ...current, [id]: height }))
@@ -105,12 +143,15 @@ export function Toaster() {
       }}
     >
       <ol
+        ref={listRef}
         role="presentation"
         className="pointer-events-auto relative w-full max-w-[420px]"
         style={{ height, transition: reduce ? undefined : "height 240ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         onPointerEnter={(e) => { if (e.pointerType === "mouse") setPointerIn(true) }}
         onPointerLeave={() => setPointerIn(false)}
-        onFocus={() => setFocusIn(true)}
+        // Only keyboard focus opens the deck and stops the clocks. A mouse press on Undo or ✕
+        // focuses the button too, but the pointer resting on the stack already does that job.
+        onFocus={(e) => setFocusIn(isKeyboardFocus(e.target))}
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusIn(false) }}
         onKeyDown={(e) => {
           // Escape takes the notice you are in away, and leaves the rest.

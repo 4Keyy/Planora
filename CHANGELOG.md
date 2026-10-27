@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(notices): notices leave on their own again (2026-10-28)
+
+After a notice was closed from its own button (✕, Undo or Escape), every later notice stayed on
+screen until it was closed by hand. The stack stops its clocks while it holds keyboard focus; the
+closed notice took the focused button with it, and React runs no blur handler while it commits a
+removal, so the stack stayed "focused" for good — and a mouse press on ✕ or Undo counted as focus
+too. Now only keyboard focus (`:focus-visible`) holds the clocks, the stack re-reads where focus and
+pointer are after every change, and focus on a closing notice moves to the next notice's ✕ or out
+of the stack. `components/ui/toast.tsx`.
+
 ### fix(categories): New task has its categories from the first open (2026-10-28)
 
 Opening New task right after the site loaded often showed no categories while the title,
