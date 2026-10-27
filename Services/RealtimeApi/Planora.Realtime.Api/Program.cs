@@ -205,12 +205,12 @@ public class Program
             app.UseCorrelationId();
             app.UseEnhancedGlobalExceptionHandling();
 
-            // Apply rate limiting before other middleware
-            app.UseRateLimiter();
-
             app.UseSecurityHeaders();
 
             app.UseAuthentication();
+            // After authentication: the limiter partitions by the signed-in user. Ahead of it every
+            // request looked anonymous and carried the gateway's address, so all users shared one bucket.
+            app.UseRateLimiter();
             app.UseAuthorization();
 
             // Swagger UI in Development / Staging only

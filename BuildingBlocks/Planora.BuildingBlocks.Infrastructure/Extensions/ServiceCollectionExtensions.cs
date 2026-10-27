@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
+using System.Globalization;
+using System.Reflection;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Hosting;
 using RedisRateLimiting;
 using StackExchange.Redis;
 
@@ -43,6 +46,32 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Requests per minute one partition may send to one service.</summary>
+    public const int GlobalPermitsPerMinute = 250;
+
+    /// <summary>Seconds a client is told to wait when a limiter cannot say when its window resets.</summary>
+    public const int FallbackRetryAfterSeconds = 60;
+
+    /// <summary>
+    /// The named policies, per partition. Credential endpoints stay tight (the Auth service's
+    /// account lockout sits behind them too); the rest leave room for ordinary use.
+    /// </summary>
+    public static IReadOnlyList<(string Name, int PermitLimit, TimeSpan Window)> NamedPolicies { get; } =
+    [
+        // Refresh, logout, token validation and password reset.
+        ("auth", 20, TimeSpan.FromMinutes(1)),
+        ("login", 10, TimeSpan.FromMinutes(1)),
+        ("register", 6, TimeSpan.FromMinutes(1)),
+        ("data", 125, TimeSpan.FromMinutes(1)),
+        // Avatars are bytes-on-disk: even after the 5 MB cap and ImageSharp re-encoding, an
+        // attacker with a valid token could spin the storage layer. At 10/hour the worst-case
+        // write traffic is bounded to ~50 MB/hour/user.
+        ("avatar-upload", 10, TimeSpan.FromHours(1)),
+        // Anonymous client error reports (Auth's ClientErrorsController): enough for a burst of
+        // distinct failures from one page, not enough to flood the logs.
+        ("client-errors", 50, TimeSpan.FromMinutes(1)),
+    ];
+
     /// <summary>
     /// Configures global and named rate-limit policies. When
     /// <c>RateLimiting:Backend</c> is set to <c>Redis</c> (production), policies
@@ -52,85 +81,127 @@ public static class ServiceCollectionExtensions
     /// — that path is used by unit/integration tests and by local development
     /// when no shared Redis is available.
     /// </summary>
+    /// <remarks>
+    /// The partition is the signed-in user (<see cref="PartitionKey"/>), so a service must call
+    /// <c>UseRateLimiter()</c> AFTER <c>UseAuthentication()</c>. Before it, every request looked
+    /// anonymous and, behind the gateway, carried the gateway's address: all users shared one
+    /// bucket and the app answered 429 after 15–30 seconds of ordinary use.
+    /// </remarks>
     public static IServiceCollection AddConfiguredRateLimiting(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         var backend = configuration["RateLimiting:Backend"];
         var useRedis = string.Equals(backend, "Redis", StringComparison.OrdinalIgnoreCase);
+        var scope = RateLimitScope(configuration);
 
         services.AddRateLimiter(options =>
         {
             if (useRedis)
             {
-                ConfigureRedisRateLimits(options);
+                ConfigureRedisRateLimits(options, scope);
             }
             else
             {
                 ConfigureInMemoryRateLimits(options);
             }
 
-            // On rejection, return 429 Too Many Requests with Retry-After header.
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.OnRejected = async (context, _) =>
-            {
-                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                context.HttpContext.Response.Headers.RetryAfter = "60";
-                await context.HttpContext.Response.WriteAsJsonAsync(new
-                {
-                    error = "Too many requests. Please try again later.",
-                    retryAfter = 60
-                });
-            };
+            options.OnRejected = (context, cancellationToken) =>
+                WriteRateLimitRejectionAsync(context.HttpContext, context.Lease, cancellationToken);
         });
 
         return services;
     }
 
+    /// <summary>
+    /// Answers a rejected request with 429, a <c>Retry-After</c> header and a JSON body that both
+    /// say how many seconds remain until the rejecting window resets. A fixed "60" told a client
+    /// that hit the limit in a window's last second to wait a whole minute for nothing.
+    /// </summary>
+    public static async ValueTask WriteRateLimitRejectionAsync(
+        HttpContext httpContext,
+        RateLimitLease lease,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(lease);
+
+        var retryAfter = RetryAfterSeconds(lease);
+        httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        httpContext.Response.Headers.RetryAfter = retryAfter.ToString(CultureInfo.InvariantCulture);
+        await httpContext.Response.WriteAsJsonAsync(new
+        {
+            error = "Too many requests. Please try again later.",
+            retryAfter
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Whole seconds until the rejecting window resets, at least 1, from the lease's
+    /// <see cref="MetadataName.RetryAfter"/>; <see cref="FallbackRetryAfterSeconds"/> without it.
+    /// </summary>
+    public static int RetryAfterSeconds(RateLimitLease lease)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        if (!lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter) || retryAfter <= TimeSpan.Zero)
+        {
+            return FallbackRetryAfterSeconds;
+        }
+
+        return (int)Math.Min(int.MaxValue, Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds)));
+    }
+
+    /// <summary>
+    /// The service's segment of every Redis rate-limit key: <c>RateLimiting:Scope</c>, else the
+    /// application name, lower-cased. Without it the per-user "global" counter was one key shared
+    /// by every service, so a user's requests for tasks, categories, friends and notifications
+    /// all spent the same allowance.
+    /// </summary>
+    public static string RateLimitScope(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var scope = configuration["RateLimiting:Scope"];
+        if (string.IsNullOrWhiteSpace(scope)) scope = configuration[HostDefaults.ApplicationKey];
+        if (string.IsNullOrWhiteSpace(scope)) scope = Assembly.GetEntryAssembly()?.GetName().Name;
+        return string.IsNullOrWhiteSpace(scope) ? "service" : scope.Trim().ToLowerInvariant();
+    }
+
     private static void ConfigureInMemoryRateLimits(RateLimiterOptions options)
     {
-        // Global fallback: 100 requests/min/IP for endpoints without an explicit
-        // [EnableRateLimiting] policy. Protects data endpoints that do not carry
-        // individual rate-limit attributes.
+        // Global fallback: GlobalPermitsPerMinute per user (per IP when anonymous) for endpoints
+        // without an explicit [EnableRateLimiting] policy. Protects data endpoints that do not
+        // carry individual rate-limit attributes.
         options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
             context => RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey: PartitionKey(context),
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
                     AutoReplenishment = true,
-                    PermitLimit = 100,
+                    PermitLimit = GlobalPermitsPerMinute,
                     Window = TimeSpan.FromMinutes(1)
                 }));
 
-        AddInMemoryPolicy(options, "auth", 10, TimeSpan.FromMinutes(1));
-        AddInMemoryPolicy(options, "login", 5, TimeSpan.FromMinutes(1));
-        AddInMemoryPolicy(options, "register", 3, TimeSpan.FromMinutes(1));
-        AddInMemoryPolicy(options, "data", 50, TimeSpan.FromMinutes(1));
-        // Per-user upload throttle. Avatars are bytes-on-disk: even after PR-1's
-        // 5 MB cap + ImageSharp re-encoding, an attacker with a valid token could
-        // try to spin the storage layer at the generic "auth" rate (10/min). At
-        // 5/hour the worst-case write traffic is bounded to ~30 MB/hour/user.
-        AddInMemoryPolicy(options, "avatar-upload", 5, TimeSpan.FromHours(1));
-        // Anonymous client error reports (Auth's ClientErrorsController): enough for a burst of
-        // distinct failures from one page, not enough to flood the logs.
-        AddInMemoryPolicy(options, "client-errors", 20, TimeSpan.FromMinutes(1));
+        foreach (var (name, permitLimit, window) in NamedPolicies)
+        {
+            AddInMemoryPolicy(options, name, permitLimit, window);
+        }
     }
 
-    private static void ConfigureRedisRateLimits(RateLimiterOptions options)
+    private static void ConfigureRedisRateLimits(RateLimiterOptions options, string scope)
     {
-        // Same limits as the in-memory path, but backed by Redis so the per-IP
-        // counters are shared across all replicas of every service.
+        // Same limits as the in-memory path, but backed by Redis so the counters are shared
+        // across all replicas of one service. The scope keeps each service's counters apart.
         options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
             context => RedisRateLimitPartition.GetFixedWindowRateLimiter(
-                partitionKey: $"planora:rl:global:{PartitionKey(context)}",
-                factory: _ => RedisOptions(context, permitLimit: 100, window: TimeSpan.FromMinutes(1))));
+                partitionKey: $"planora:rl:{scope}:global:{PartitionKey(context)}",
+                factory: _ => RedisOptions(context, permitLimit: GlobalPermitsPerMinute, window: TimeSpan.FromMinutes(1))));
 
-        AddRedisPolicy(options, "auth", 10, "planora:rl:auth", TimeSpan.FromMinutes(1));
-        AddRedisPolicy(options, "login", 5, "planora:rl:login", TimeSpan.FromMinutes(1));
-        AddRedisPolicy(options, "register", 3, "planora:rl:register", TimeSpan.FromMinutes(1));
-        AddRedisPolicy(options, "data", 50, "planora:rl:data", TimeSpan.FromMinutes(1));
-        AddRedisPolicy(options, "avatar-upload", 5, "planora:rl:avatar-upload", TimeSpan.FromHours(1));
-        AddRedisPolicy(options, "client-errors", 20, "planora:rl:client-errors", TimeSpan.FromMinutes(1));
+        foreach (var (name, permitLimit, window) in NamedPolicies)
+        {
+            AddRedisPolicy(options, name, permitLimit, $"planora:rl:{scope}:{name}", window);
+        }
     }
 
     private static void AddInMemoryPolicy(RateLimiterOptions options, string name, int permitLimit, TimeSpan window) =>

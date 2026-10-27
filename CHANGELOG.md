@@ -113,6 +113,36 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(rate-limit): every user gets their own allowance, two and a half times larger (2026-10-28)
+
+The app answered 429 after 15–30 seconds of ordinary use. Every service ran `UseRateLimiter()`
+before `UseAuthentication()`, so the limiter saw each request as anonymous and partitioned it by
+the caller's address — behind the gateway that is the gateway's, so all users shared one bucket of
+100 requests a minute per service. With the Redis backend the `planora:rl:global:<partition>` key
+had no service in it, so that one bucket was also shared by every service at once. The Auth
+service saw the gateway's address on refresh and login too, so everyone's token refreshes shared
+one window.
+
+- The limiter runs after authentication in all six services and in the gateway; the partition is
+  the signed-in user (`u:<sub>`), the IP only for anonymous requests. A contract test fails if a
+  `Program.cs` puts it back in front.
+- Limits: 250 requests a minute per user per service and at the gateway (was 100 per IP), gateway
+  `/auth/api/v1/auth/*` 60 per IP (was 30); policies `auth` 20, `login` 10, `register` 6, `data`
+  125 per minute, `avatar-upload` 10 per hour, `client-errors` 50 per minute (were 10, 5, 3, 50, 5
+  and 20).
+- Redis keys carry the service: `planora:rl:<service>:global:<partition>` and
+  `planora:rl:<service>:<policy>:<partition>`, the service being `RateLimiting:Scope` or the
+  application name, lower-cased.
+- A 429's `Retry-After` and `retryAfter` are the seconds left in the window that refused the
+  request (60 only when the limiter cannot say), instead of a fixed 60.
+- The gateway sets `X-Forwarded-For` to the client's address on the anonymous Auth routes
+  (`/auth/api/v1/auth/*`, `/users/verify-email`, `/client-errors`), replacing whatever the client
+  sent, so Auth's per-IP windows are per client wherever it trusts the gateway as a proxy
+  (loopback by default, `ForwardedHeaders:KnownProxies` elsewhere).
+
+`ServiceCollectionExtensions.AddConfiguredRateLimiting`, `Planora.ApiGateway/Program.cs`,
+`RateLimitPolicyTests`.
+
 ### refactor(tasks): one way to name friends on task cards (2026-10-27)
 
 Dashboard, Tasks and the archive each carried a copy of the code that puts a friend's name on their

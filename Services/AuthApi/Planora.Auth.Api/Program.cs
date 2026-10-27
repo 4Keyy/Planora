@@ -228,9 +228,6 @@ namespace Planora.Auth.Api
                 });
                 app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
 
-                // Apply rate limiting before other middleware
-                app.UseRateLimiter();
-
                 app.UseCorrelationId();
                 app.UseEnhancedGlobalExceptionHandling();
 
@@ -245,6 +242,9 @@ namespace Planora.Auth.Api
                 app.UseSecurityHeaders();
 
                 app.UseAuthentication();
+                // After authentication: the limiter partitions by the signed-in user. Ahead of it every
+                // request looked anonymous and carried the gateway's address, so all users shared one bucket.
+                app.UseRateLimiter();
                 app.UseAuthorization();
 
                 // SECURITY: Enforce CSRF double-submit cookie validation on all state-modifying

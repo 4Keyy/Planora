@@ -7,11 +7,15 @@ using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
 using System.Threading.RateLimiting;
+using RateLimits = Planora.BuildingBlocks.Infrastructure.Extensions.ServiceCollectionExtensions;
 
 namespace Planora.ApiGateway;
 
 public class Program
 {
+    /// <summary>Requests per minute one IP may send to /auth/api/v1/auth/* at the edge.</summary>
+    public const int GatewayAuthPermitsPerMinute = 60;
+
     public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
@@ -90,24 +94,26 @@ public class Program
             // request header and fail-closes with 503 when that header is absent — which it
             // always is for browser traffic — so any route with EnableRateLimiting:true was
             // rejecting every request (login/refresh/SignalR negotiate). The limiters below
-            // partition by RemoteIpAddress, which is what edge throttling actually needs.
+            // partition by the signed-in user, or by RemoteIpAddress for anonymous traffic.
             builder.Services.AddRateLimiter(options =>
             {
                 static string ClientIp(HttpContext context) =>
                     context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-                // Per-IP ceiling for EVERY gateway request (100 req/min).
+                // Ceiling for EVERY gateway request: 250 req/min per signed-in user (`u:<sub>`, a
+                // valid bearer token), per IP otherwise. It was 100 per IP, which one person's
+                // ordinary clicking spent in 15–30 seconds, and which everyone behind one NAT shared.
                 var globalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     RateLimitPartition.GetFixedWindowLimiter(
-                        partitionKey: ClientIp(context),
+                        partitionKey: RateLimits.PartitionKey(context),
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 100,
+                            PermitLimit = RateLimits.GlobalPermitsPerMinute,
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
-                // Stricter per-IP window for the authentication endpoints (30 req/min) to
+                // Stricter per-IP window for the authentication endpoints (60 req/min) to
                 // throttle credential stuffing and registration spam, layered on top of the
                 // per-account lockout the Auth service already applies. CORS preflights and
                 // every non-auth path bypass this limiter (the global ceiling still applies).
@@ -124,26 +130,19 @@ public class Program
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 30,
+                            PermitLimit = GatewayAuthPermitsPerMinute,
                             Window = TimeSpan.FromMinutes(1)
                         });
                 });
 
                 // Chained: a request must satisfy every applicable window. Auth traffic is
-                // bound by both 30/min (auth) and 100/min (global); everything else by 100/min.
+                // bound by both 60/min (auth) and 250/min (global); everything else by 250/min.
                 options.GlobalLimiter = PartitionedRateLimiter.CreateChained(globalLimiter, authLimiter);
 
+                // 429 with the seconds left in the window that refused it, as every service answers.
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-                options.OnRejected = async (context, _) =>
-                {
-                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                    context.HttpContext.Response.Headers.RetryAfter = "60";
-                    await context.HttpContext.Response.WriteAsJsonAsync(new
-                    {
-                        error = "Too many requests. Please try again later.",
-                        retryAfter = 60
-                    });
-                };
+                options.OnRejected = (context, cancellationToken) =>
+                    RateLimits.WriteRateLimitRejectionAsync(context.HttpContext, context.Lease, cancellationToken);
             });
 
             // CORS
@@ -299,20 +298,22 @@ public class Program
 
             app.UseSecurityHeaders();
 
-            // SECURITY: apply the global per-IP rate limiter (100 req/min, configured above) to every
-            // gateway request, before authentication and Ocelot. A flood is then rejected cheaply with
-            // a 429 + Retry-After before any JWT validation or downstream proxying happens. Without this
-            // UseRateLimiter() call the registered GlobalLimiter was inert — only Ocelot's per-route
-            // RateLimitOptions were ever enforced, leaving unthrottled routes (and the gateway itself)
-            // exposed to request floods.
-            app.UseRateLimiter();
-
             // Required for Ocelot to proxy the SignalR WebSocket upgrade through to RealtimeApi
             // (the /realtime route uses the ws downstream scheme). Without this the upgrade request
             // is treated as a plain HTTP GET and the hub handshake never completes.
             app.UseWebSockets();
 
             app.UseAuthentication();
+
+            // SECURITY: apply the rate limiters configured above to every gateway request, before
+            // Ocelot proxies anything. It runs after authentication so the global window is the
+            // signed-in user's (validating a JWT is a local HMAC check, cheap next to a proxied
+            // request); a request without a valid token falls back to its IP. Without this
+            // UseRateLimiter() call the registered GlobalLimiter was inert — only Ocelot's per-route
+            // RateLimitOptions were ever enforced, leaving unthrottled routes (and the gateway itself)
+            // exposed to request floods.
+            app.UseRateLimiter();
+
             app.UseAuthorization();
 
             // Short-circuit the whole /health* segment (/health, /health/live, /health/ready)

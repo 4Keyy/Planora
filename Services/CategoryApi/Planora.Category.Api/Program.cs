@@ -183,15 +183,15 @@ namespace Planora.Category.Api
                 app.UseResponseCompression();
                 app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
 
-                // Apply rate limiting before other middleware
-                app.UseRateLimiter();
-
                 app.UseCorrelationId();
                 app.UseEnhancedGlobalExceptionHandling();
 
                 app.UseSecurityHeaders();
 
                 app.UseAuthentication();
+                // After authentication: the limiter partitions by the signed-in user. Ahead of it every
+                // request looked anonymous and carried the gateway's address, so all users shared one bucket.
+                app.UseRateLimiter();
                 app.UseAuthorization();
 
                 // Double-submit CSRF check for browser cookie flows. Internal gRPC
