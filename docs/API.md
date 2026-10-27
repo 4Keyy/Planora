@@ -124,28 +124,42 @@ Service-level rate limiting policies are configured in `BuildingBlocks/Planora.B
 
 | Policy | Limit | Applied |
 |---|---:|---|
-| `register` | 3 requests/minute/IP | `POST /auth/api/v1/auth/register` |
-| `login` | 5 requests/minute/IP | `POST /auth/api/v1/auth/login` |
-| `auth` | 10 requests/minute/partition | refresh/logout/validate-token/password reset |
-| `avatar-upload` | 5 requests/hour/partition | `POST /auth/api/v1/users/me/avatar` |
-| global | 100 requests/minute/partition | service routes, except an endpoint marked `[DisableRateLimiting]` such as CSRF-token issuance |
-| `data` | 50 requests/minute/partition | configured but no controller usage found in inspected routes |
+| `register` | 6 requests/minute/partition | `POST /auth/api/v1/auth/register` |
+| `login` | 10 requests/minute/partition | `POST /auth/api/v1/auth/login` |
+| `auth` | 20 requests/minute/partition | refresh/logout/validate-token/password reset |
+| `avatar-upload` | 10 requests/hour/partition | `POST /auth/api/v1/users/me/avatar` |
+| global | 250 requests/minute/partition/service | service routes, except an endpoint marked `[DisableRateLimiting]` such as CSRF-token issuance |
+| `data` | 125 requests/minute/partition | configured but no controller usage found in inspected routes |
+| `client-errors` | 50 requests/minute/partition | `POST /auth/api/v1/client-errors` |
 
-The partition resolver prefers a subject claim when available and otherwise uses normalized remote IP. Current service pipelines invoke `UseRateLimiter()` before `UseAuthentication()`, so ordinary bearer requests reach it without a validated JWT principal and use the IP fallback. Redis-backed service counters share their prefixes across services; the gateway limiter is a separate in-memory per-process layer.
+All six service pipelines invoke `UseRateLimiter()` after `UseAuthentication()`. Validated
+JWTs select `u:<sub>` (with `NameIdentifier` as the claim fallback); anonymous requests
+select `ip:<address>` after IPv4-mapped IPv6 normalization, or `anon` without an IP.
+Previously every user behind the gateway shared its IP bucket because limiting ran before
+authentication. Redis counters are shared across replicas of one service, with separate
+keys `planora:rl:<service>:global:<partition>` and `planora:rl:<service>:<policy>:<partition>`.
+The scope defaults to the lower-case application name (for example `planora.todo.api`),
+with an optional `RateLimiting:Scope` override. The former unscoped global key pooled all
+services into one 100/minute allowance. The gateway remains a separate in-memory,
+per-process layer.
 
 Every route in both Ocelot files carries `"RateLimitOptions": { "EnableRateLimiting": false }` — Ocelot
 throttles nothing. All gateway throttling comes from the ASP.NET Core limiter in
-`Planora.ApiGateway/Program.cs`, applied by `app.UseRateLimiter()` ahead of authentication and Ocelot
-so a rejected request never reaches JWT validation or a downstream service. It is a **chained**
+`Planora.ApiGateway/Program.cs`, applied by `app.UseRateLimiter()` after authentication and before
+Ocelot, so a rejected request never reaches a downstream service. It is a **chained**
 partitioned limiter — a request must satisfy every window that applies to it:
 
 | Window | Limit | Partition | Applies to |
 |---|---:|---|---|
-| global | 100 requests/minute | client IP | every gateway request |
-| auth | 30 requests/minute | `auth:` + client IP | paths under `/auth/api/v1/auth` only; `OPTIONS` preflights bypass it |
+| global | 250 requests/minute | `u:<sub>` for a valid JWT, otherwise `ip:<address>` (`anon` without an IP) | every gateway request |
+| auth | 60 requests/minute | `auth:` + client IP | paths under `/auth/api/v1/auth` only; `OPTIONS` preflights bypass it |
 
-Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
-`{ "error": "Too many requests. Please try again later.", "retryAfter": 60 }`.
+Both gateway windows are fixed windows of one minute. Gateway and service rejections are
+`429 Too Many Requests` with matching `Retry-After` and JSON `retryAfter` values: the seconds
+until the rejecting window resets, from the lease's `RetryAfter` metadata, rounded up to
+whole seconds (minimum 1). Missing or non-positive metadata falls back to 60 seconds.
+For example, a lease reporting 12 seconds returns `Retry-After: 12` and
+`{ "error": "Too many requests. Please try again later.", "retryAfter": 12 }`.
 
 ## Gateway Route Map
 
@@ -572,7 +586,7 @@ Errors:
 
 ### `POST /auth/api/v1/client-errors`
 
-Anonymous + CSRF. Rate-limited per caller (`client-errors`, 20 a minute). The web client reports a
+Anonymous + CSRF. Rate-limited per caller (`client-errors`, 50 a minute). The web client reports a
 failure the person saw — an uncaught error, an unhandled rejection, or a crash an error boundary
 caught (`frontend/src/lib/client-errors.ts`) — and the Auth service writes it to its log as one
 warning line (`ClientErrorsController`). No credentials are sent: errors happen before sign-in too,

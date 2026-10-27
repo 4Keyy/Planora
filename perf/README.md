@@ -46,11 +46,19 @@ Generated performance results are not currently ignored by a dedicated
 
 ## Interpretation and known limitations
 
-- Gateway permits 100 requests/min/IP overall and 30/min/IP on Auth routes;
-  its counters also cover CSRF fetches. These scenario rates can intentionally
-  hit `429` before measuring sustainable handler throughput. Document the
-  rate-limit configuration used in any result instead of attributing all
-  failures to server performance.
+- Gateway permits 250 requests/minute per authenticated user (`u:<sub>`) or
+  anonymous IP (`ip:<address>`), chained with 60/minute/IP on `/auth/api/v1/auth/*`
+  except `OPTIONS`; both are one-minute fixed windows. Its counters also cover
+  CSRF fetches. Services authenticate before limiting too, with independent
+  250/minute global budgets per partition and named policies: `auth` 20/minute,
+  `login` 10/minute, `register` 6/minute, `data` 125/minute, `avatar-upload` 10/hour,
+  and `client-errors` 50/minute. Redis keys include the lower-case service scope,
+  so replicas share a budget but different services do not; in-memory counters
+  (including the gateway's) are process-local. A VU pool reusing one JWT still
+  shares that user's budget. These scenarios can hit `429` before measuring
+  sustainable handler throughput. Record the rate-limit configuration and the
+  returned `Retry-After` (remaining-window seconds from lease metadata, fallback 60)
+  instead of attributing all failures to server performance.
 - Repeated login also grows session/token history for the same account.
 - The Todo setup returns a k6 cookie-jar object together with serializable
   token fields. Validate setup-data serialization in the installed k6 version;

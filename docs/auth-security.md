@@ -3,6 +3,7 @@
 This document describes the implementation inspected on **2026-10-06** at commit
 `8b072a9f3da0e57e1aecfce0e814d780506b3078`. It separates implemented controls from
 their limits; it does not certify a deployed environment.
+The rate-limiting section was updated on **2026-10-28** against server commit `eae74a7`.
 
 Use the [API contract](API.md), [authorization coverage map](security-idor-coverage.md),
 [secret operations](secrets-management.md), and [repository audit](audits/2026-10-06.md)
@@ -102,7 +103,7 @@ State-changing HTTP requests to **Auth, Todo, Category, Messaging and Collaborat
 
 Frontend startup uses `getCsrfToken()` instead of unconditional token fetch so reloads reuse an existing `XSRF-TOKEN` cookie. The CSRF helper also shares concurrent token fetches, and the public auth client retries one CSRF `403` after clearing the readable cookie. Silent refresh calls are serialized in `auth-public.ts`: single-flight within a tab, and across the tabs of one browser by the Web Lock `planora:auth-refresh`. Under reuse detection (INV-AUTH-6) two tabs presenting the same refresh cookie at once would revoke every session of the user, so a second tab's refresh leaves only after the first response has set the rotated cookie. Origins without Web Locks (plain-http LAN addresses) fall back to per-tab single-flight. HTTP errors from the CSRF fetch preserve their status and `Retry-After` without retaining the token or response body. A shared silent refresh waits that window and retries once on a CSRF or refresh `429` (seconds or HTTP-date, default 60s, bounded to 1–300s); cold hydration stays pending until a real token is obtained. Repeated limits remain errors, and `401`/`204` still end an unrestorable session. The mutation interceptor does not send an unprotected request after a CSRF `429`.
 
-**Client-side refresh discipline (anti-storm).** The axios interceptor in `api.ts` enforces two rules so background traffic cannot stampede `/auth/refresh` into its `10/min` rate limit (which would otherwise cascade into spurious logouts):
+**Client-side refresh discipline (anti-storm).** The axios interceptor in `api.ts` enforces two rules so background traffic cannot stampede `/auth/refresh` into its `20/min` rate limit (which would otherwise cascade into spurious logouts):
 
 1. **Best-effort background calls never drive refresh or logout.** A request marked `suppressErrorLog` (the notification-summary poll that runs while the WebSocket is down, and the subtask/comment polls) that receives a `401` rejects silently. The caller already keeps its last-known value; the access token is renewed by the scheduled refresh or the next foreground request — never by a background tick.
 2. **A `429` on refresh is transient, not an invalid session.** A rate-limited refresh does **not** clear auth or redirect (the httpOnly refresh cookie is still valid). The interceptor backs off for the `Retry-After` window (default 60s, clamped to 1–300s) before any further refresh, and `restoreSession` applies the same rule at startup so a `429` cannot hard-log-out every open tab. Genuine `401`/cookie-expiry failures still clear auth and redirect as before.
@@ -348,26 +349,28 @@ Code:
 
 ## Rate Limiting
 
-A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every endpoint across all services. Named policies for Auth endpoints provide stricter per-operation limits:
+A `GlobalLimiter` caps each service at 250 requests/minute per partition, except endpoints marked `[DisableRateLimiting]`, such as CSRF-token issuance. Named policies add per-operation limits:
 
 | Policy | Limit | Applied to |
 |---|---:|---|
-| global | 100/minute/partition | all services (default) |
-| `register` | 3/minute/partition | `POST /auth/register` |
-| `login` | 5/minute/partition | `POST /auth/login` |
-| `auth` | 10/minute/partition | refresh, logout, token validation, reset operations; CSRF GET disables service limiting |
-| `avatar-upload` | 5/hour/partition | `POST /users/me/avatar` |
-| `data` | 50/minute/partition | reserved for data-heavy endpoints |
-| `client-errors` | 20/minute/partition | `POST /client-errors` (anonymous client error reports) |
+| global | 250/minute/partition/service | all services (default) |
+| `register` | 6/minute/partition | `POST /auth/register` |
+| `login` | 10/minute/partition | `POST /auth/login` |
+| `auth` | 20/minute/partition | refresh, logout, token validation, reset operations; CSRF GET disables service limiting |
+| `avatar-upload` | 10/hour/partition | `POST /users/me/avatar` |
+| `data` | 125/minute/partition | reserved for data-heavy endpoints |
+| `client-errors` | 50/minute/partition | `POST /client-errors` (anonymous client error reports) |
 
-The partition function prefers authenticated user id (`sub` / `NameIdentifier`), then
-`RemoteIpAddress`. **The inspected service pipelines call `UseRateLimiter` before
-`UseAuthentication`**, so requests normally reach the limiter without an authenticated
-principal and use the IP partition. This can couple users behind one NAT or proxy.
-The gateway also intentionally partitions by remote IP. The service configuration
-lives in `AddConfiguredRateLimiting(IConfiguration)`. IPv4-mapped IPv6 addresses (`::ffff:1.2.3.4`) are normalized to their IPv4 form so dual-stack listeners do not split a client's quota into two buckets. The backend is selected at startup:
+All six services call `UseRateLimiter()` after `UseAuthentication()`. A validated JWT
+subject (`sub` / `NameIdentifier`) selects `u:<subject>`; anonymous requests use
+`ip:<RemoteIpAddress>`, or `anon` when the connection has no IP. Previously the limiter
+ran before authentication, so users behind the gateway shared its IP bucket and could
+exhaust it within 15–30 seconds of ordinary use. The service configuration lives in
+`AddConfiguredRateLimiting(IConfiguration)`. IPv4-mapped IPv6 addresses (`::ffff:1.2.3.4`)
+are normalized to IPv4 so dual-stack listeners do not split a client's quota.
+The backend is selected at startup:
 
-- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so counters can be shared by replicas and services using the same Redis and configured prefixes. The in-memory alternative is process-local.
+- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — fixed-window counters are shared by replicas of the same service. Keys are `planora:rl:<service>:global:<partition>` and `planora:rl:<service>:<policy>:<partition>`. The service scope defaults to the lower-case application name, such as `planora.todo.api`; `RateLimiting:Scope` can override it. Previously `planora:rl:global:<partition>` pooled all services into one 100/minute allowance. Distinct service scopes now keep those budgets independent; replicas of one service must use the same scope.
 - Unset or anything else (tests, local dev) — falls back to the in-memory `FixedWindowRateLimiter`. The integration test factory deliberately leaves it unset, so the in-memory path stays the default for tests.
 
 Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
@@ -379,26 +382,29 @@ Code:
 
 ### Gateway edge rate limiting
 
-The API Gateway throttles at the edge with the ASP.NET Core rate limiter (`AddRateLimiter` / `UseRateLimiter`), **not** with Ocelot's per-route `RateLimitOptions`. Two chained per-IP fixed windows apply, both partitioned by `RemoteIpAddress`:
+The API Gateway throttles at the edge with the ASP.NET Core rate limiter (`AddRateLimiter` / `UseRateLimiter`), **not** with Ocelot's per-route `RateLimitOptions`. It also runs after authentication. Two chained fixed windows, each one minute long, apply:
 
 | Scope | Limit | Applies to |
 |---|---:|---|
-| global | 100/minute/IP | every gateway request |
-| auth | 30/minute/IP | `POST/GET/... /auth/api/v1/auth/*` (CORS `OPTIONS` preflights bypass it) |
+| global | 250/minute/partition | every gateway request; `u:<subject>` with a valid JWT, otherwise `ip:<address>` (`anon` without an IP) |
+| auth | 60/minute/IP | `POST/GET/... /auth/api/v1/auth/*`; keyed as `auth:<address>` (CORS `OPTIONS` preflights bypass this window) |
 
-Auth traffic must satisfy both windows; this is a coarse edge layer on top of the stricter per-operation limits the Auth service enforces (`login` 5/min, `register` 3/min, `auth` 10/min).
+Auth traffic must satisfy both windows; this is a coarse edge layer on top of the stricter per-operation limits the Auth service enforces (`login` 10/min, `register` 6/min, `auth` 20/min). The gateway's counters are in-memory and process-local regardless of `RateLimiting:Backend`.
 
 Both committed Ocelot route files disable their per-route limiter; the active gateway
-throttle is the ASP.NET Core limiter. Gateway auth traffic must pass both 100/minute
-global and 30/minute auth windows, then the stricter Auth service window.
+throttle is the ASP.NET Core limiter. Gateway auth traffic must pass both 250/minute
+global and 60/minute auth windows, then the stricter Auth service window.
 Gateway forwarded headers are opt-in with `ForwardedHeaders:KnownProxies`. The parser
 accepts individual IP addresses with `IPAddress.TryParse`, **not CIDR ranges** despite
 comments suggesting CIDR support. Configure actual trusted proxy addresses and verify
 `RemoteIpAddress`; otherwise multiple clients can share one proxy bucket.
 
-Service rejections currently advertise `Retry-After: 60` even for the hourly avatar policy;
-it is not a computed remaining-window duration. The `data` policy is defined but not
-attached to the inspected controllers.
+Gateway and service rejections return `429` with `Retry-After` and JSON
+`{ "error": "Too many requests. Please try again later.", "retryAfter": <seconds> }`.
+Both values use the rejecting lease's `RetryAfter` metadata, rounded up to whole seconds
+(at least 1). Missing or non-positive metadata falls back to 60 seconds. This also applies
+to the hourly avatar window. The `data` policy is defined but not attached to the inspected
+controllers.
 
 Code:
 
@@ -554,7 +560,7 @@ mutation shortcuts and the cached Todo list authorization path.
 | Revocation | stamp errors fail open; TTL is fixed at 120 minutes | Redis availability and access lifetime bound revocation guarantees |
 | Live rooms | no eviction/recheck after task access or JWT changes | existing connections can retain subscriptions until disconnect |
 | Public token validation | no stamp/blacklist check; expiry computed from current time | use JWT `exp` and authenticated endpoint behavior, not this response, to infer access validity |
-| Rate limiting | middleware runs before authentication; trusted proxy parser accepts IPs only | verify actual client IP and avoid promising independent per-user quotas |
+| Rate limiting | middleware runs after authentication; anonymous and gateway auth windows use IPs; trusted proxy parser accepts IPs only | verify actual client IP for anonymous quotas and keep Redis scopes distinct per service |
 | Avatar decode | dimensions checked after decode | retain decoder updates and resource limits; re-encoding is not a universal payload guarantee |
 | Email logs | default `Log` provider prints one-time bearer links | restrict log access; configure SMTP for actual production delivery |
 | Deployment | [CD workflow](../.github/workflows/cd.yml) exists, but route/listener/secret limitations remain | follow [deployment audit](deployment.md) before rollout; manifests alone do not prove a working deployment |

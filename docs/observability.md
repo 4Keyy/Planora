@@ -214,7 +214,7 @@ week of production data.
       Sustained avatar-upload rejections (>1/s for 5 min). `rejected_size`
       spike = burst-DoS attempt past the 5 MB cap; `rejected_mime` /
       `rejected_content` = polyglot/exploit-payload probing. Cross-check
-      the rate-limit logs (avatar-upload policy is 5/hour/user) — a single
+      the rate-limit logs (avatar-upload policy is 10/hour/user) — a single
       bad actor should be capped quickly; sustained noise means either
       many compromised tokens or a misbehaving client.
 

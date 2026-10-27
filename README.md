@@ -316,6 +316,18 @@ required secret is missing. The full annotated reference lives in
 | `Email__Username` / `Email__Password` | — | Gmail App Password when `Email__Provider=GmailSmtp`. |
 | `Cors__AllowedOrigins__N` | localhost | Extra credentialed CORS origins (numbered keys). |
 
+Rate limiting runs after JWT authentication at the gateway and in all six services.
+The gateway chains a global 250 requests/minute per user (`u:<sub>`, otherwise `ip:<address>`)
+with 60/minute/IP on `/auth/api/v1/auth/*` except `OPTIONS`; both windows last one minute.
+Each service has its own global 250/minute budget and stricter named policies.
+`RateLimiting__Backend=Redis` shares service counters across replicas using
+`planora:rl:<service>:global:<partition>` and `planora:rl:<service>:<policy>:<partition>`;
+the scope defaults to the lower-case application name and supports `RateLimiting__Scope`
+overrides. Gateway counters remain in-memory. A `429` returns matching `Retry-After`
+and JSON `retryAfter` seconds from the rejecting lease (rounded up, minimum 1; fallback 60).
+See [rate-limit policies](docs/auth-security.md#rate-limiting) and
+[backend configuration](docs/configuration.md#rate-limiting).
+
 ---
 
 ## 🧪 Testing & quality gates

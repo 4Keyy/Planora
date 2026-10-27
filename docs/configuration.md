@@ -128,9 +128,37 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `E2E_MAILPIT_URL` | optional, test runner only | Mailpit API origin, default `http://127.0.0.1:8025`; loopback only in the supplied test overlay. |
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
-| `RateLimiting__Backend` | optional | Backend services select Redis when set to `Redis`; otherwise use the in-memory limiter. Compose sets it for all six services. The gateway uses its own in-memory per-IP limiter regardless of this key. |
+| `RateLimiting__Backend` | optional | Backend services select Redis when set to `Redis`; otherwise use the in-memory limiter. Compose sets it for all six services. The gateway always uses its own in-memory limiter: global per user/IP and a separate auth window per IP. |
+| `RateLimiting__Scope` | optional | Overrides the service segment of Redis rate-limit keys. Defaults to the lower-case application name, for example `planora.todo.api`. Keep it identical across replicas of one service and distinct across services. |
 | `Security__RequireHttps` | optional | Overrides the auth cookie `Secure` flag (config key `Security:RequireHttps`, read by `AuthenticationController`). Unset (default) keeps the secure default — `Secure` cookies in every non-Development environment. The `-Prod` local launcher sets it to `false` so a plain-HTTP LAN run still accepts the refresh/XSRF cookies; real deployments leave it unset and terminate TLS at the front door. |
 | `CORS_ALLOWED_ORIGINS` | documented but no direct parser found | Services read `Cors:AllowedOrigins` from appsettings/configuration. For env override use ASP.NET nested configuration keys such as `Cors__AllowedOrigins__0`. |
+
+## Rate Limiting
+
+`AddConfiguredRateLimiting` reads `RateLimiting:Backend` at startup. `Redis` (case-insensitive)
+shares fixed-window counters across replicas of one service; other values use process-local
+in-memory counters. Both backends enforce the same limits: 250 requests/minute/partition/service,
+with the named policies listed in [auth-security.md](auth-security.md#rate-limiting).
+
+Redis keys are `planora:rl:<service>:global:<partition>` and
+`planora:rl:<service>:<policy>:<partition>`. The service segment is `RateLimiting:Scope`
+when provided, otherwise the application name (then entry assembly name, or `service`
+as a last fallback), trimmed and lower-cased. For example, Todo's global counter for
+subject `example-user` is `planora:rl:planora.todo.api:global:u:example-user`.
+The former `planora:rl:global:<partition>` key pooled all services into one allowance;
+the service segment now isolates their budgets.
+
+All services and the gateway run `UseRateLimiter()` after `UseAuthentication()`.
+The partition is `u:<sub>` for a validated JWT (`NameIdentifier` fallback), otherwise
+`ip:<address>` after IPv4-mapped IPv6 normalization, or `anon` without an IP. This prevents
+authenticated users from sharing the gateway's IP bucket as they did when limiting ran
+before authentication. The gateway remains in-memory regardless of `RateLimiting:Backend`:
+250 requests/minute per user/IP, chained with 60 requests/minute per IP for
+`/auth/api/v1/auth/*` except `OPTIONS`. Both gateway windows last one minute.
+
+Gateway and services return `429` with matching `Retry-After` and JSON `retryAfter` seconds
+from the rejecting lease's metadata (rounded up, at least 1); missing or non-positive
+metadata uses 60. See [API rate limits](API.md#rate-limits) for the response body.
 
 ## Service Ports
 

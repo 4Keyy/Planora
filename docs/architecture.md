@@ -135,12 +135,28 @@ Edge throttling is the ASP.NET Core rate limiter in `Program.cs`, not Ocelot's p
 `RateLimitOptions` — every route in both ocelot files carries `EnableRateLimiting: false`.
 Ocelot 24.x partitions by a `ClientId` request header and fail-closes with `503` when that
 header is absent, which it always is for browser traffic; enabling it rejected every login,
-refresh and SignalR connection. Two chained partitioned limiters replace it, both keyed on
-`RemoteIpAddress`: 100 requests/minute for every gateway request, and a second 30/minute window
-that only applies under `/auth/api/v1/auth` (preflights bypass it). A rejection is `429` with
-`Retry-After: 60`.
+refresh and SignalR connection. Two chained one-minute fixed windows replace it:
+250 requests/minute for every gateway request, keyed as `u:<sub>` for a validated JWT
+(or `NameIdentifier`), otherwise `ip:<RemoteIpAddress>`; and 60 requests/minute per IP
+under `/auth/api/v1/auth` (`OPTIONS` bypasses that second window). The gateway invokes
+`UseRateLimiter()` after `UseAuthentication()` and before Ocelot. Its counters are process-local.
 
-That partitioning depends on seeing the real client IP. `UseForwardedHeaders` is registered
+All six services also limit after authentication, using the same user/IP partition resolver.
+Before this ordering, users behind the gateway shared its IP bucket and could reach 429
+within 15–30 seconds. Each service now has its own global 250/minute budget per partition.
+With `RateLimiting:Backend=Redis`, replicas share
+`planora:rl:<service>:global:<partition>` and `planora:rl:<service>:<policy>:<partition>` keys;
+different services no longer pool the former unscoped 100/minute global allowance.
+The service scope defaults to the lower-case application name, such as `planora.todo.api`,
+and can be overridden with `RateLimiting:Scope`. In-memory service counters are process-local.
+See [auth-security.md](auth-security.md#rate-limiting) for all named policy limits.
+
+Gateway and service rejections return `429` with `Retry-After` and JSON
+`{ "error": "Too many requests. Please try again later.", "retryAfter": <seconds> }`.
+Both values use the rejecting lease's remaining-window metadata, rounded up to whole seconds
+(at least 1), with 60 as the fallback when metadata is missing or non-positive.
+
+Anonymous and gateway auth partitioning depend on seeing the real client IP. `UseForwardedHeaders` is registered
 **only** when `ForwardedHeaders:KnownProxies` is non-empty: unconditional trust would let any
 client spoof `X-Forwarded-For` and poison another user's bucket, while ignoring the header
 behind an edge proxy collapses every client into one bucket. Outside Development with an empty
