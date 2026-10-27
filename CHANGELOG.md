@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### build(deps): Next.js 16.4.3, jsdom 30 and the October 26 Dependabot updates (2026-10-27)
+
+The frontend moves to Next.js and eslint-config-next 16.4.3, zustand 5.0.16, postcss 8.5.31 and,
+for the tests, jsdom 30.1.3; the workflows move to checkout 7.0.1, setup-node 7.1.0,
+upload-artifact 7.0.2 and CodeQL 4.39.1. Nothing in the app or its tests had to change.
+`docs/audits/dependabot-2026-10-27.md` records the review.
+
 ### test(coverage): the pages and the task editor count, and cannot slip (2026-10-27)
 
 The coverage report used to leave out every page and the task editor, so their tests were not

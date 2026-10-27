@@ -160,13 +160,13 @@ Backend package versions are managed centrally in
 
 | Purpose | Packages |
 |---|---|
-| **Framework** | [next `16.2`](https://www.npmjs.com/package/next) · [react `18.3`](https://www.npmjs.com/package/react) · [react-dom `18.3`](https://www.npmjs.com/package/react-dom) · [typescript `5.7`](https://www.npmjs.com/package/typescript) |
-| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [axios `1.18`](https://www.npmjs.com/package/axios) |
-| **Forms / validation** | [react-hook-form `7.80`](https://www.npmjs.com/package/react-hook-form) · [zod `4.6`](https://www.npmjs.com/package/zod) · [@hookform/resolvers `5.9`](https://www.npmjs.com/package/@hookform/resolvers) |
+| **Framework** | [next `16.4`](https://www.npmjs.com/package/next) · [react `19.3`](https://www.npmjs.com/package/react) · [react-dom `19.3`](https://www.npmjs.com/package/react-dom) · [typescript `5.7`](https://www.npmjs.com/package/typescript) |
+| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [axios `1.20`](https://www.npmjs.com/package/axios) |
+| **Forms / validation** | [react-hook-form `7.90`](https://www.npmjs.com/package/react-hook-form) · [zod `4.6`](https://www.npmjs.com/package/zod) · [@hookform/resolvers `5.9`](https://www.npmjs.com/package/@hookform/resolvers) |
 | **UI / styling** | [tailwindcss `3.4`](https://www.npmjs.com/package/tailwindcss) · Radix primitives — [dropdown-menu](https://www.npmjs.com/package/@radix-ui/react-dropdown-menu), [popover](https://www.npmjs.com/package/@radix-ui/react-popover), [slot](https://www.npmjs.com/package/@radix-ui/react-slot) · [lucide-react](https://www.npmjs.com/package/lucide-react) · [class-variance-authority](https://www.npmjs.com/package/class-variance-authority) · [tailwind-merge](https://www.npmjs.com/package/tailwind-merge) · [clsx](https://www.npmjs.com/package/clsx) · [Plus Jakarta Sans](https://www.npmjs.com/package/@fontsource/plus-jakarta-sans) |
 | **Motion** | [framer-motion `11`](https://www.npmjs.com/package/framer-motion). The ribbon background is raw WebGL 1 — one fragment shader over one quad — and pulls in no 3D library. |
 | **Realtime** | [@microsoft/signalr `10`](https://www.npmjs.com/package/@microsoft/signalr) |
-| **Testing** | [vitest `4`](https://www.npmjs.com/package/vitest) · [@testing-library/react `16`](https://www.npmjs.com/package/@testing-library/react) · [@playwright/test `1.61`](https://www.npmjs.com/package/@playwright/test) |
+| **Testing** | [vitest `5`](https://www.npmjs.com/package/vitest) · [@testing-library/react `16`](https://www.npmjs.com/package/@testing-library/react) · [@playwright/test `1.64`](https://www.npmjs.com/package/@playwright/test) |
 
 ### Infrastructure & delivery
 

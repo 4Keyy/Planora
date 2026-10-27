@@ -834,6 +834,9 @@ compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at leas
   scope right after the import, as `frontend/src/test/lib/auth-public.test.ts` does with
   `createdWith`, instead of asserting `toHaveBeenCalled` inside a test.
 - Vitest 5 and jest-dom 7 require Node.js 22 or newer; CI runs the frontend jobs on Node 22.
+  jsdom 30's CSS helpers declare 22.22.2 or newer: CI's `node-version: '22'` resolves to the
+  latest 22.x, and an older local Node 22 prints `EBADENGINE` warnings at install (the suite
+  still passes on 22.18.0).
 - `frontend/src/test/quality/gateway-routes.contract.test.ts` collects every path the client calls —
   `api.get/post/put/patch/delete` literals and `${getApiBaseUrl()}/…` fetches — and fails when
   `ocelot.json` or `ocelot.Docker.json` has no route for one, with its method. Unit tests mock the
