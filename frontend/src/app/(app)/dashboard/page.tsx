@@ -7,13 +7,13 @@ import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } from "lucide-react"
 import axios from "axios"
-import { api, parseApiResponse, fetchTaskById, setViewerPreference, duplicateTodo, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
+import { Todo, isTodoOwner, sameUserId, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
 import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
@@ -35,7 +35,6 @@ import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { calendarDayOf, localDay } from "@/lib/calendar-date"
-import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { Pagination } from "@/components/ui/pagination"
@@ -551,51 +550,30 @@ export default function DashboardPage() {
   }, [actions, fetchTodos])
 
 
-  const handleUpdate = async (todoId: string, payload: UpdateTodoPayload) => {
-    const existing = todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId)
-    if (!existing) return
-
-    try {
-      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, {
-        ...payload,
-        status: toApiTodoStatus(existing.status),
-      })
-      const updated = parseApiResponse(res.data)
-      const merged = applyCategoryPatch({ ...updated }, payload.categoryId)
+  // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it); do not
+  // refresh `editingTodo` so the open modal's local field state is never clobbered. A failure
+  // reaches the modal's autosave indicator.
+  const handleUpdate = (todoId: string, payload: UpdateTodoPayload) => actions.save(
+    todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId),
+    payload,
+    (saved) => {
       const applyMerge = (t: Todo) =>
-        t.id !== todoId ? t : { ...merged, authorName: t.authorName ?? friendNameCache.current.get(updated.userId) }
+        t.id !== todoId ? t : { ...saved, authorName: t.authorName ?? friendNameCache.current.get(saved.userId) }
       setTodos(prev => prev.map(applyMerge))
       setStatsTodos(prev => prev.map(applyMerge))
-      // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it);
-      // do not refresh `editingTodo` so the open modal's local field state is never clobbered.
-    } catch (error) {
-      addToast({ type: "error", title: "Couldn't save changes" })
-      throw error // surface the error state in the modal's autosave indicator
-    }
-  }
+    },
+  )
 
-  const handleSaveViewerPreference = useCallback(async (todoId: string, viewerCategoryId: string | null) => {
-    const existing = todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId)
-    if (!existing) return
-
-    try {
-      await setViewerPreference(todoId, {
-        viewerCategoryId,
-        updateViewerCategory: true,
-      })
-
-      const fullTask = await fetchTaskById(todoId)
+  const handleSaveViewerPreference = useCallback((todoId: string, viewerCategoryId: string | null) => actions.saveViewerCategory(
+    todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId),
+    viewerCategoryId,
+    (fullTask, existing) => {
       const authorName = existing.authorName ?? friendNameCache.current.get(fullTask.userId)
       const enriched = authorName ? { ...fullTask, authorName } : fullTask
-
       setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
       setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
-    } catch (error) {
-      addToast({ type: "error", title: "Couldn't save your category" })
-      throw error // surface the error state in the modal's autosave indicator
-    }
-  }, [todos, statsTodos, addToast])
+    },
+  ), [todos, statsTodos, actions])
 
   // Taking a friend's task shows the task as joined, with its author's name kept.
   const handleJoin = useCallback((todoId: string) => actions.startWork(
@@ -627,16 +605,12 @@ export default function DashboardPage() {
     },
   ), [todos, statsTodos, actions])
 
-  const handleDuplicate = useCallback(async (todoId: string) => {
-    try {
-      await duplicateTodo(todoId)
-      void fetchTodos(undefined, { silent: true })
-      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
-    } catch {
-      addToast({ type: "error", title: "Couldn't duplicate task" })
+  // The copy arrives with a silent re-read of the page. The editor shows a failure as its own line,
+  // which here has always read "duplicate failed" rather than the server's message.
+  const handleDuplicate = useCallback((todoId: string) =>
+    actions.duplicate(todoId, () => { void fetchTodos(undefined, { silent: true }) }).catch(() => {
       throw new Error("duplicate failed")
-    }
-  }, [fetchTodos, addToast])
+    }), [actions, fetchTodos])
 
   /*
    * Hiding a card and opening it again (`useTaskVisibility`), as every list does it. Opening

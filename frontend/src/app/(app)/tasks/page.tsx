@@ -9,12 +9,12 @@ import { motion } from "@/components/ui/motion"
 import { CheckCircle2, ChevronRight, History, FolderOpen, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import axios from "axios"
-import { api, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, duplicateTodo } from "@/lib/api"
+import { api, fetchTaskById, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
-import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
+import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
@@ -38,7 +38,6 @@ const CreateTodoPanel = dynamic(
   },
 )
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
-import { applyCategoryPatch } from "@/utils/todo-utils"
 import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_STANDARD } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
@@ -478,17 +477,8 @@ export default function TasksPage() {
     })
   }
 
-  const handleDuplicate = async (id: string) => {
-    try {
-      await duplicateTodo(id)
-      await fetchActiveTodos({ silent: true })
-      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
-    } catch (error) {
-      console.error("Failed to duplicate todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't duplicate task" })
-      throw error
-    }
-  }
+  // The notice waits for the active list to show the copy.
+  const handleDuplicate = (id: string) => actions.duplicate(id, () => fetchActiveTodos({ silent: true }))
 
   /**
    * Delete with an undo window instead of a confirmation.
@@ -538,68 +528,34 @@ export default function TasksPage() {
     })
   }
 
-  const handleUpdate = async (id: string, payload: UpdateTodoPayload) => {
-    try {
-      const existingTodo = todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id)
-      if (!existingTodo) return
-
-      const res = await api.put(`/todos/api/v1/todos/${id}`, {
-        ...payload,
-        status: toApiTodoStatus(existingTodo.status),
-      })
-
-      const updatedTodo = parseApiResponse<Todo>(res.data)
-      if (!updatedTodo || !updatedTodo.id) {
-        throw new Error("Invalid response from server")
-      }
-
-      const authorName = existingTodo.authorName ?? friendNameCache.current.get(updatedTodo.userId)
-      const nextTodo = { ...applyCategoryPatch({ ...updatedTodo }, payload.categoryId), authorName }
-
-      if (isCompletedTodoStatus(existingTodo.status)) {
-        setCompletedPreview((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
-      } else {
-        setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
-      }
-
-      // Autosave path: keep the modal open and stay quiet — the in-modal AutosaveIndicator
-      // reports success. We intentionally do not refresh `editingTodo` so the open modal's
-      // local field state (the source of truth while editing) is never clobbered mid-edit.
-    } catch (error) {
-      console.error("Failed to update todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't save changes" })
-      // Re-throw so the modal's autosave surfaces the error state and retries on next edit.
-      throw error
-    }
+  /** A saved task replaces its card in whichever list holds it. */
+  const replaceInItsList = (existingTodo: Todo, nextTodo: Todo) => {
+    const replace = (prev: Todo[]) => prev.map((t) => (t.id === existingTodo.id ? nextTodo : t))
+    if (isCompletedTodoStatus(existingTodo.status)) setCompletedPreview(replace)
+    else setTodos(replace)
   }
 
-  const handleSaveViewerPreference = async (id: string, viewerCategoryId: string | null) => {
-    try {
-      const existingTodo = todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id)
-      if (!existingTodo) return
+  // Autosave path: keep the modal open and stay quiet — the in-modal AutosaveIndicator reports
+  // success, and a failure reaches it to retry on the next edit. We intentionally do not refresh
+  // `editingTodo` so the open modal's local field state (the source of truth while editing) is
+  // never clobbered mid-edit.
+  const handleUpdate = (id: string, payload: UpdateTodoPayload) => actions.save(
+    todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id),
+    payload,
+    (saved, existingTodo) => {
+      const authorName = existingTodo.authorName ?? friendNameCache.current.get(saved.userId)
+      replaceInItsList(existingTodo, { ...saved, authorName })
+    },
+  )
 
-      await setViewerPreference(id, {
-        viewerCategoryId,
-        updateViewerCategory: true,
-      })
-
-      const fullTask = await fetchTaskById(id)
+  const handleSaveViewerPreference = (id: string, viewerCategoryId: string | null) => actions.saveViewerCategory(
+    todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id),
+    viewerCategoryId,
+    (fullTask, existingTodo) => {
       const authorName = existingTodo.authorName ?? friendNameCache.current.get(fullTask.userId)
-      const nextTodo = authorName ? { ...fullTask, authorName } : fullTask
-
-      if (isCompletedTodoStatus(existingTodo.status)) {
-        setCompletedPreview((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
-      } else {
-        setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
-      }
-
-      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
-    } catch (error) {
-      console.error("Failed to update viewer preference:", describeError(error))
-      addToast({ type: "error", title: "Couldn't save your category" })
-      throw error // surface error state in the modal's autosave indicator
-    }
-  }
+      replaceInItsList(existingTodo, authorName ? { ...fullTask, authorName } : fullTask)
+    },
+  )
 
   const handleCreate = async (payload: CreateTodoPayload) => {
     try {

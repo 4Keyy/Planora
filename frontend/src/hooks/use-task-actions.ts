@@ -2,12 +2,13 @@
 
 import { useMemo, useRef } from "react"
 import {
-  api, fetchTaskById, getApiErrorMessage, joinTodo, leaveTodo, parseApiResponse, setViewerPreference,
-  type ApiResponse,
+  api, duplicateTodo, fetchTaskById, getApiErrorMessage, joinTodo, leaveTodo, parseApiResponse,
+  setViewerPreference, type ApiResponse,
 } from "@/lib/api"
 import { AUTHOR_COMPLETED_TOAST, describeError, isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { useToastStore } from "@/store/toast"
-import { isCompletedTodoStatus, isTodoOwner, type Todo } from "@/types/todo"
+import { isCompletedTodoStatus, isTodoOwner, toApiTodoStatus, type Todo, type UpdateTodoPayload } from "@/types/todo"
+import { applyCategoryPatch } from "@/utils/todo-utils"
 
 /** What the viewer-preference endpoint says about the viewer's completion once it has saved it. */
 export type ViewerCompletion = Awaited<ReturnType<typeof setViewerPreference>>
@@ -140,6 +141,33 @@ export interface TaskActions {
   ) => Promise<void>
   /** Takes a task out of work: the owner moves its status back to Todo, a worker leaves it. */
   stopWork: (todo: Held, apply: (outcome: StoppedWork) => void | Promise<void>) => Promise<void>
+  /**
+   * Makes a fresh active copy of a task — open to any participant. `apply` gets the copy (the lists
+   * read themselves again, the branch page opens it); the notice's `description` says what happens
+   * next. A failure is thrown on after its notice, for the editor's own error line.
+   */
+  duplicate: (
+    todoId: string | null | undefined,
+    apply?: (copy: Todo) => void | Promise<void>,
+    description?: string,
+  ) => Promise<void>
+  /**
+   * Saves the editor's changes with the task's status as it is — the editor never sends one; work
+   * and completion move it. `apply` gets the saved task, its category cleared when the editor
+   * cleared it, and the task as the page held it. A failure is thrown on after its notice, so the
+   * editor's autosave shows its error state.
+   */
+  save: (todo: Held, payload: UpdateTodoPayload, apply: (saved: Todo, todo: Todo) => void | Promise<void>) => Promise<void>
+  /**
+   * Files the task under the viewer's own category. With `apply`, the task is read again and handed
+   * over; a page that reads its task its own way (the branch page) leaves it out and reloads after.
+   * A failure is thrown on after its notice, for the editor's autosave.
+   */
+  saveViewerCategory: (
+    todo: Held,
+    viewerCategoryId: string | null,
+    apply?: (full: Todo, todo: Todo) => void | Promise<void>,
+  ) => Promise<void>
 }
 
 const isShared = (todo: Todo) => todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
@@ -284,6 +312,54 @@ export function useTaskActions(options: TaskActionsOptions): TaskActions {
       if (work.stopped) addToast({ type: "success", title: work.stopped })
     }
 
-    return { complete, startWork, stopWork }
+    const duplicate: TaskActions["duplicate"] = async (
+      todoId,
+      apply,
+      description = "A fresh copy was added to your active tasks.",
+    ) => {
+      if (!todoId) return
+      try {
+        const copy = await duplicateTodo(todoId)
+        await apply?.(copy)
+        latest.current.addToast({ type: "success", title: "Task duplicated", description })
+      } catch (error) {
+        log("Failed to duplicate todo:", error)
+        fail("Couldn't duplicate task", error)
+        throw error
+      }
+    }
+
+    const save: TaskActions["save"] = async (todo, payload, apply) => {
+      if (!todo) return
+      try {
+        const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todo.id}`, {
+          ...payload,
+          status: toApiTodoStatus(todo.status),
+        })
+        const updated = parseApiResponse(res.data)
+        // A success that carries no task would replace the card with nothing.
+        if (!updated?.id) throw new Error("Invalid response from server")
+        // The server echoes the old category when the editor clears it: show the clearing.
+        await apply(applyCategoryPatch({ ...updated }, payload.categoryId), todo)
+      } catch (error) {
+        log("Failed to update todo:", error)
+        fail("Couldn't save changes", error)
+        throw error
+      }
+    }
+
+    const saveViewerCategory: TaskActions["saveViewerCategory"] = async (todo, viewerCategoryId, apply) => {
+      if (!todo) return
+      try {
+        await setViewerPreference(todo.id, { viewerCategoryId, updateViewerCategory: true })
+        if (apply) await apply(await fetchTaskById(todo.id), todo)
+      } catch (error) {
+        log("Failed to update viewer preference:", error)
+        fail("Couldn't save your category", error)
+        throw error
+      }
+    }
+
+    return { complete, startWork, stopWork, duplicate, save, saveViewerCategory }
   }, [])
 }

@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   useTaskActions, type CompletionOutcome, type StartedWork, type StoppedWork, type TaskActionsOptions,
 } from "@/hooks/use-task-actions"
-import { api, fetchTaskById, joinTodo, leaveTodo, setViewerPreference } from "@/lib/api"
+import { api, duplicateTodo, fetchTaskById, joinTodo, leaveTodo, setViewerPreference } from "@/lib/api"
 import { AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { useToastStore } from "@/store/toast"
-import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
+import { EMPTY_GUID, TodoPriority, TodoStatus, type Todo, type UpdateTodoPayload } from "@/types/todo"
 
 // The shared actions every task page wires to its own lists (audit FE-24): what each sends, what
 // it hands back to the page and what it says. The pages' own tests pin the same requests and
@@ -19,6 +19,7 @@ vi.mock("@/lib/api", () => ({
   fetchTaskById: vi.fn(),
   joinTodo: vi.fn(),
   leaveTodo: vi.fn(),
+  duplicateTodo: vi.fn(),
 }))
 
 const ME = "user-me"
@@ -68,7 +69,7 @@ const authorClosed = Object.assign(new Error("Request failed"), {
 beforeEach(() => {
   useToastStore.setState({ toasts: [] })
   vi.mocked(api.put).mockReset()
-  for (const fn of [setViewerPreference, fetchTaskById, joinTodo, leaveTodo]) vi.mocked(fn).mockReset()
+  for (const fn of [setViewerPreference, fetchTaskById, joinTodo, leaveTodo, duplicateTodo]) vi.mocked(fn).mockReset()
 })
 
 afterEach(() => {
@@ -442,5 +443,148 @@ describe("useTaskActions — startWork and stopWork", () => {
     expect(api.put).not.toHaveBeenCalled()
     expect(joinTodo).not.toHaveBeenCalled()
     expect(leaveTodo).not.toHaveBeenCalled()
+  })
+})
+
+describe("useTaskActions — duplicate", () => {
+  it("makes the copy, hands it to the page and then says where it went", async () => {
+    const copy = task({ id: "t-copy" })
+    vi.mocked(duplicateTodo).mockResolvedValue(copy)
+    const order: string[] = []
+
+    await actionsFor().duplicate("t-1", (c) => { order.push(`apply:${c.id}:${titles().length}`) })
+
+    expect(duplicateTodo).toHaveBeenCalledWith("t-1")
+    expect(order).toEqual(["apply:t-copy:0"])
+    expect(toasts()).toEqual([{ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." }])
+  })
+
+  it("says what the page does next", async () => {
+    vi.mocked(duplicateTodo).mockResolvedValue(task({ id: "t-copy" }))
+
+    await actionsFor().duplicate("t-1", undefined, "Opening the new copy.")
+
+    expect(toasts()).toEqual([{ type: "success", title: "Task duplicated", description: "Opening the new copy." }])
+  })
+
+  it("says so when the copy cannot be made, and throws the failure on for the editor", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const refused = new Error("Limit reached")
+    vi.mocked(duplicateTodo).mockRejectedValue(refused)
+    const apply = vi.fn()
+
+    await expect(actionsFor({ log: true }).duplicate("t-1", apply)).rejects.toBe(refused)
+
+    expect(apply).not.toHaveBeenCalled()
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't duplicate task", description: undefined }])
+    expect(logged.mock.calls.map(([label]) => label)).toEqual(["Failed to duplicate todo:"])
+  })
+
+  it("reports the page's own failure after the copy as the action's", async () => {
+    vi.mocked(duplicateTodo).mockResolvedValue(task({ id: "t-copy" }))
+
+    await expect(actionsFor({ describe: true }).duplicate("t-1", () => { throw new Error("No route") })).rejects.toThrow("No route")
+
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't duplicate task", description: "No route" }])
+  })
+
+  it("does nothing without a task", async () => {
+    await actionsFor().duplicate(undefined)
+
+    expect(duplicateTodo).not.toHaveBeenCalled()
+  })
+})
+
+describe("useTaskActions — save", () => {
+  it("saves the editor's changes with the task's status and hands back the saved task", async () => {
+    const answer = task({ title: "Renamed", status: TodoStatus.InProgress })
+    vi.mocked(api.put).mockResolvedValue({ data: answer })
+    const apply = vi.fn()
+    const held = task({ status: TodoStatus.InProgress })
+
+    await actionsFor().save(held, { title: "Renamed" }, apply)
+
+    expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { title: "Renamed", status: "inprogress" })
+    expect(apply).toHaveBeenCalledWith(answer, held)
+    expect(titles()).toEqual([])
+  })
+
+  it("shows a cleared category as cleared, whatever the server echoes", async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: task({ categoryId: "cat-1", categoryName: "Work" }) })
+    let saved: Todo | undefined
+
+    await actionsFor().save(task({ categoryId: "cat-1" }), { categoryId: EMPTY_GUID } as UpdateTodoPayload, (s) => { saved = s })
+
+    expect(saved).toMatchObject({ categoryId: null, categoryName: null })
+  })
+
+  it("refuses an answer without a task rather than empty the card", async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: null })
+    const apply = vi.fn()
+
+    await expect(actionsFor().save(task(), { title: "x" }, apply)).rejects.toThrow("Invalid response from server")
+
+    expect(apply).not.toHaveBeenCalled()
+    expect(titles()).toEqual(["Couldn't save changes"])
+  })
+
+  it("says so when the save fails and throws the failure on for the editor's autosave", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const refused = new Error("Title is too long")
+    vi.mocked(api.put).mockRejectedValue(refused)
+
+    await expect(actionsFor({ log: true, describe: true }).save(task(), { title: "x" }, vi.fn())).rejects.toBe(refused)
+
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't save changes", description: "Title is too long" }])
+    expect(logged.mock.calls.map(([label]) => label)).toEqual(["Failed to update todo:"])
+  })
+
+  it("does nothing for a task the page no longer holds", async () => {
+    await actionsFor().save(undefined, { title: "x" }, vi.fn())
+
+    expect(api.put).not.toHaveBeenCalled()
+  })
+})
+
+describe("useTaskActions — saveViewerCategory", () => {
+  it("files the task under the viewer's category and hands back the task read again", async () => {
+    vi.mocked(setViewerPreference).mockResolvedValue({ todoId: "f-1", hiddenByViewer: false, viewerCategoryId: "cat-2", completedByViewer: null, ownerCompleted: false })
+    const full = friends({ categoryId: "cat-2" })
+    vi.mocked(fetchTaskById).mockResolvedValue(full)
+    const apply = vi.fn()
+    const held = friends()
+
+    await actionsFor().saveViewerCategory(held, "cat-2", apply)
+
+    expect(setViewerPreference).toHaveBeenCalledWith("f-1", { viewerCategoryId: "cat-2", updateViewerCategory: true })
+    expect(apply).toHaveBeenCalledWith(full, held)
+  })
+
+  it("leaves the reading to a page that does it its own way", async () => {
+    vi.mocked(setViewerPreference).mockResolvedValue({ todoId: "f-1", hiddenByViewer: false, viewerCategoryId: null, completedByViewer: null, ownerCompleted: false })
+
+    await actionsFor().saveViewerCategory(friends(), null)
+
+    expect(setViewerPreference).toHaveBeenCalledWith("f-1", { viewerCategoryId: null, updateViewerCategory: true })
+    expect(fetchTaskById).not.toHaveBeenCalled()
+  })
+
+  it("says so when the category cannot be saved or the task read again, and throws the failure on", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    vi.mocked(setViewerPreference).mockResolvedValue({ todoId: "f-1", hiddenByViewer: false, viewerCategoryId: "cat-2", completedByViewer: null, ownerCompleted: false })
+    vi.mocked(fetchTaskById).mockRejectedValue(new Error("Gone"))
+    const apply = vi.fn()
+
+    await expect(actionsFor({ log: true }).saveViewerCategory(friends(), "cat-2", apply)).rejects.toThrow("Gone")
+
+    expect(apply).not.toHaveBeenCalled()
+    expect(titles()).toEqual(["Couldn't save your category"])
+    expect(logged.mock.calls.map(([label]) => label)).toEqual(["Failed to update viewer preference:"])
+  })
+
+  it("does nothing for a task the page no longer holds", async () => {
+    await actionsFor().saveViewerCategory(null, "cat-2")
+
+    expect(setViewerPreference).not.toHaveBeenCalled()
   })
 })

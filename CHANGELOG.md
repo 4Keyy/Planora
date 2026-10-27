@@ -113,6 +113,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(tasks): one duplicate and one set of editor saves for every page (2026-10-27)
+
+Dashboard, Tasks, the archive and the branch page each duplicated a task and saved the editor's
+changes and the viewer's own category with their own code (audit FE-24). `duplicate`, `save` and
+`saveViewerCategory` in `hooks/use-task-actions.ts` now send the requests, keep the task's status on
+a save, show a cleared category as cleared and say what happened; each page only puts the answer
+into its lists. The branch page still opens the copy and reads its task again its own way, and
+Dashboard's editor still reads "duplicate failed" when a copy fails. A save the server answers
+without a task now fails on every page, as it did on Tasks. Requests, lists and notices are
+otherwise unchanged; the landing console keeps its sandbox saves.
+
 ### refactor(tasks): one way to start and stop work on a task (2026-10-27)
 
 Dashboard, Tasks and the branch page each took a task into work and out of it with their own code:

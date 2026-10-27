@@ -4,12 +4,12 @@ import Link from "next/link"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
-import { api, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { describeError } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
-import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
+import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner, sameUserId } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
 import { TaskDeletionBadge } from "@/components/todos/task-deletion-badge"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
@@ -310,16 +310,8 @@ export default function CompletedTasksPage() {
   const handleComplete = (todoId: string) =>
     actions.complete(todosRef.current.find((t) => t.id === todoId), () => fetchCompletedTodos())
 
-  const handleDuplicate = async (todoId: string) => {
-    try {
-      await duplicateTodo(todoId)
-      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
-    } catch (error) {
-      console.error("Failed to duplicate todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't duplicate task" })
-      throw error
-    }
-  }
+  // The copy is active, so it is not on this page: the notice says where it went.
+  const handleDuplicate = (todoId: string) => actions.duplicate(todoId)
 
   const confirmDelete = async () => {
     if (!deletingTodo) return
@@ -336,49 +328,26 @@ export default function CompletedTasksPage() {
     }
   }
 
-  const handleUpdate = async (todoId: string, payload: UpdateTodoPayload) => {
-    const existing = todos.find((t) => t.id === todoId)
-    if (!existing) return
+  // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save, and a
+  // failure reaches it.
+  const handleUpdate = (todoId: string, payload: UpdateTodoPayload) => actions.save(
+    todos.find((t) => t.id === todoId),
+    payload,
+    (saved, existing) => {
+      const authorName = existing.authorName ?? friendNameCache.current.get(saved.userId)
+      setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...saved, authorName } : t)))
+    },
+  )
 
-    try {
-      const res = await api.put(`/todos/api/v1/todos/${todoId}`, {
-        ...payload,
-        status: toApiTodoStatus(existing.status),
-      })
-      const updated = parseApiResponse<Todo>(res.data)
-      const authorName = existing.authorName ?? friendNameCache.current.get(updated.userId)
-
-      setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...updated, authorName } : t)))
-      // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save.
-    } catch (error) {
-      console.error("Failed to update todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't save changes" })
-      throw error // surface the error state in the modal's autosave indicator
-    }
-  }
-
-  const handleSaveViewerPreference = useCallback(async (todoId: string, viewerCategoryId: string | null) => {
-    const existing = todos.find((t) => t.id === todoId)
-    if (!existing) return
-
-    try {
-      await setViewerPreference(todoId, {
-        viewerCategoryId,
-        updateViewerCategory: true,
-      })
-
-      const fullTask = await fetchTaskById(todoId)
+  const handleSaveViewerPreference = useCallback((todoId: string, viewerCategoryId: string | null) => actions.saveViewerCategory(
+    todos.find((t) => t.id === todoId),
+    viewerCategoryId,
+    (fullTask, existing) => {
       const authorName = existing.authorName ?? friendNameCache.current.get(fullTask.userId)
       const enriched = authorName ? { ...fullTask, authorName } : fullTask
-
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...t, ...enriched } : t)))
-      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
-    } catch (error) {
-      console.error("Failed to update viewer preference:", describeError(error))
-      addToast({ type: "error", title: "Couldn't save your category" })
-      throw error // surface the error state in the modal's autosave indicator
-    }
-  }, [todos, addToast])
+    },
+  ), [todos, actions])
 
   // Hiding and opening a task, as every list does it (`useTaskVisibility`).
   const visibility = useTaskVisibility({

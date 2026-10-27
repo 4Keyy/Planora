@@ -464,9 +464,9 @@ actions, so a done task is never a dead end:
 | Notifications | full support — the copy emits `TaskCreated` exactly like a normal create (new branch system comment + participant notifications) |
 
 Backend: `DuplicateTodoCommand` + handler, `POST /todos/api/v1/todos/{id}/duplicate`. Frontend:
-`duplicateTodo(id)` in `lib/api.ts`, `onDuplicate` through `EditTodoModal` → `BranchFeed` (the
-completed-state "+" menu's Restore + Duplicate `MenuActionItem`s), wired in the tasks, completed,
-and dashboard pages.
+`duplicateTodo(id)` in `lib/api.ts`, sent by `duplicate` in `hooks/use-task-actions.ts`;
+`onDuplicate` through `EditTodoModal` → `BranchFeed` (the completed-state "+" menu's Restore +
+Duplicate `MenuActionItem`s), wired in the tasks, completed, dashboard and branch pages.
 
 ### Branch on its own page
 
@@ -856,6 +856,25 @@ controls.
 Whether a press acts as the owner is `isTodoOwner` (`sameUserId`, case-insensitive) on every page;
 Dashboard compared the ids with `===`, which gives the same answer while the server writes them in
 lower case, as it does.
+
+**Duplicating and the editor's saves** (`duplicate`, `save`, `saveViewerCategory`). The landing
+console's editor saves stay its own: the sandbox reloads its whole list after a save, sends the
+payload without a status and shows no notice.
+
+| | Dashboard | Tasks | Archive | Branch page |
+|---|---|---|---|---|
+| After a copy is made | the page is read again in the background; "Task duplicated — A fresh copy was added to your active tasks." | the active list is read again, then the same notice | the same notice | the copy opens on its own page; "Task duplicated — Opening the new copy." |
+| A copy failed | "Couldn't duplicate task"; the editor's error line reads "duplicate failed" | "Couldn't duplicate task"; the editor's line shows the server's message | as Tasks | "Couldn't duplicate task" with the server's message; the editor shows no line |
+| A save (`PUT` with the editor's fields and the task's status as it is) | the saved task replaces the card in both lists, its author's name kept | the saved task replaces the card in the list that holds it | the saved task replaces the card | the saved task merges into the page's copy |
+| The viewer's own category (`PATCH …/viewer-preferences`) | the task is read again and merged into both lists | read again and replaces the card in its list | read again and merged | the page reads the task again itself; if that read fails the page shows the missing-task scene, as before |
+| A save failed | "Couldn't save changes" / "Couldn't save your category" | the same, also logged | as Tasks | the same, with the server's message |
+
+Every save's failure is thrown on to the editor, whose autosave indicator shows the error state. A
+cleared category is shown as cleared on every page (`applyCategoryPatch`): the editor sends the
+all-zero GUID, which the server clears, so the archive and the branch page — which did not apply the
+patch — showed the same thing. A `2xx` save that carries no task is now a failure on every page, as
+it was on Tasks; elsewhere it would have replaced the card with an empty one, and the server never
+answers that way.
 
 ### Realtime arrivals on the task list
 

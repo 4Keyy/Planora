@@ -2,14 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import {
-  api, fetchTaskById, duplicateTodo, setViewerPreference,
-  parseApiResponse, getApiErrorMessage, type ApiResponse,
-} from "@/lib/api"
+import { api, fetchTaskById, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useAuthStore } from "@/store/auth"
-import { useToastStore } from "@/store/toast"
-import { Todo, type UpdateTodoPayload, toApiTodoStatus } from "@/types/todo"
+import { Todo, type UpdateTodoPayload } from "@/types/todo"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import { TodoEditor } from "@/components/todos/edit-todo-modal"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
@@ -19,13 +15,12 @@ import { MissingTaskScene } from "@/components/errors/scenes"
  * Standalone branch page — the same full task editor the modal shows (title, the inline meta strip
  * with priority / due date / category / visibility, and the branch timeline), on its own URL so it
  * can be opened in a new tab (Ctrl/⌘-click a card, or the modal's "Open page" button). It owns the
- * task + category data and wires every editor action directly against the API.
+ * task + category data and wires every editor action through `useTaskActions`, as the lists do.
  */
 export default function BranchPage() {
   const params = useParams<{ id: string }>()
   const todoId = params?.id
   const router = useRouter()
-  const addToast = useToastStore((s) => s.addToast)
   const viewerId = useAuthStore((s) => s.user?.userId)
 
   const [todo, setTodo] = useState<Todo | null>(null)
@@ -70,31 +65,16 @@ export default function BranchPage() {
   // ── Editor actions (owner autosave + the branch's task actions) ──
   // Owner autosave: persist the full payload, preserving the current status (the editor payload
   // never carries status — that is driven by the work/complete actions below).
-  const handleSave = useCallback(async (payload: UpdateTodoPayload) => {
-    if (!todoId || !todo) return
-    try {
-      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, {
-        ...payload,
-        status: toApiTodoStatus(todo.status),
-      })
-      const updated = parseApiResponse(res.data)
-      setTodo((p) => (p ? { ...p, ...updated, authorName: p.authorName ?? updated.authorName } : updated))
-    } catch (e) {
-      addToast({ type: "error", title: "Couldn't save changes", description: getApiErrorMessage(e, "Couldn't save changes") })
-      throw e // surface the editor's autosave error state
-    }
-  }, [todoId, todo, addToast])
+  // A failure reaches the editor's autosave error state.
+  const handleSave = useCallback((payload: UpdateTodoPayload) => actions.save(todo, payload, (saved) => {
+    setTodo((p) => (p ? { ...p, ...saved, authorName: p.authorName ?? saved.authorName } : saved))
+  }), [todo, actions])
 
+  // The page reads its task again its own way once the category is stored.
   const handleSaveViewerPreference = useCallback(async ({ viewerCategoryId }: { viewerCategoryId: string | null }) => {
-    if (!todoId) return
-    try {
-      await setViewerPreference(todoId, { viewerCategoryId, updateViewerCategory: true })
-      await load()
-    } catch (e) {
-      addToast({ type: "error", title: "Couldn't save your category", description: getApiErrorMessage(e, "Couldn't save your category") })
-      throw e
-    }
-  }, [todoId, load, addToast])
+    await actions.saveViewerCategory(todo, viewerCategoryId)
+    await load()
+  }, [todo, actions, load])
 
   // The owner's status change puts the server's task on the page; a worker's join merges into it
   // and a leave reads it again. Either way the branch is caught up on the new system entry.
@@ -122,14 +102,13 @@ export default function BranchPage() {
     }
   }), [todo, actions, patchTodo])
 
-  const handleDuplicate = useCallback(async () => {
-    if (!todo) return
-    try {
-      const copy = await duplicateTodo(todo.id)
-      addToast({ type: "success", title: "Task duplicated", description: "Opening the new copy." })
-      router.push(`/branch/${copy.id}`)
-    } catch (e) { addToast({ type: "error", title: "Couldn't duplicate task", description: getApiErrorMessage(e, "Couldn't duplicate task") }) }
-  }, [todo, router, addToast])
+  // The copy opens on its own page. The notice is the only word on a failure: the editor shows no
+  // error line for it here.
+  const handleDuplicate = useCallback(() => actions.duplicate(
+    todo?.id,
+    (copy) => router.push(`/branch/${copy.id}`),
+    "Opening the new copy.",
+  ).catch(() => undefined), [todo, router, actions])
 
   // The line that says it is loading is only shown if the wait is long enough to notice,
   // and steps aside under the card rather than vanishing (`SkeletonSwap`); the card — the
