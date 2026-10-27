@@ -38,6 +38,7 @@ const CreateTodoPanel = dynamic(
   },
 )
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
+import { putBack } from "@/utils/todo-utils"
 import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_STANDARD } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
@@ -493,38 +494,12 @@ export default function TasksPage() {
     // Remember where it was, so undo puts it back in place rather than on top.
     const index = todos.findIndex((t) => t.id === todo.id)
 
-    if (!wasCompleted) setTodos((prev) => prev.filter((t) => t.id !== todo.id))
-
-    undoable.run({
-      label: "Task deleted",
-      commit: async () => {
-        try {
-          await api.delete(`/todos/api/v1/todos/${todo.id}`)
-          if (wasCompleted) await fetchCompletedPreview()
-        } catch (error) {
-          console.error("Failed to delete todo:", describeError(error))
-          addToast({ type: "error", title: "Couldn't delete task" })
-          // The server refused, so put the card back rather than leave the user
-          // believing a task is gone when it is not.
-          if (!wasCompleted) {
-            setTodos((prev) => {
-              if (prev.some((t) => t.id === todo.id)) return prev
-              const next = [...prev]
-              next.splice(index < 0 ? next.length : index, 0, todo)
-              return next
-            })
-          }
-        }
-      },
-      rollback: () => {
-        if (wasCompleted) return
-        setTodos((prev) => {
-          if (prev.some((t) => t.id === todo.id)) return prev
-          const next = [...prev]
-          next.splice(index < 0 ? next.length : index, 0, todo)
-          return next
-        })
-      },
+    // A completed card stays in the Completed row until the server has deleted it; the row is
+    // then read again.
+    actions.removeWithUndo(todo, undoable.run, {
+      take: () => { if (!wasCompleted) setTodos((prev) => prev.filter((t) => t.id !== todo.id)) },
+      restore: () => { if (!wasCompleted) setTodos((prev) => putBack(prev, todo, index)) },
+      after: async () => { if (wasCompleted) await fetchCompletedPreview() },
     })
   }
 
@@ -601,17 +576,10 @@ export default function TasksPage() {
     const gone = new Set(removed.map((r) => r.todo.id))
     setTodos((prev) => prev.filter((t) => !gone.has(t.id)))
 
-    const restore = () =>
-      setTodos((prev) => {
-        const next = [...prev]
-        // Ascending, so each insertion index is still valid once the earlier ones
-        // have been put back.
-        for (const { index, todo } of removed) {
-          if (next.some((t) => t.id === todo.id)) continue
-          next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
-        }
-        return next
-      })
+    // Ascending, so each insertion index is still valid once the earlier ones have been put back.
+    const putBackAll = (entries: { index: number; todo: Todo }[]) => (prev: Todo[]) =>
+      entries.reduce((list, { index, todo }) => putBack(list, todo, index), prev)
+    const restore = () => setTodos(putBackAll(removed))
 
     undoable.run({
       label: removed.length === 1
@@ -632,14 +600,7 @@ export default function TasksPage() {
             : "Couldn't delete some tasks",
           description: `${failed.length} of ${removed.length} tasks could not be deleted.`,
         })
-        setTodos((prev) => {
-          const next = [...prev]
-          for (const { index, todo } of failed) {
-            if (next.some((t) => t.id === todo.id)) continue
-            next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
-          }
-          return next
-        })
+        setTodos(putBackAll(failed))
       },
       rollback: restore,
     })

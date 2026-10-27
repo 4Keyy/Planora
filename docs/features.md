@@ -876,6 +876,20 @@ patch — showed the same thing. A `2xx` save that carries no task is now a fail
 it was on Tasks; elsewhere it would have replaced the card with an empty one, and the server never
 answers that way.
 
+**Deleting** (`removeWithUndo`, `remove`; the window itself is § Deleting a task, and deleting a
+selection). Every list puts a card back where it was with one helper, `putBack` in
+`frontend/src/utils/todo-utils.ts` — at its old index, or at the end when that place is gone.
+
+| | Dashboard | Tasks | Archive | Landing console |
+|---|---|---|---|---|
+| How | the five-second window | the five-second window | after the "Delete Task?" dialog, at once | the five-second window |
+| Taken off the page | from the active page and the week's figures, and the count drops unless the task was completed | an open card at once; a completed card stays in the Completed row until the server has deleted it, and the row is then read again | — | at once |
+| Server refused | "Couldn't delete task" and the card returns to its place | the same, also logged | "Couldn't delete task", also logged | the same as Dashboard |
+| Deleted | nothing more (the window's notice said it) | as Dashboard | the archive is read again, then "Task deleted" | as Dashboard |
+
+The branch page has no delete. A selection on Tasks still goes under one window of its own
+(`requestDeleteMany`), and restores its cards with the same `putBack`.
+
 ### Realtime arrivals on the task list
 
 A remote change that reconciles on arrival moves every card below the insertion point — under

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { applyCategoryPatch } from "@/utils/todo-utils"
+import { applyCategoryPatch, putBack } from "@/utils/todo-utils"
 import type { Todo } from "@/types/todo"
 
 const base: Todo = {
@@ -71,5 +71,33 @@ describe("applyCategoryPatch", () => {
     const result = applyCategoryPatch(noCat, null)
     expect(result.categoryId).toBeNull()
     expect(result.categoryName).toBeNull()
+  })
+})
+
+describe("putBack", () => {
+  const a = { ...base, id: "a" }
+  const b = { ...base, id: "b" }
+  const c = { ...base, id: "c" }
+  const ids = (list: Todo[]) => list.map((t) => t.id)
+
+  it("puts a task back at the index it was taken from", () => {
+    expect(ids(putBack([a, c], b, 1))).toEqual(["a", "b", "c"])
+    expect(ids(putBack([b, c], a, 0))).toEqual(["a", "b", "c"])
+  })
+
+  it("puts it at the end when its place is gone or was never known", () => {
+    expect(ids(putBack([a], c, 5))).toEqual(["a", "c"])
+    expect(ids(putBack([a, b], c, -1))).toEqual(["a", "b", "c"])
+  })
+
+  it("leaves a list that already holds the task as it is", () => {
+    const list = [a, b]
+    expect(putBack(list, b, 0)).toBe(list)
+  })
+
+  it("does not change the list it was given", () => {
+    const list = [a, c]
+    putBack(list, b, 1)
+    expect(ids(list)).toEqual(["a", "c"])
   })
 })

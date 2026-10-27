@@ -5,6 +5,7 @@ import {
 } from "@/hooks/use-task-actions"
 import { api, duplicateTodo, fetchTaskById, joinTodo, leaveTodo, setViewerPreference } from "@/lib/api"
 import { AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
+import type { PendingAction } from "@/components/ui/undo-bar"
 import { useToastStore } from "@/store/toast"
 import { EMPTY_GUID, TodoPriority, TodoStatus, type Todo, type UpdateTodoPayload } from "@/types/todo"
 
@@ -12,7 +13,7 @@ import { EMPTY_GUID, TodoPriority, TodoStatus, type Todo, type UpdateTodoPayload
 // it hands back to the page and what it says. The pages' own tests pin the same requests and
 // messages through each page; these pin every rule a page can choose.
 vi.mock("@/lib/api", () => ({
-  api: { put: vi.fn() },
+  api: { put: vi.fn(), delete: vi.fn() },
   parseApiResponse: (data: unknown) => data,
   getApiErrorMessage: (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback),
   setViewerPreference: vi.fn(),
@@ -69,6 +70,7 @@ const authorClosed = Object.assign(new Error("Request failed"), {
 beforeEach(() => {
   useToastStore.setState({ toasts: [] })
   vi.mocked(api.put).mockReset()
+  vi.mocked(api.delete).mockReset()
   for (const fn of [setViewerPreference, fetchTaskById, joinTodo, leaveTodo, duplicateTodo]) vi.mocked(fn).mockReset()
 })
 
@@ -586,5 +588,97 @@ describe("useTaskActions — saveViewerCategory", () => {
     await actionsFor().saveViewerCategory(null, "cat-2")
 
     expect(setViewerPreference).not.toHaveBeenCalled()
+  })
+})
+
+describe("useTaskActions — removeWithUndo and remove", () => {
+  /** The page's undo window, held open: the test closes it (`commit`) or undoes it (`rollback`). */
+  const windowed = () => {
+    const held: PendingAction[] = []
+    return { run: (action: PendingAction) => { held.push(action) }, held }
+  }
+
+  it("takes the task off the page at once and sends nothing until the window closes", async () => {
+    vi.mocked(api.delete).mockResolvedValue({ data: null })
+    const { run, held } = windowed()
+    const take = vi.fn()
+    const restore = vi.fn()
+    const after = vi.fn()
+
+    actionsFor().removeWithUndo(task(), run, { take, restore, after })
+
+    expect(take).toHaveBeenCalledWith(task())
+    expect(held.map((a) => a.label)).toEqual(["Task deleted"])
+    expect(api.delete).not.toHaveBeenCalled()
+
+    await held[0].commit()
+    expect(api.delete).toHaveBeenCalledWith("/todos/api/v1/todos/t-1")
+    expect(after).toHaveBeenCalled()
+    expect(restore).not.toHaveBeenCalled()
+    expect(titles()).toEqual([])
+  })
+
+  it("puts the task back on Undo", () => {
+    const { run, held } = windowed()
+    const restore = vi.fn()
+
+    actionsFor().removeWithUndo(task(), run, { take: vi.fn(), restore })
+    held[0].rollback()
+
+    expect(restore).toHaveBeenCalledWith(task())
+    expect(api.delete).not.toHaveBeenCalled()
+  })
+
+  it("puts the task back and says so when the server refuses", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    vi.mocked(api.delete).mockRejectedValue(new Error("Forbidden"))
+    const { run, held } = windowed()
+    const restore = vi.fn()
+    const after = vi.fn()
+
+    actionsFor({ log: true }).removeWithUndo(task(), run, { take: vi.fn(), restore, after })
+    await held[0].commit()
+
+    expect(restore).toHaveBeenCalledWith(task())
+    expect(after).not.toHaveBeenCalled()
+    expect(titles()).toEqual(["Couldn't delete task"])
+    expect(logged.mock.calls.map(([label]) => label)).toEqual(["Failed to delete todo:"])
+  })
+
+  it("does nothing for a task the page no longer holds", () => {
+    const { run, held } = windowed()
+    const take = vi.fn()
+
+    actionsFor().removeWithUndo(undefined, run, { take, restore: vi.fn() })
+
+    expect(take).not.toHaveBeenCalled()
+    expect(held).toEqual([])
+  })
+
+  it("deletes at once for a page that has already asked, and says so once the page has caught up", async () => {
+    vi.mocked(api.delete).mockResolvedValue({ data: null })
+    const order: string[] = []
+
+    await actionsFor().remove(task(), () => { order.push(`apply:${titles().length}`) })
+
+    expect(api.delete).toHaveBeenCalledWith("/todos/api/v1/todos/t-1")
+    expect(order).toEqual(["apply:0"])
+    expect(titles()).toEqual(["Task deleted"])
+  })
+
+  it("says so when an immediate deletion fails", async () => {
+    vi.mocked(api.delete).mockRejectedValue(new Error("Forbidden"))
+    const apply = vi.fn()
+
+    await actionsFor({ describe: true }).remove(task(), apply)
+
+    expect(apply).not.toHaveBeenCalled()
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't delete task", description: "Forbidden" }])
+  })
+
+  it("deletes nothing without a task", async () => {
+    await actionsFor().remove(null)
+
+    expect(api.delete).not.toHaveBeenCalled()
   })
 })

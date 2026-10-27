@@ -313,19 +313,11 @@ export default function CompletedTasksPage() {
   // The copy is active, so it is not on this page: the notice says where it went.
   const handleDuplicate = (todoId: string) => actions.duplicate(todoId)
 
+  // The archive asks first, so the deletion is sent at once; the archive is read again before the
+  // notice.
   const confirmDelete = async () => {
-    if (!deletingTodo) return
-
-    try {
-      await api.delete(`/todos/api/v1/todos/${deletingTodo.id}`)
-      await fetchCompletedTodos()
-      addToast({ type: "success", title: "Task deleted" })
-    } catch (error) {
-      console.error("Failed to delete todo:", describeError(error))
-      addToast({ type: "error", title: "Couldn't delete task" })
-    } finally {
-      setDeletingTodo(null)
-    }
+    await actions.remove(deletingTodo, () => fetchCompletedTodos())
+    setDeletingTodo(null)
   }
 
   // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save, and a

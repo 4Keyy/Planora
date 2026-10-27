@@ -13,7 +13,7 @@ import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Todo, isTodoOwner, sameUserId, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
+import { Todo, isCompletedTodoStatus, isTodoOwner, sameUserId, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
 import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
@@ -34,6 +34,7 @@ import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
+import { putBack } from "@/utils/todo-utils"
 import { calendarDayOf, localDay } from "@/lib/calendar-date"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
@@ -488,43 +489,25 @@ export default function DashboardPage() {
    * server. See components/ui/undo-bar.tsx for why that is the honest shape: the
    * API has no restore endpoint.
    */
+  const runUndoable = undoable.run
   const requestDelete = useCallback((todo: Todo) => {
     const listIndex = todosRef.current.findIndex((t) => t.id === todo.id)
     const statsIndex = statsTodosRef.current.findIndex((t) => t.id === todo.id)
-    const wasCompleted = ["done", "completed"].includes(String(todo.status).toLowerCase())
+    const wasCompleted = isCompletedTodoStatus(todo.status)
 
-    const restoreInto = (index: number) => (prev: Todo[]) => {
-      if (prev.some((t) => t.id === todo.id)) return prev
-      const next = [...prev]
-      next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
-      return next
-    }
-
-    setTodos((prev) => prev.filter((t) => t.id !== todo.id))
-    setStatsTodos((prev) => prev.filter((t) => t.id !== todo.id))
-    if (!wasCompleted) setTotalCount((c) => Math.max(0, c - 1))
-
-    const restore = () => {
-      setTodos(restoreInto(listIndex))
-      setStatsTodos(restoreInto(statsIndex))
-      if (!wasCompleted) setTotalCount((c) => c + 1)
-    }
-
-    undoable.run({
-      label: "Task deleted",
-      commit: async () => {
-        try {
-          await api.delete(`/todos/api/v1/todos/${todo.id}`)
-        } catch {
-          addToast({ type: "error", title: "Couldn't delete task" })
-          // The server refused, so put it back rather than leave the user
-          // believing a task is gone when it is not.
-          restore()
-        }
+    actions.removeWithUndo(todo, runUndoable, {
+      take: () => {
+        setTodos((prev) => prev.filter((t) => t.id !== todo.id))
+        setStatsTodos((prev) => prev.filter((t) => t.id !== todo.id))
+        if (!wasCompleted) setTotalCount((c) => Math.max(0, c - 1))
       },
-      rollback: restore,
+      restore: () => {
+        setTodos((prev) => putBack(prev, todo, listIndex))
+        setStatsTodos((prev) => putBack(prev, todo, statsIndex))
+        if (!wasCompleted) setTotalCount((c) => c + 1)
+      },
     })
-  }, [undoable, addToast])
+  }, [actions, runUndoable])
 
   /*
    * What the press sends and says is `useTaskActions`'s; here only where it lands. A completed card

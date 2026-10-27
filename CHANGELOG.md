@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(tasks): one deletion for every page (2026-10-27)
+
+Dashboard, Tasks and the landing console each built the undo window around a deletion with their
+own copy, and three copies of "put the card back where it was" had drifted in how they clamped the
+index (audit FE-24). `removeWithUndo` in `hooks/use-task-actions.ts` now holds the request, the
+notice and the putting back when the server refuses; the archive's deletion after its dialog is
+`remove`; and every list, the selection's batch included, restores cards with `putBack` in
+`utils/todo-utils.ts`. Each page still decides what leaves its lists — Tasks keeps a completed card
+until the server has deleted it — and requests, lists and notices are unchanged on every page.
+
 ### refactor(tasks): one duplicate and one set of editor saves for every page (2026-10-27)
 
 Dashboard, Tasks, the archive and the branch page each duplicated a task and saved the editor's

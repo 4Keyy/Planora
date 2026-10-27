@@ -5,6 +5,7 @@ import {
   api, duplicateTodo, fetchTaskById, getApiErrorMessage, joinTodo, leaveTodo, parseApiResponse,
   setViewerPreference, type ApiResponse,
 } from "@/lib/api"
+import type { PendingAction } from "@/components/ui/undo-bar"
 import { AUTHOR_COMPLETED_TOAST, describeError, isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { useToastStore } from "@/store/toast"
 import { isCompletedTodoStatus, isTodoOwner, toApiTodoStatus, type Todo, type UpdateTodoPayload } from "@/types/todo"
@@ -168,6 +169,22 @@ export interface TaskActions {
     viewerCategoryId: string | null,
     apply?: (full: Todo, todo: Todo) => void | Promise<void>,
   ) => Promise<void>
+  /**
+   * Deletes a task behind the five-second window (`run` from the page's `useUndoableAction`)
+   * instead of a confirmation: `take` removes it from the page at once, the DELETE is sent only
+   * when the window closes, and `restore` puts it back on Undo or when the server refuses. `after`
+   * runs once the server has deleted it.
+   */
+  removeWithUndo: (
+    todo: Held,
+    run: (action: PendingAction) => void,
+    steps: { take: (todo: Todo) => void; restore: (todo: Todo) => void; after?: () => void | Promise<void> },
+  ) => void
+  /**
+   * Deletes a task now — for a page that has already asked (the archive's dialog). `apply` runs once
+   * the server has deleted it, before the notice.
+   */
+  remove: (todo: Held, apply?: () => void | Promise<void>) => Promise<void>
 }
 
 const isShared = (todo: Todo) => todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
@@ -360,6 +377,39 @@ export function useTaskActions(options: TaskActionsOptions): TaskActions {
       }
     }
 
-    return { complete, startWork, stopWork, duplicate, save, saveViewerCategory }
+    const removeWithUndo: TaskActions["removeWithUndo"] = (todo, run, { take, restore, after }) => {
+      if (!todo) return
+      take(todo)
+      run({
+        label: "Task deleted",
+        commit: async () => {
+          try {
+            await api.delete(`/todos/api/v1/todos/${todo.id}`)
+            await after?.()
+          } catch (error) {
+            log("Failed to delete todo:", error)
+            fail("Couldn't delete task", error)
+            // The server refused, so the card goes back rather than leave the user believing a
+            // task is gone when it is not.
+            restore(todo)
+          }
+        },
+        rollback: () => restore(todo),
+      })
+    }
+
+    const remove: TaskActions["remove"] = async (todo, apply) => {
+      if (!todo) return
+      try {
+        await api.delete(`/todos/api/v1/todos/${todo.id}`)
+        await apply?.()
+        latest.current.addToast({ type: "success", title: "Task deleted" })
+      } catch (error) {
+        log("Failed to delete todo:", error)
+        fail("Couldn't delete task", error)
+      }
+    }
+
+    return { complete, startWork, stopWork, duplicate, save, saveViewerCategory, removeWithUndo, remove }
   }, [])
 }

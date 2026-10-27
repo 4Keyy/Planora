@@ -16,6 +16,7 @@ import { DEMO_USER } from "@/lib/demo/state"
 import { type LegendKey } from "@/lib/landing-keys"
 import { useToastStore } from "@/store/toast"
 import { isTodoOwner, type Todo, type PagedTodosResponse } from "@/types/todo"
+import { putBack } from "@/utils/todo-utils"
 import type { Category } from "@/types/category"
 import { toCategoryList, type CategoryListResponse } from "@/types/category"
 import { SandboxNotice } from "./demo-sandbox"
@@ -120,28 +121,10 @@ export function KeyboardConsole() {
    * an undone delete never reaches the API at all.
    */
   const remove = (id: string) => {
-    const victim = tasks.find((t) => t.id === id)
-    if (!victim) return
     const index = tasks.findIndex((t) => t.id === id)
-    const putBack = () =>
-      setTasks((prev) => {
-        if (prev.some((t) => t.id === id)) return prev
-        const next = [...prev]
-        next.splice(Math.min(index, next.length), 0, victim)
-        return next
-      })
-    setTasks((prev) => prev.filter((t) => t.id !== id))
-    run({
-      label: "Task deleted",
-      commit: async () => {
-        try {
-          await api.delete(`/todos/api/v1/todos/${id}`)
-        } catch {
-          putBack()
-          addToast({ type: "error", title: "Couldn't delete task" })
-        }
-      },
-      rollback: putBack,
+    actions.removeWithUndo(tasks[index], run, {
+      take: () => setTasks((prev) => prev.filter((t) => t.id !== id)),
+      restore: (victim) => setTasks((prev) => putBack(prev, victim, index)),
     })
   }
 
