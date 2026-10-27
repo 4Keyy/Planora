@@ -227,7 +227,9 @@ differently — the archive only reopens, the branch page reads a non-owner's ow
 says so in options it passes to the hook (`completion`, `work`, `log`, `describe`), and
 `docs/features.md` § Task actions on every page lists each one. The returned actions never change identity and read the latest options through a
 ref, so a memoized `TodoCard` holding an old handler still acts for today's viewer. A new page that
-acts on tasks uses this hook rather than calling `lib/api.ts` for these actions itself.
+acts on tasks uses this hook rather than calling `lib/api.ts` for these actions itself, and names
+friends' tasks with `hooks/use-author-names.ts`. Whether an id is the viewer's is always
+`sameUserId` (case-insensitive), never `===`.
 
 ### The error-state contract
 

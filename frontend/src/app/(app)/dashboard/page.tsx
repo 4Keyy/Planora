@@ -8,7 +8,6 @@ import { motion } from "@/components/ui/motion"
 import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
@@ -48,6 +47,7 @@ import { useNewTaskShortcut } from "@/hooks/use-new-task-shortcut"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useAuthorNames } from "@/hooks/use-author-names"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
@@ -165,7 +165,8 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
   const firstRunAutoOpenedRef = useRef(false)
-  const friendNameCache = useRef<Map<string, string>>(new Map())
+  // Friends' names on the page's tasks, read once per friend (`useAuthorNames`).
+  const { enrich: enrichTodosWithAuthorNames, nameOf: authorNameOf } = useAuthorNames(user?.userId)
   const currentPageRef = useRef(currentPage)
 
   // PERF: TodoCard is memoized and ignores callback identity, so the handlers it
@@ -191,35 +192,6 @@ export default function DashboardPage() {
       if (axios.isCancel(err) || signal?.aborted) return
     }
   }, [])
-
-  const enrichTodosWithAuthorNames = useCallback(async (items: Todo[]) => {
-    const currentUserId = user?.userId
-    if (!currentUserId) return items
-
-    const friendIds = new Set(
-      items
-        .filter((t) => {
-          if (!t.userId || t.userId === currentUserId) return false
-          const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-          return isFriendVisible
-        })
-        .map((t) => t.userId)
-    )
-
-    if (friendIds.size === 0) return items
-
-    await ensureFriendNames(friendIds, friendNameCache.current)
-
-    if (friendNameCache.current.size === 0) return items
-
-    return items.map((t) => {
-      if (!t.userId || t.userId === currentUserId) return t
-      const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-      if (!isFriendVisible) return t
-      const authorName = friendNameCache.current.get(t.userId)
-      return authorName ? { ...t, authorName } : t
-    })
-  }, [user?.userId])
 
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -526,11 +498,11 @@ export default function DashboardPage() {
       setStatsTodos(prev => prev.map(t => {
         if (t.id !== todoId) return t
         if (done.via === "viewer") return done.patch(t)
-        const authorName = t.authorName ?? friendNameCache.current.get(done.updated.userId)
+        const authorName = t.authorName ?? authorNameOf(done.updated.userId)
         return { ...done.updated, authorName }
       }))
     })
-  }, [actions, fetchTodos])
+  }, [actions, fetchTodos, authorNameOf])
 
 
   // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it); do not
@@ -541,7 +513,7 @@ export default function DashboardPage() {
     payload,
     (saved) => {
       const applyMerge = (t: Todo) =>
-        t.id !== todoId ? t : { ...saved, authorName: t.authorName ?? friendNameCache.current.get(saved.userId) }
+        t.id !== todoId ? t : { ...saved, authorName: t.authorName ?? authorNameOf(saved.userId) }
       setTodos(prev => prev.map(applyMerge))
       setStatsTodos(prev => prev.map(applyMerge))
     },
@@ -551,12 +523,12 @@ export default function DashboardPage() {
     todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId),
     viewerCategoryId,
     (fullTask, existing) => {
-      const authorName = existing.authorName ?? friendNameCache.current.get(fullTask.userId)
+      const authorName = existing.authorName ?? authorNameOf(fullTask.userId)
       const enriched = authorName ? { ...fullTask, authorName } : fullTask
       setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
       setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
     },
-  ), [todos, statsTodos, actions])
+  ), [todos, statsTodos, actions, authorNameOf])
 
   // Taking a friend's task shows the task as joined, with its author's name kept.
   const handleJoin = useCallback((todoId: string) => actions.startWork(
@@ -564,7 +536,7 @@ export default function DashboardPage() {
     (work) => {
       let change = work.patch
       if (work.via === "worker") {
-        const authorName = work.todo.authorName ?? friendNameCache.current.get(work.updated.userId)
+        const authorName = work.todo.authorName ?? authorNameOf(work.updated.userId)
         const enriched = authorName ? { ...work.updated, authorName } : work.updated
         change = () => enriched
       }
@@ -572,7 +544,7 @@ export default function DashboardPage() {
       setTodos(prev => prev.map(upd))
       setStatsTodos(prev => prev.map(upd))
     },
-  ), [actions])
+  ), [actions, authorNameOf])
 
   const handleLeave = useCallback((todoId: string) => actions.stopWork(
     todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId),
@@ -608,7 +580,7 @@ export default function DashboardPage() {
       setStatsTodos(apply)
     },
     viewerId: user?.userId,
-    authorName: (userId) => friendNameCache.current.get(userId),
+    authorName: authorNameOf,
     onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
   })
 

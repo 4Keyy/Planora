@@ -216,6 +216,15 @@ describe("toPaletteTask", () => {
     expect(t.keywords).not.toContain("you")
   })
 
+  it("knows the viewer's own task and work whatever the case of the ids", () => {
+    const viewer = "9F1C2E3A-0000-4000-8000-0000000000AB"
+    const own = viewer.toLowerCase()
+    const t = toPaletteTask(todo({ userId: own, workerUserIds: [own] }), viewer, names)
+    expect(t.mine).toBe(true)
+    expect(t.ownerName).toBeNull()
+    expect(t.workers).toEqual([{ id: own, name: "You" }])
+  })
+
   it("prefers the names a subtask read carries", () => {
     const t = toPaletteTask(todo({ workers: [{ userId: "ada", name: "Ada L." }] }), ME, names)
     expect(t.workers).toEqual([{ id: "ada", name: "Ada L." }])

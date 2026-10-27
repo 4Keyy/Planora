@@ -890,6 +890,13 @@ selection). Every list puts a card back where it was with one helper, `putBack` 
 The branch page has no delete. A selection on Tasks still goes under one window of its own
 (`requestDeleteMany`), and restores its cards with the same `putBack`.
 
+**Friends' names on the cards** (`frontend/src/hooks/use-author-names.ts`). Dashboard, Tasks and the
+archive name the author of a friend's public or shared task with `useAuthorNames`: each friend's
+name is read once (`ensureFriendNames`) and kept for the page's life, and an action that updates a
+card in place keeps its name through `nameOf`. Every page, and the command palette's task rows, tell
+the viewer's own tasks and work apart with `sameUserId`; Dashboard and the palette compared the ids
+with `===`, which agrees for the lower-case GUIDs the server sends.
+
 ### Realtime arrivals on the task list
 
 A remote change that reconciles on arrival moves every card below the insertion point — under

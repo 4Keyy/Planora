@@ -10,7 +10,6 @@ import { CheckCircle2, ChevronRight, History, FolderOpen, Trash2 } from "lucide-
 import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, fetchTaskById, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -53,6 +52,7 @@ import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useAuthorNames } from "@/hooks/use-author-names"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
@@ -160,7 +160,8 @@ export default function TasksPage() {
   const [completedLoaded, setCompletedLoaded] = useState(false)
   const [completedLoading, setCompletedLoading] = useState(false)
 
-  const friendNameCache = useRef<Map<string, string>>(new Map())
+  // Friends' names on the page's tasks, read once per friend (`useAuthorNames`).
+  const { enrich: enrichTodosWithAuthorNames, nameOf: authorNameOf } = useAuthorNames(user?.userId)
 
   // PERF: live mirrors of the lists for the memoized TodoCard's (possibly stale)
   // handler closures to read from. See the equivalent note on the dashboard.
@@ -248,35 +249,6 @@ export default function TasksPage() {
       console.error("Failed to fetch categories:", describeError(error))
     }
   }, [])
-
-  const enrichTodosWithAuthorNames = useCallback(async (items: Todo[]) => {
-    const currentUserId = user?.userId
-    if (!currentUserId) return items
-
-    const friendIds = new Set(
-      items
-        .filter((t) => {
-          if (!t.userId || sameUserId(t.userId, currentUserId)) return false
-          const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-          return isFriendVisible
-        })
-        .map((t) => t.userId)
-    )
-
-    if (friendIds.size === 0) return items
-
-    await ensureFriendNames(friendIds, friendNameCache.current)
-
-    if (friendNameCache.current.size === 0) return items
-
-    return items.map((t) => {
-      if (!t.userId || sameUserId(t.userId, currentUserId)) return t
-      const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-      if (!isFriendVisible) return t
-      const authorName = friendNameCache.current.get(t.userId)
-      return authorName ? { ...t, authorName } : t
-    })
-  }, [user?.userId])
 
   const fetchActiveTodos = useCallback(async ({ signal, silent = false }: { signal?: AbortSignal; silent?: boolean } = {}) => {
     // Mutation-triggered refreshes pass silent:true so the list reconciles in the
@@ -391,7 +363,7 @@ export default function TasksPage() {
       return
     }
 
-    const authorName = fresh.authorName ?? friendNameCache.current.get(fresh.userId)
+    const authorName = fresh.authorName ?? authorNameOf(fresh.userId)
     const [enriched] = authorName ? [{ ...fresh, authorName }] : await enrichTodosWithAuthorNames([fresh])
     const upsert = (prev: Todo[]) =>
       prev.some((t) => t.id === taskId)
@@ -410,7 +382,7 @@ export default function TasksPage() {
       setCompletedPreview((prev) => prev.filter((t) => t.id !== taskId))
       setTodos(upsert)
     }
-  }, [enrichTodosWithAuthorNames, fetchCompletedPreview])
+  }, [enrichTodosWithAuthorNames, authorNameOf, fetchCompletedPreview])
 
   /**
    * Somebody else's change, offered rather than applied.
@@ -518,7 +490,7 @@ export default function TasksPage() {
     todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id),
     payload,
     (saved, existingTodo) => {
-      const authorName = existingTodo.authorName ?? friendNameCache.current.get(saved.userId)
+      const authorName = existingTodo.authorName ?? authorNameOf(saved.userId)
       replaceInItsList(existingTodo, { ...saved, authorName })
     },
   )
@@ -527,7 +499,7 @@ export default function TasksPage() {
     todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id),
     viewerCategoryId,
     (fullTask, existingTodo) => {
-      const authorName = existingTodo.authorName ?? friendNameCache.current.get(fullTask.userId)
+      const authorName = existingTodo.authorName ?? authorNameOf(fullTask.userId)
       replaceInItsList(existingTodo, authorName ? { ...fullTask, authorName } : fullTask)
     },
   )
@@ -620,7 +592,7 @@ export default function TasksPage() {
       setCompletedPreview(apply)
     },
     viewerId: user?.userId,
-    authorName: (userId) => friendNameCache.current.get(userId),
+    authorName: authorNameOf,
     onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
     redactViewerHidden: redactHiddenSharedTodo,
   })

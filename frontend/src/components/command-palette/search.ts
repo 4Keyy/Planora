@@ -1,4 +1,4 @@
-import { isCompletedTodoStatus, toApiTodoStatus, type Todo } from "@/types/todo"
+import { isCompletedTodoStatus, sameUserId, toApiTodoStatus, type Todo } from "@/types/todo"
 import { getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { calendarDayOf, daysBetween, formatDay, localDay } from "@/lib/calendar-date"
 
@@ -167,21 +167,22 @@ export interface PaletteTask {
  */
 export function toPaletteTask(todo: Todo, viewerId: string | null, names: Map<string, string>): PaletteTask {
   const completed = Boolean(todo.isCompleted) || isCompletedTodoStatus(todo.status)
-  const mine = viewerId === null || todo.userId === viewerId
+  // Ids are compared as every task page compares them (`sameUserId`, audit FE-24).
+  const mine = viewerId === null || sameUserId(todo.userId, viewerId)
   const sharedWith = todo.sharedWithUserIds ?? []
   // A list read carries worker ids; only a subtask read carries their names.
   const named = new Map((todo.workers ?? []).map((w) => [w.userId, w.name ?? null]))
   const workerIds = todo.workers?.length ? todo.workers.map((w) => w.userId) : (todo.workerUserIds ?? [])
   const workers = workerIds.map((id) => ({
     id,
-    name: id === viewerId ? "You" : (named.get(id) ?? names.get(id) ?? null),
+    name: sameUserId(id, viewerId) ? "You" : (named.get(id) ?? names.get(id) ?? null),
   }))
   const ownerName = mine ? null : (todo.authorName ?? names.get(todo.userId) ?? null)
   const categoryName = todo.categoryName ?? null
   const people = [
     ownerName,
     ...sharedWith.map((id) => names.get(id)),
-    ...workers.filter((w) => w.id !== viewerId).map((w) => w.name),
+    ...workers.filter((w) => !sameUserId(w.id, viewerId)).map((w) => w.name),
   ]
   return {
     id: todo.id,

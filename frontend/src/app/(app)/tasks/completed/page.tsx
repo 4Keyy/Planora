@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { describeError } from "@/lib/errors"
-import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
-import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner, sameUserId } from "@/types/todo"
+import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
 import { TaskDeletionBadge } from "@/components/todos/task-deletion-badge"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
@@ -33,6 +32,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageHeader } from "@/components/layout/page-header"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { useListNavigation } from "@/hooks/use-list-navigation"
+import { useAuthorNames } from "@/hooks/use-author-names"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
@@ -84,7 +84,8 @@ export default function CompletedTasksPage() {
   const hasDateFilter = !!(searchStart || searchEnd)
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
-  const friendNameCache = useRef<Map<string, string>>(new Map())
+  // Friends' names on the page's tasks, read once per friend (`useAuthorNames`).
+  const { enrich: enrichTodosWithAuthorNames, nameOf: authorNameOf } = useAuthorNames(user?.userId)
   // The archive only ever reopens, and every non-owner reopens their own completion.
   const actions = useTaskActions({
     viewerId: user?.userId,
@@ -178,35 +179,6 @@ export default function CompletedTasksPage() {
       console.error("Failed to fetch categories:", describeError(error))
     }
   }, [])
-
-  const enrichTodosWithAuthorNames = useCallback(async (items: Todo[]) => {
-    const currentUserId = user?.userId
-    if (!currentUserId) return items
-
-    const friendIds = new Set(
-      items
-        .filter((t) => {
-          if (!t.userId || sameUserId(t.userId, currentUserId)) return false
-          const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-          return isFriendVisible
-        })
-        .map((t) => t.userId)
-    )
-
-    if (friendIds.size === 0) return items
-
-    await ensureFriendNames(friendIds, friendNameCache.current)
-
-    if (friendNameCache.current.size === 0) return items
-
-    return items.map((t) => {
-      if (!t.userId || sameUserId(t.userId, currentUserId)) return t
-      const isFriendVisible = t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0
-      if (!isFriendVisible) return t
-      const authorName = friendNameCache.current.get(t.userId)
-      return authorName ? { ...t, authorName } : t
-    })
-  }, [user?.userId])
 
   // Read current criteria even when a memoized card retains an older mutation callback.
   const fetchCompletedTodos = useCallback(async (page = queryRef.current.page) => {
@@ -326,7 +298,7 @@ export default function CompletedTasksPage() {
     todos.find((t) => t.id === todoId),
     payload,
     (saved, existing) => {
-      const authorName = existing.authorName ?? friendNameCache.current.get(saved.userId)
+      const authorName = existing.authorName ?? authorNameOf(saved.userId)
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...saved, authorName } : t)))
     },
   )
@@ -335,18 +307,18 @@ export default function CompletedTasksPage() {
     todos.find((t) => t.id === todoId),
     viewerCategoryId,
     (fullTask, existing) => {
-      const authorName = existing.authorName ?? friendNameCache.current.get(fullTask.userId)
+      const authorName = existing.authorName ?? authorNameOf(fullTask.userId)
       const enriched = authorName ? { ...fullTask, authorName } : fullTask
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...t, ...enriched } : t)))
     },
-  ), [todos, actions])
+  ), [todos, actions, authorNameOf])
 
   // Hiding and opening a task, as every list does it (`useTaskVisibility`).
   const visibility = useTaskVisibility({
     find: (id) => todosRef.current.find(t => t.id === id),
     update: (id, change) => setTodos(prev => prev.map(t => t.id === id ? change(t) : t)),
     viewerId: user?.userId,
-    authorName: (userId) => friendNameCache.current.get(userId),
+    authorName: authorNameOf,
     onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
   })
   const handleToggleHidden = visibility.toggle

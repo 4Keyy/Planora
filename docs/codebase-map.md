@@ -361,6 +361,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
 | `use-new-task-shortcut.ts` | page-scoped `C` and palette requests open `CreateTodoPanel` on Dashboard or Tasks and request title focus |
 | `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
+| `use-author-names.ts` | friends' names on a page's task cards, each read once per page; `nameOf` for a card updated in place |
 | `use-task-actions.ts` | what a task's actions send and say on every page that shows tasks (complete / reopen, start / stop work, duplicate, the editor's saves, delete behind the undo window or at once); each page passes its rules and wording and an `apply` that puts the answer into its own lists |
 
 ### `lib`

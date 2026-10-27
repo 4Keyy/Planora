@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(tasks): one way to name friends on task cards (2026-10-27)
+
+Dashboard, Tasks and the archive each carried a copy of the code that puts a friend's name on their
+public and shared tasks, and Dashboard's told the viewer's own tasks apart with an exact `===` where
+the others used `sameUserId` (audit FE-24). `useAuthorNames` in `hooks/use-author-names.ts` now does
+it for all three, each page keeping its own names as before, and the command palette's task rows
+compare ids with `sameUserId` too. The server sends lower-case GUIDs, so nothing visible changes.
+
 ### refactor(tasks): one deletion for every page (2026-10-27)
 
 Dashboard, Tasks and the landing console each built the undo window around a deletion with their
