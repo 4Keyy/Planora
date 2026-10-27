@@ -113,6 +113,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(profile): the button that accepts a friend request has a name (2026-10-27)
+
+An incoming friend request's accept button was a check mark with no accessible name, so a screen
+reader announced it only as "button" next to a properly named reject button. It is now "Accept
+request from" and the person's name.
+
 ### docs: bring the documentation back in line with the code (2026-10-27)
 
 Twenty documentation statements had drifted from the code (audit FE-33). They now describe the New

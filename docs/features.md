@@ -131,6 +131,9 @@ Establish social relationships required for task sharing and friend-scoped task 
 - Friend requests can be sent by `friendId` or by email.
 - Email invite response is intentionally generic: "If that email can receive friend requests..."
 - Incoming/outgoing requests are controlled with `incoming=true/false`.
+- Each incoming request has two icon buttons named for the person — "Accept request from Ada
+  Lovelace" and "Reject request from Ada Lovelace". The accept button had no name until
+  2026-10-27, so a screen reader announced only "button".
 - Internal friend-id and are-friends checks return safe fallback values on exceptions.
 - Gateway exposes both `/auth/api/v1/friendships*` and legacy `/friendships*`.
 - The friend list comes oldest friendship first, a page of at most 100 at a time. `useFriends` (`frontend/src/hooks/use-friends.ts`) reads page after page of 100 while the server reports a next page and the page is full, keeping each friend once; it used to ask for 200 a page and stop at the first page shorter than 200, which a server answering 100 a page made the first one — everyone after the hundredth friend was missing from the audience picker and from name resolution.

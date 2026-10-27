@@ -1920,7 +1920,12 @@ export default function ProfilePage() {
                               </p>
                               <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
                             </div>
-                            <Button size="sm" loading={respondingRequestId === request.friendshipId} onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
+                            <Button
+                              size="sm"
+                              loading={respondingRequestId === request.friendshipId}
+                              aria-label={`Accept request from ${personName(request)}`}
+                              onClick={() => handleAcceptFriendRequest(request.friendshipId)}
+                            >
                               <Check className="h-4 w-4" aria-hidden />
                             </Button>
                             <Button
