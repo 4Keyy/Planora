@@ -1025,10 +1025,23 @@ Frontend coverage:
 - configured in `frontend/vitest.config.ts`;
 - provider: V8;
 - includes `src/**/*.{ts,tsx}`;
-- excludes tests, `src/app/**`, and the entire `src/components/todos/edit-todo-modal/**`
-  subtree. Unit/browser tests may exercise these areas, but the coverage percentages
-  do not measure them, and the browser suite does not cover every branch-editor state;
-- thresholds: ≥85% for statements, branches, functions, and lines;
+- excludes only tests. Until 2026-10-27 it also left out `src/app/**` and
+  `src/components/todos/edit-todo-modal/**` (audit FE-26), so nothing noticed when the
+  pages or the task editor lost coverage — the dashboard page had none at all;
+- thresholds, per glob (`coverage.thresholds`): everything outside the pages and the
+  editor keeps ≥85% statements, branches, functions and lines; the editor and each page
+  directory (`_landing`, `auth`, and under `(app)` `branch`, `categories`, `dashboard`,
+  `profile`, `tasks`) are held at their measured level less half a point, rounded down —
+  a ratchet: raise a number when tests raise coverage, never lower one. Vitest checks the
+  global numbers against every file, so they too are the measured level of the whole
+  frontend (88 / 81 / 78 / 85 lines / functions / branches / statements). Globs use `*`
+  for the `(app)` segment, because picomatch reads parentheses as a pattern group. The
+  root layout and landing composition (`src/app/*.tsx`) are framework entry points that
+  the build and the E2E landing specs exercise; they are held at their low measured level;
+- on 2026-10-27, 166 files / 2,165 tests measured lines 89.04%, statements 86.14%,
+  branches 79.44% and functions 82.19% over the whole frontend, and at least 70% of lines
+  in every page directory and the editor (dashboard 78.1, tasks 73.5, profile 74.7,
+  branch 87.6, categories 70.4, landing 75.4, editor 79.3);
 - per-test timeout: 15 s (`testTimeout`). The heaviest jsdom tests render whole editors,
   panels and pages; under V8 instrumentation with every worker busy they ran past Vitest's
   default 5 s on an ordinary laptop, failing different tests on every run (on an unchanged

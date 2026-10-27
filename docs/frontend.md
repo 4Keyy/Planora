@@ -531,7 +531,7 @@ a test double and the markup rules do not.
 
 | Suite | Command | Covers |
 |---|---|---|
-| Unit + component | `npm --prefix frontend run test:coverage` | V8 gate: ≥85% statements, branches, functions and lines in the included source scope |
+| Unit + component | `npm --prefix frontend run test:coverage` | V8 gates: ≥85% outside the pages and the task editor; each page directory and the editor held at its measured level (ratchet) |
 | Lint | `npm --prefix frontend run lint` | ESLint with jsx-a11y on `src/**` and the light test profile; no warning allowed |
 | Design-system contract | `src/test/quality/design-tokens.contract.test.ts` | The five rules, read from source |
 | Usability contract | `src/test/quality/usability-contract.test.tsx` | Copy and affordances that must not regress |
@@ -543,10 +543,10 @@ a test double and the markup rules do not.
 
 The final 2026-10-06 coverage run at `b2e9c70` passed **100 test files / 1,231 tests**: statements
 94.48%, branches 86.46%, functions 94.20%, lines 96.34%. This is a dated
-measurement, not a fixed test-count gate. Coverage excludes `src/app/**` and the
-entire `src/components/todos/edit-todo-modal/**` subtree; tests can still execute
-excluded code, but those percentages cannot establish its coverage. See
-[`testing.md`](testing.md) for commands, artifacts and integration-test limits.
+measurement, not a fixed test-count gate. Since 2026-10-27 coverage counts the pages
+and the task editor too: they are held at their measured level per directory (a ratchet),
+and the rest of the code keeps its 85% gates — see [`testing.md`](testing.md#coverage-configuration)
+for the thresholds, commands, artifacts and integration-test limits.
 
 ### Testing associations, not appearance
 
@@ -693,7 +693,7 @@ Two traps this machine has hit before, recorded in
 
 1. `npx tsc --noEmit` and `npm run lint` — clean, with no warning.
 2. `npm run build` — clean.
-3. `npm run test:coverage` — green across all four configured 85% thresholds.
+3. `npm run test:coverage` — green across every configured threshold; raise a page's or the editor's numbers when your tests raise its coverage.
 4. `node ../docs/ui-audit/tools/class-audit.mjs` — every class emits a rule.
 5. `node ../docs/ui-audit/tools/a11y-static.mjs` — no unnamed control, no unreachable one.
 6. If you touched anything focusable, `node ../docs/ui-audit/tools/focus-scan.mjs` against a

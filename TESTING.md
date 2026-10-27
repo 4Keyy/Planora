@@ -41,9 +41,10 @@ Frontend test config:
 
 Current frontend coverage includes authenticated navbar menu interactions, Todo author-name enrichment for public friend tasks, hidden-card category blur, urgency border styling, and all-friends sharing inside `Share With`.
 
-The V8 gate is ≥85% statements, branches, functions and lines for its included
-scope. It excludes route pages and the full `edit-todo-modal` subtree; a passing
-percentage does not establish coverage for those excluded paths.
+The V8 gates are ≥85% statements, branches, functions and lines outside the route
+pages and the task editor. Those are in the report too and are held at their measured
+level per directory, so their coverage can only rise (`docs/testing.md`, Coverage
+Configuration).
 
 The final 2026-10-06 frontend run at `b2e9c70` passed 100 files / 1,231 tests,
 with 86.46% branch coverage and all four configured thresholds above 85%.

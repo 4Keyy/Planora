@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(coverage): the pages and the task editor count, and cannot slip (2026-10-27)
+
+The coverage report used to leave out every page and the task editor, so their tests were not
+measured and their coverage could fall unnoticed — the dashboard had none. They are now in the
+report, each page directory and the editor held at its measured level, while the rest of the code
+keeps its 85% gate. New tests bring every page directory and the editor above 70% of lines.
+
 ### fix(profile): the button that accepts a friend request has a name (2026-10-27)
 
 An incoming friend request's accept button was a check mark with no accessible name, so a screen
