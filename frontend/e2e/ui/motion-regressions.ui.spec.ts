@@ -169,9 +169,16 @@ async function bottomCollapse(page: Page, info: TestInfo) {
   const count = await page.locator('[data-task-card]').count();
   expect(count).toBe(6);
   await page.evaluate(() => {
-    const columns = Array.from(document.querySelectorAll('[class~="relative"][class~="flex-col"][class~="flex-1"]')).filter(column => column.querySelector('[data-task-card]'));
-    columns.sort((a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height);
-    const card = Array.from(columns[0].querySelectorAll('[data-task-card]')).at(-1)!;
+    // A column is the placed cards that share a left edge (7532703); take the tallest one's last card.
+    const byLeft = new Map<number, Element[]>();
+    for (const placed of Array.from(document.querySelectorAll('[data-masonry-card]'))) {
+      const left = Math.round(placed.getBoundingClientRect().left);
+      byLeft.set(left, [...(byLeft.get(left) ?? []), placed]);
+    }
+    const bottom = (column: Element[]) => Math.max(...column.map(placed => placed.getBoundingClientRect().bottom));
+    const tallest = Array.from(byLeft.values()).sort((a, b) => bottom(b) - bottom(a))[0];
+    const last = tallest.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).at(-1)!;
+    const card = last.querySelector('[data-task-card]')!;
     if (!card.querySelector('button[aria-label="Collapse task card"]')) throw new Error('Tallest-column bottom fixture is unexpectedly hidden');
     card.setAttribute('data-motion-target', '');
     card.setAttribute('data-motion-title', card.querySelector('h3')?.textContent ?? '');
@@ -235,7 +242,7 @@ async function keyboardReveal(page: Page, info: TestInfo) {
   expect.soft(last.card!.buttonBottom).toBeLessThanOrEqual(last.innerHeight);
 }
 
-// One attempt: the matrix may use its whole 20-minute limit, and each retry spent another 20
+// One attempt: the matrix may use its whole 30-minute limit, and each retry spent another 20
 // minutes of the shard on the same scenarios — three attempts exhausted it before Playwright
 // could print why the first one failed.
 test.describe.configure({ retries: 0 });
@@ -243,7 +250,9 @@ test.describe.configure({ retries: 0 });
 // Every scenario has its own fresh browser context. Soft metric failures retain the
 // rest of the matrix and its raw evidence without retrying Auth or hiding defects.
 test('real services satisfy the motion regression matrix', async ({ browser }, info) => {
-  test.setTimeout(1_200_000);
+  // Seventeen scenarios on real services: on CI the matrix reached its last one at about 20 minutes
+  // in one run and ran out before the eleventh in the next.
+  test.setTimeout(1_800_000);
   info.annotations.push({ type: 'cpu-throttle', description: '1' });
   const run = async (name: string, action: () => Promise<void>) => {
     await test.step(name, async () => {

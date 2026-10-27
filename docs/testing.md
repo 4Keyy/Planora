@@ -1115,10 +1115,13 @@ off before their summaries — Playwright balances shards by test count, and the
 motion matrices (`motion-geometry`, `motion-regressions`) take tens of minutes each.
 `compact-rail.ui.spec.ts` therefore runs in parallel mode, so its independent width/DPR cases
 are dealt to shards one by one (900 seconds each), and the motion regression matrix runs once
-(`retries: 0`): three 20-minute attempts used to fill its shard before Playwright printed why
-the first one failed. The expanded-card geometry probe reads columns from the cards the grid
-places absolutely (`[data-masonry-card]`, since `7532703`); it used to look for column elements
-that no longer exist and failed every case. An `always()` step
+(`retries: 0`) with 30 minutes: three 20-minute attempts used to fill its shard before Playwright
+printed why the first one failed, and a single run of its seventeen scenarios has taken from
+about 20 minutes to more. Every geometry and motion probe — the expanded-card spec, the motion
+frame recorder (`e2e/ui/_motion-frames.ts`), the height-motion spec and the regression matrix —
+reads a column as the cards the grid places absolutely in one box that share a left edge
+(`[data-masonry-card]`, since `7532703`); they used to look for column elements that no longer
+exist and failed every case that needed one. An `always()` step
 summarizes skipped tests, retried tests and retry attempts from private Playwright JSON.
 Only numeric aggregates are published; the raw report is deleted. Missing or invalid
 reports are marked unavailable rather than reported as zero skips/retries.

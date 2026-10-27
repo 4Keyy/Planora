@@ -73,8 +73,15 @@ export async function startFrames(page: Page, { cardSelector }: { cardSelector?:
         && animation.effect.target === card && animation.effect.getKeyframes().some(key => typeof key.height === 'string')) ?? [];
       const heightAnimation = heightAnimations[0];
       if (heightAnimation && !animationIds.has(heightAnimation)) animationIds.set(heightAnimation, ++nextAnimationId);
-      const column = card?.closest('[class~="relative"][class~="flex-col"][class~="flex-1"]');
-      const siblings = column ? Array.from(column.querySelectorAll<HTMLElement>('[data-task-card]')) : [];
+      // The grid places every card absolutely in one box (7532703): a column is the placed cards
+      // that share a left edge, top to bottom.
+      const placed = card?.closest('[data-masonry-card]');
+      const left = placed ? Math.round(placed.getBoundingClientRect().left) : null;
+      const siblings = placed?.parentElement ? Array.from(placed.parentElement.children)
+        .filter(child => child.hasAttribute('data-masonry-card') && Math.round(child.getBoundingClientRect().left) === left)
+        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        .map(child => child.querySelector<HTMLElement>('[data-task-card]'))
+        .filter((element): element is HTMLElement => element !== null) : [];
       const next = card ? siblings[siblings.indexOf(card) + 1] : null;
       const toggle = card?.querySelector<HTMLButtonElement>('button[aria-label="Collapse task card"],button[aria-label="Expand task card"]');
       const toggleBox = toggle?.getBoundingClientRect();

@@ -19,21 +19,35 @@ test.describe('real-service card height and layout motion', () => {
 
   async function collect(card: Locator, toggle: 'Collapse task card' | 'Expand task card') {
     return card.evaluate((element, label) => new Promise<Frame[]>(resolve => {
-      const column = element.closest('[class~="relative"][class~="flex-col"][class~="flex-1"]')!;
-      if (!column) throw new Error('A real masonry column is required');
-      const grid = column.parentElement!;
-      const following = Array.from(column.querySelectorAll('[data-task-card]'));
+      // The grid places every card absolutely in one box (7532703): a column is the placed cards
+      // that share a left edge, top to bottom, and its height runs from its first top to its last bottom.
+      const placed = element.closest('[data-masonry-card]');
+      if (!placed?.parentElement) throw new Error('A real masonry card is required');
+      const grid = placed.parentElement;
+      const columns = () => {
+        const byLeft = new Map<number, Element[]>();
+        for (const child of Array.from(grid.children).filter(child => child.hasAttribute('data-masonry-card'))) {
+          const left = Math.round(child.getBoundingClientRect().left);
+          byLeft.set(left, [...(byLeft.get(left) ?? []), child]);
+        }
+        return Array.from(byLeft.values()).map(column => column.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top));
+      };
+      const columnHeight = (column: Element[]) =>
+        Math.max(...column.map(child => child.getBoundingClientRect().bottom)) - Math.min(...column.map(child => child.getBoundingClientRect().top));
+      const own = columns().find(column => column.includes(placed))!;
+      const following = own.map(child => child.querySelector('[data-task-card]'));
       const next = following[following.indexOf(element) + 1];
       const pager = document.querySelector('nav[aria-label="Pagination"]');
       const frames: Frame[] = [];
       const start = performance.now();
       const read = (time: number) => {
-        const columnHeight = column.getBoundingClientRect().height;
+        const all = columns();
+        const ownHeight = columnHeight(all.find(column => column.includes(placed)) ?? [placed]);
         frames.push({
           time: time - start, height: element.getBoundingClientRect().height,
           nextTop: next ? next.getBoundingClientRect().top + window.scrollY : null,
           pagerTop: pager ? pager.getBoundingClientRect().top + window.scrollY : null,
-          controlsPager: Array.from(grid.children).every(child => child.getBoundingClientRect().height <= columnHeight + 1),
+          controlsPager: all.every(column => columnHeight(column) <= ownHeight + 1),
           animations: element.getAnimations().length,
           pending: element.querySelector('button[aria-busy="true"]') !== null,
         });
@@ -145,9 +159,16 @@ test.describe('real-service card height and layout motion', () => {
       await page.waitForTimeout(1000);
       mark('select tallest column');
       const selector = await page.evaluate(() => {
-        const columns = Array.from(document.querySelectorAll('[class~="relative"][class~="flex-col"][class~="flex-1"]')).filter(column => column.querySelector('[data-task-card]'));
-        columns.sort((a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height);
-        const card = Array.from(columns[0].querySelectorAll('[data-task-card]')).at(-1)!;
+        // A column is the placed cards that share a left edge (7532703); take the tallest one's last card.
+        const byLeft = new Map<number, Element[]>();
+        for (const placed of Array.from(document.querySelectorAll('[data-masonry-card]'))) {
+          const left = Math.round(placed.getBoundingClientRect().left);
+          byLeft.set(left, [...(byLeft.get(left) ?? []), placed]);
+        }
+        const bottom = (column: Element[]) => Math.max(...column.map(placed => placed.getBoundingClientRect().bottom));
+        const tallest = Array.from(byLeft.values()).sort((a, b) => bottom(b) - bottom(a))[0];
+        const last = tallest.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).at(-1)!;
+        const card = last.querySelector('[data-task-card]')!;
         card.setAttribute('data-motion-bottom', '');
         return '[data-motion-bottom]';
       });
