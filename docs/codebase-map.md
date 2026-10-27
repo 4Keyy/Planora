@@ -361,7 +361,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
 | `use-new-task-shortcut.ts` | page-scoped `C` and palette requests open `CreateTodoPanel` on Dashboard or Tasks and request title focus |
 | `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
-| `use-task-actions.ts` | what a task's actions send and say on every page that shows tasks (complete / reopen); each page passes its rules and an `apply` that puts the answer into its own lists |
+| `use-task-actions.ts` | what a task's actions send and say on every page that shows tasks (complete / reopen, start / stop work); each page passes its rules and wording and an `apply` that puts the answer into its own lists |
 
 ### `lib`
 

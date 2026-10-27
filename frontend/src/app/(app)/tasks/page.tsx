@@ -9,7 +9,7 @@ import { motion } from "@/components/ui/motion"
 import { CheckCircle2, ChevronRight, History, FolderOpen, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import axios from "axios"
-import { api, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
+import { api, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
@@ -174,7 +174,11 @@ export default function TasksPage() {
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
-  const actions = useTaskActions({ viewerId: user?.userId, log: true })
+  const actions = useTaskActions({
+    viewerId: user?.userId,
+    log: true,
+    work: { joinFailed: "Couldn't join task", explainFull: true, leaveFailed: "Couldn't leave task" },
+  })
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -935,34 +939,13 @@ export default function TasksPage() {
                       onRevealIntent={() => visibility.prefetch(todo.id)}
                       visibilityPending={visibility.isPending(todo.id)}
                       onPriority={(level) => handlePriority(todo.id, level)}
-                      onJoin={async () => {
-                        if (isTodoOwner(todo, user?.userId)) {
-                          try {
-                            await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
-                            setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
-                            setCommentsRefreshKey((k) => k + 1)
-                          } catch {
-                            addToast({ type: "error", title: "Couldn't update task" })
-                          }
-                        } else {
-                          try {
-                            const updated = await joinTodo(todo.id)
-                            setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
-                            setCommentsRefreshKey((k) => k + 1)
-                          } catch (err: unknown) {
-                            const status = (err as { response?: { status: number } })?.response?.status
-                            if (status === 409) {
-                              addToast({ type: "warning", title: "Task is full or you have already joined" })
-                              try {
-                                const fresh = await fetchTaskById(todo.id)
-                                setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t))
-                              } catch { /* ignore refetch failure */ }
-                            } else {
-                              addToast({ type: "error", title: "Couldn't join task" })
-                            }
-                          }
-                        }
-                      }}
+                      // A join turned down as full reads the task again, so the card shows who is on it.
+                      onJoin={() => actions.startWork(todo, (work) => {
+                        setTodos((prev) => prev.map((t) => t.id === todo.id ? work.patch(t) : t))
+                        setCommentsRefreshKey((k) => k + 1)
+                      }, {
+                        onFull: (fresh) => setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t)),
+                      })}
                     />
                   )}
                 />
@@ -1087,32 +1070,11 @@ export default function TasksPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
-            onStartWork={async () => {
-              const todo = editingTodo
-              if (!todo) return
-              if (isTodoOwner(todo, user?.userId)) {
-                try {
-                  await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
-                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
-                  setEditingTodo((prev) => prev ? { ...prev, status: "In Progress" } : prev)
-                  setCommentsRefreshKey((k) => k + 1)
-                } catch {
-                  addToast({ type: "error", title: "Couldn't update task" })
-                }
-              } else {
-                try {
-                  const updated = await joinTodo(todo.id)
-                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
-                  setEditingTodo((prev) => prev ? { ...prev, ...updated } : prev)
-                  setCommentsRefreshKey((k) => k + 1)
-                } catch (err: unknown) {
-                  const status = (err as { response?: { status: number } })?.response?.status
-                  addToast(status === 409
-                    ? { type: "warning", title: "Task is full or you have already joined" }
-                    : { type: "error", title: "Couldn't join task" })
-                }
-              }
-            }}
+            onStartWork={() => actions.startWork(editingTodo, (work) => {
+              setTodos((prev) => prev.map((t) => t.id === work.todo.id ? work.patch(t) : t))
+              setEditingTodo((prev) => prev ? work.patch(prev) : prev)
+              setCommentsRefreshKey((k) => k + 1)
+            })}
             onCompleteTask={() => handleComplete(editingTodo.id)}
             onDuplicate={() => handleDuplicate(editingTodo.id)}
             onDescriptionChange={(desc) => {
@@ -1121,29 +1083,10 @@ export default function TasksPage() {
               setCompletedPreview(update)
               setEditingTodo(prev => prev ? { ...prev, description: desc } : null)
             }}
-            onLeave={async () => {
-              const todo = editingTodo
-              if (!todo) return
-              if (isTodoOwner(todo, user?.userId)) {
-                try {
-                  await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "todo" })
-                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
-                  setCommentsRefreshKey((k) => k + 1)
-                } catch {
-                  addToast({ type: "error", title: "Couldn't stop working" })
-                }
-              } else {
-                try {
-                  await leaveTodo(todo.id)
-                  setTodos((prev) => prev.map((t) =>
-                    t.id === todo.id ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) } : t
-                  ))
-                  setCommentsRefreshKey((k) => k + 1)
-                } catch {
-                  addToast({ type: "error", title: "Couldn't leave task" })
-                }
-              }
-            }}
+            onLeave={() => actions.stopWork(editingTodo, (work) => {
+              setTodos((prev) => prev.map((t) => t.id === work.todo.id ? work.patch(t) : t))
+              setCommentsRefreshKey((k) => k + 1)
+            })}
           />
         )}
       </AnimatePresence>

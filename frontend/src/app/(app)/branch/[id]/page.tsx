@@ -1,15 +1,15 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference,
+  api, fetchTaskById, duplicateTodo, setViewerPreference,
   parseApiResponse, getApiErrorMessage, type ApiResponse,
 } from "@/lib/api"
 import { useTaskActions } from "@/hooks/use-task-actions"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
-import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/types/todo"
+import { Todo, type UpdateTodoPayload, toApiTodoStatus } from "@/types/todo"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import { TodoEditor } from "@/components/todos/edit-todo-modal"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
@@ -61,7 +61,6 @@ export default function BranchPage() {
   useEffect(() => { void load() }, [load])
   useEffect(() => { void fetchCategories() }, [fetchCategories])
 
-  const isOwner = todo ? isTodoOwner(todo, viewerId) : false
   // A non-owner's "done" is always their own mark here, and the server's message rides on every
   // failure notice: the editor is the whole page, with no list behind it to explain anything.
   const actions = useTaskActions({ viewerId, completion: { reading: "for-viewer" }, describe: true })
@@ -97,28 +96,19 @@ export default function BranchPage() {
     }
   }, [todoId, load, addToast])
 
-  const patchStatus = useRef(async (status: "todo" | "inProgress" | "done") => {
-    if (!todoId) return
-    const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, { status })
-    setTodo(parseApiResponse(res.data))
+  // The owner's status change puts the server's task on the page; a worker's join merges into it
+  // and a leave reads it again. Either way the branch is caught up on the new system entry.
+  const handleStartWork = useCallback(() => actions.startWork(todo, (work) => {
+    if (work.via === "status") setTodo(work.updated)
+    else setTodo((p) => (p ? work.patch(p) : work.updated))
     setRefreshKey((k) => k + 1)
-  }).current
+  }), [todo, actions])
 
-  const handleStartWork = useCallback(async () => {
-    if (!todo) return
-    try {
-      if (isOwner) await patchStatus("inProgress")
-      else { const u = await joinTodo(todo.id); setTodo((p) => (p ? { ...p, ...u } : u)); setRefreshKey((k) => k + 1) }
-    } catch (e) { addToast({ type: "error", title: "Couldn't update task", description: getApiErrorMessage(e, "Couldn't update task") }) }
-  }, [todo, isOwner, patchStatus, addToast])
-
-  const handleStopWork = useCallback(async () => {
-    if (!todo) return
-    try {
-      if (isOwner) await patchStatus("todo")
-      else { await leaveTodo(todo.id); await load(); setRefreshKey((k) => k + 1) }
-    } catch (e) { addToast({ type: "error", title: "Couldn't stop working", description: getApiErrorMessage(e, "Couldn't stop working") }) }
-  }, [todo, isOwner, patchStatus, load, addToast])
+  const handleStopWork = useCallback(() => actions.stopWork(todo, async (work) => {
+    if (work.via === "status") setTodo(work.updated)
+    else await load()
+    setRefreshKey((k) => k + 1)
+  }), [todo, actions, load])
 
   // A viewer may reopen THEIR OWN completion — unless the author has completed the whole task
   // globally, in which case it is closed for everyone and they must duplicate it instead

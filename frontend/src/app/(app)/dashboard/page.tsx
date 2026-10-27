@@ -7,7 +7,7 @@ import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } from "lucide-react"
 import axios from "axios"
-import { api, parseApiResponse, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, fetchTaskById, setViewerPreference, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
@@ -158,7 +158,10 @@ export default function DashboardPage() {
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
-  const actions = useTaskActions({ viewerId: user?.userId })
+  const actions = useTaskActions({
+    viewerId: user?.userId,
+    work: { started: "Task taken", startFailed: "Couldn't take task", stopped: "Left task", stopFailed: "Couldn't leave task" },
+  })
   const [mounted, setMounted] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
   const firstRunAutoOpenedRef = useRef(false)
@@ -594,55 +597,35 @@ export default function DashboardPage() {
     }
   }, [todos, statsTodos, addToast])
 
-  const handleJoin = useCallback(async (todoId: string) => {
-    const existing = todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId)
-    if (!existing) return
-    const isOwnerTask = !!user?.userId && existing.userId === user.userId
-    try {
-      if (isOwnerTask) {
-        await api.put(`/todos/api/v1/todos/${todoId}`, { status: "inProgress" })
-        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, status: "In Progress" }
-        setTodos(prev => prev.map(upd))
-        setStatsTodos(prev => prev.map(upd))
-      } else {
-        const updated = await joinTodo(todoId)
-        const authorName = existing.authorName ?? friendNameCache.current.get(updated.userId)
-        const enriched = authorName ? { ...updated, authorName } : updated
-        setTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
-        setStatsTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
+  // Taking a friend's task shows the task as joined, with its author's name kept.
+  const handleJoin = useCallback((todoId: string) => actions.startWork(
+    todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId),
+    (work) => {
+      let change = work.patch
+      if (work.via === "worker") {
+        const authorName = work.todo.authorName ?? friendNameCache.current.get(work.updated.userId)
+        const enriched = authorName ? { ...work.updated, authorName } : work.updated
+        change = () => enriched
       }
-      addToast({ type: "success", title: "Task taken" })
-    } catch {
-      addToast({ type: "error", title: "Couldn't take task" })
-    }
-  }, [user?.userId, addToast])
+      const upd = (t: Todo) => t.id !== todoId ? t : change(t)
+      setTodos(prev => prev.map(upd))
+      setStatsTodos(prev => prev.map(upd))
+    },
+  ), [actions])
 
-  const handleLeave = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
-    if (!existing) return
-    const isOwnerTask = !!user?.userId && existing.userId === user.userId
-    try {
-      if (isOwnerTask) {
-        await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
-        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, status: "Todo" }
-        setTodos(prev => prev.map(upd))
-        setStatsTodos(prev => prev.map(upd))
-      } else {
-        await leaveTodo(todoId)
-        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
-        setTodos(prev => prev.map(upd))
-        setStatsTodos(prev => prev.map(upd))
-      }
+  const handleLeave = useCallback((todoId: string) => actions.stopWork(
+    todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId),
+    (work) => {
+      const upd = (t: Todo) => t.id !== todoId ? t : work.patch(t)
+      setTodos(prev => prev.map(upd))
+      setStatsTodos(prev => prev.map(upd))
       // Reflect the change in the open branch modal (if any) WITHOUT closing it — leaving work
       // keeps the modal open so the "left the task" event is read in place (BranchFeed polls it in).
       setEditingTodo(prev => prev && prev.id === todoId
-        ? { ...prev, status: isOwnerTask ? "Todo" : prev.status, isWorking: isOwnerTask ? prev.isWorking : false }
+        ? (work.via === "status" ? work.patch(prev) : { ...prev, isWorking: false })
         : prev)
-      addToast({ type: "success", title: "Left task" })
-    } catch {
-      addToast({ type: "error", title: "Couldn't leave task" })
-    }
-  }, [todos, statsTodos, user?.userId, addToast])
+    },
+  ), [todos, statsTodos, actions])
 
   const handleDuplicate = useCallback(async (todoId: string) => {
     try {

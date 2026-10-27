@@ -837,6 +837,26 @@ viewer alone. Whatever the route, a server refusal with `AUTHOR_ALREADY_COMPLETE
 status route; on the lists and the console that route only reaches the server for the owner or to
 complete a hidden friend's task, and the server never refuses either, so nothing visible changed.
 
+**Starting and stopping work** (`startWork` / `stopWork`, wording in `WorkWording`). The owner moves
+the task's status (`PUT {status: "inProgress"}` / `{status: "todo"}`); anyone else joins or leaves
+its workers (`POST …/join` / `POST …/leave`). The archive and the landing console have no work
+controls.
+
+| | Dashboard | Tasks | Branch page |
+|---|---|---|---|
+| Started | "Task taken" | nothing | nothing |
+| The owner's start failed | "Couldn't take task" | "Couldn't update task" | "Couldn't update task", with the server's message |
+| A join failed | "Couldn't take task" | "Couldn't join task" | "Couldn't update task", with the server's message |
+| A join turned down as full (409) | "Couldn't take task" | the warning "Task is full or you have already joined"; from a card the task is read again so the card shows who is on it, from the editor it is not | "Couldn't update task", with the server's message |
+| Stopped | "Left task" | nothing | nothing |
+| The owner's stop failed | "Couldn't leave task" | "Couldn't stop working" | "Couldn't stop working", with the server's message |
+| A leave failed | "Couldn't leave task" | "Couldn't leave task" | "Couldn't stop working", with the server's message |
+| After the server agrees | both lists show the new status, or the joined task with its author's name kept, or one worker fewer; a stop also shows in the open editor, which stays open so the "left the task" entry is read in place (a start does not update the editor) | the list shows the change; a start from the editor shows there too (a stop does not); the branch is caught up | the status change shows the server's task, a join merges into the page's copy, a leave reads the task again; the branch is caught up |
+
+Whether a press acts as the owner is `isTodoOwner` (`sameUserId`, case-insensitive) on every page;
+Dashboard compared the ids with `===`, which gives the same answer while the server writes them in
+lower case, as it does.
+
 ### Realtime arrivals on the task list
 
 A remote change that reconciles on arrival moves every card below the insertion point — under

@@ -1,7 +1,10 @@
 "use client"
 
 import { useMemo, useRef } from "react"
-import { api, getApiErrorMessage, parseApiResponse, setViewerPreference, type ApiResponse } from "@/lib/api"
+import {
+  api, fetchTaskById, getApiErrorMessage, joinTodo, leaveTodo, parseApiResponse, setViewerPreference,
+  type ApiResponse,
+} from "@/lib/api"
 import { AUTHOR_COMPLETED_TOAST, describeError, isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { useToastStore } from "@/store/toast"
 import { isCompletedTodoStatus, isTodoOwner, type Todo } from "@/types/todo"
@@ -56,11 +59,54 @@ export type CompletionOutcome = {
     }
 )
 
+/**
+ * What starting and stopping work say on a page. The defaults are the branch page's; Dashboard and
+ * Tasks have always worded these differently (docs/features.md, Task actions).
+ */
+export interface WorkWording {
+  /** Said once work has started (Dashboard: "Task taken"); nothing by default. */
+  started?: string
+  /** The owner could not take the task into work. Default "Couldn't update task". */
+  startFailed?: string
+  /** A non-owner could not join as a worker. Default: `startFailed`. */
+  joinFailed?: string
+  /**
+   * A join the server turns down because the task is full or already joined (409) is a warning
+   * that says so (Tasks), not a `joinFailed`.
+   */
+  explainFull?: boolean
+  /** Said once work has stopped (Dashboard: "Left task"); nothing by default. */
+  stopped?: string
+  /** The owner could not take the task out of work. Default "Couldn't stop working". */
+  stopFailed?: string
+  /** A non-owner could not leave. Default: `stopFailed`. */
+  leaveFailed?: string
+}
+
+/** Work started: the owner moved the task into work, or the viewer joined it as a worker. */
+export type StartedWork = {
+  todo: Todo
+  via: "status" | "worker"
+  /** The server's task: its answer to the status change, or the task as joined. */
+  updated: Todo
+  /** The change on a copy of the task: "In Progress" for the owner, the joined task for a worker. */
+  patch: (todo: Todo) => Todo
+}
+
+/** Work stopped: the owner moved the task back to Todo, or the viewer left its workers. */
+export type StoppedWork = {
+  todo: Todo
+  /** The change on a copy of the task: "Todo" for the owner, one worker fewer for a worker. */
+  patch: (todo: Todo) => Todo
+} & ({ via: "status"; /** The server's answer to the status change. */ updated: Todo } | { via: "worker" })
+
 export interface TaskActionsOptions {
   /** Who is looking. */
   viewerId: string | null | undefined
   /** How this page's completion control reads a press. */
   completion?: CompletionRules
+  /** What starting and stopping work say here. */
+  work?: WorkWording
   /** Failures are also written to the console (Tasks, the archive). */
   log?: boolean
   /** Failure notices carry the server's message as their description (the branch page). */
@@ -82,9 +128,23 @@ export interface TaskActions {
    * viewer may not touch — the notice says so instead.
    */
   complete: (todo: Held, apply: (outcome: CompletionOutcome) => void | Promise<void>) => Promise<void>
+  /**
+   * Takes a task into work: the owner moves its status to In Progress, anyone else joins it as a
+   * worker. With `onFull`, a join turned down as full (where the page explains that) reads the task
+   * again and hands it over, so the card shows who is on it now.
+   */
+  startWork: (
+    todo: Held,
+    apply: (outcome: StartedWork) => void | Promise<void>,
+    options?: { onFull?: (fresh: Todo) => void },
+  ) => Promise<void>
+  /** Takes a task out of work: the owner moves its status back to Todo, a worker leaves it. */
+  stopWork: (todo: Held, apply: (outcome: StoppedWork) => void | Promise<void>) => Promise<void>
 }
 
 const isShared = (todo: Todo) => todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
+
+const statusOf = (error: unknown) => (error as { response?: { status?: number } } | null)?.response?.status
 
 /**
  * What a task's actions send and say, the same on every page that shows tasks (audit FE-24).
@@ -93,7 +153,8 @@ const isShared = (todo: Todo) => todo.isPublic || (todo.sharedWithUserIds?.lengt
  * copy of these handlers, and the copies had drifted: the same press sent different requests and
  * said different things depending on the page. The requests, the author-closed refusal and the
  * notices live here now; each page keeps only how a result lands in its own lists (`apply`) and
- * the rules it has always had (`completion`), which name every remaining difference.
+ * the rules and wording it has always had (`completion`, `work`), which name every remaining
+ * difference.
  *
  * The returned actions never change: they read the latest options through a ref, so a memoized
  * card's stale handler still acts for the viewer and rules of today.
@@ -112,6 +173,12 @@ export function useTaskActions(options: TaskActionsOptions): TaskActions {
     const fail = (title: string, error: unknown) => {
       const { describe, addToast } = latest.current
       addToast({ type: "error", title, ...(describe ? { description: getApiErrorMessage(error, title) } : {}) })
+    }
+
+    /** The owner's status change, answered with the task as the server now has it. */
+    const putStatus = async (todo: Todo, status: "todo" | "inProgress" | "done") => {
+      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todo.id}`, { status })
+      return parseApiResponse(res.data)
     }
 
     const complete: TaskActions["complete"] = async (todo, apply) => {
@@ -147,8 +214,7 @@ export function useTaskActions(options: TaskActionsOptions): TaskActions {
             patch: (t) => ({ ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }),
           })
         } else {
-          const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todo.id}`, { status: done ? "todo" : "done" })
-          await apply({ via: "status", todo, reopened: done, updated: parseApiResponse(res.data) })
+          await apply({ via: "status", todo, reopened: done, updated: await putStatus(todo, done ? "todo" : "done") })
         }
         addToast({ type: "success", title: done ? "Task reopened" : "Task completed" })
       } catch (error) {
@@ -159,6 +225,65 @@ export function useTaskActions(options: TaskActionsOptions): TaskActions {
       }
     }
 
-    return { complete }
+    const startWork: TaskActions["startWork"] = async (todo, apply, { onFull } = {}) => {
+      if (!todo) return
+      const { viewerId, work = {}, addToast } = latest.current
+      const startFailed = work.startFailed ?? "Couldn't update task"
+      if (isTodoOwner(todo, viewerId)) {
+        try {
+          const updated = await putStatus(todo, "inProgress")
+          await apply({ todo, via: "status", updated, patch: (t) => ({ ...t, status: "In Progress" }) })
+        } catch (error) {
+          fail(startFailed, error)
+          return
+        }
+      } else {
+        try {
+          const updated = await joinTodo(todo.id)
+          await apply({ todo, via: "worker", updated, patch: (t) => ({ ...t, ...updated }) })
+        } catch (error) {
+          if (!work.explainFull || statusOf(error) !== 409) {
+            fail(work.joinFailed ?? startFailed, error)
+            return
+          }
+          addToast({ type: "warning", title: "Task is full or you have already joined" })
+          if (onFull) {
+            try {
+              onFull(await fetchTaskById(todo.id))
+            } catch {
+              // The card keeps what it has; the next load brings the rest.
+            }
+          }
+          return
+        }
+      }
+      if (work.started) addToast({ type: "success", title: work.started })
+    }
+
+    const stopWork: TaskActions["stopWork"] = async (todo, apply) => {
+      if (!todo) return
+      const { viewerId, work = {}, addToast } = latest.current
+      const stopFailed = work.stopFailed ?? "Couldn't stop working"
+      const owner = isTodoOwner(todo, viewerId)
+      try {
+        if (owner) {
+          const updated = await putStatus(todo, "todo")
+          await apply({ todo, via: "status", updated, patch: (t) => ({ ...t, status: "Todo" }) })
+        } else {
+          await leaveTodo(todo.id)
+          await apply({
+            todo,
+            via: "worker",
+            patch: (t) => ({ ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }),
+          })
+        }
+      } catch (error) {
+        fail(owner ? stopFailed : work.leaveFailed ?? stopFailed, error)
+        return
+      }
+      if (work.stopped) addToast({ type: "success", title: work.stopped })
+    }
+
+    return { complete, startWork, stopWork }
   }, [])
 }

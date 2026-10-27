@@ -224,7 +224,7 @@ before the success notice so the notice never describes a list that has not chan
 does nothing when that is `undefined` — a card removed while its handler was on its way — so pages
 pass their lookup straight in instead of guarding it. Where pages have always behaved
 differently — the archive only reopens, the branch page reads a non-owner's own mark — the page
-says so in options it passes to the hook (`completion`, `log`, `describe`), and
+says so in options it passes to the hook (`completion`, `work`, `log`, `describe`), and
 `docs/features.md` § Task actions on every page lists each one. The returned actions never change identity and read the latest options through a
 ref, so a memoized `TodoCard` holding an old handler still acts for today's viewer. A new page that
 acts on tasks uses this hook rather than calling `lib/api.ts` for these actions itself.

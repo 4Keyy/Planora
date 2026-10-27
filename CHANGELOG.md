@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(tasks): one way to start and stop work on a task (2026-10-27)
+
+Dashboard, Tasks and the branch page each took a task into work and out of it with their own code:
+Tasks alone had it twice, on the card and in the editor (audit FE-24). `startWork` and `stopWork`
+in `hooks/use-task-actions.ts` now send the owner's status change or the worker's join and leave,
+and say what happened; each page passes its own wording — Dashboard's "Task taken" and "Left task",
+Tasks' warning for a full task — and only puts the answer into its lists. Every page decides who
+the owner is with `sameUserId`, as the audit asked; Dashboard's exact comparison agreed with it
+for every id the server sends. Requests, lists and notices are unchanged on every page.
+
 ### refactor(tasks): one completion action for every page (2026-10-27)
 
 Dashboard, Tasks, the archive, the branch page and the landing console each completed and reopened

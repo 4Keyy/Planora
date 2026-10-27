@@ -1,7 +1,9 @@
 import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useTaskActions, type CompletionOutcome, type TaskActionsOptions } from "@/hooks/use-task-actions"
-import { api, setViewerPreference } from "@/lib/api"
+import {
+  useTaskActions, type CompletionOutcome, type StartedWork, type StoppedWork, type TaskActionsOptions,
+} from "@/hooks/use-task-actions"
+import { api, fetchTaskById, joinTodo, leaveTodo, setViewerPreference } from "@/lib/api"
 import { AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { useToastStore } from "@/store/toast"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
@@ -14,6 +16,9 @@ vi.mock("@/lib/api", () => ({
   parseApiResponse: (data: unknown) => data,
   getApiErrorMessage: (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback),
   setViewerPreference: vi.fn(),
+  fetchTaskById: vi.fn(),
+  joinTodo: vi.fn(),
+  leaveTodo: vi.fn(),
 }))
 
 const ME = "user-me"
@@ -63,7 +68,7 @@ const authorClosed = Object.assign(new Error("Request failed"), {
 beforeEach(() => {
   useToastStore.setState({ toasts: [] })
   vi.mocked(api.put).mockReset()
-  vi.mocked(setViewerPreference).mockReset()
+  for (const fn of [setViewerPreference, fetchTaskById, joinTodo, leaveTodo]) vi.mocked(fn).mockReset()
 })
 
 afterEach(() => {
@@ -306,5 +311,136 @@ describe("useTaskActions — complete", () => {
     await first.complete(task({ isPublic: true }), vi.fn())
 
     expect(setViewerPreference).toHaveBeenCalledWith("t-1", { completedByViewer: true })
+  })
+})
+
+describe("useTaskActions — startWork and stopWork", () => {
+  const dashboardWording = { started: "Task taken", startFailed: "Couldn't take task", stopped: "Left task", stopFailed: "Couldn't leave task" }
+  const tasksWording = { joinFailed: "Couldn't join task", explainFull: true, leaveFailed: "Couldn't leave task" }
+  const full = Object.assign(new Error("Conflict"), { response: { status: 409 } })
+
+  it("takes the owner's task into work through its status, saying nothing by default", async () => {
+    const answer = task({ status: TodoStatus.InProgress })
+    vi.mocked(api.put).mockResolvedValue({ data: answer })
+    let started: StartedWork | undefined
+
+    await actionsFor().startWork(task(), (w) => { started = w })
+
+    expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { status: "inProgress" })
+    expect(joinTodo).not.toHaveBeenCalled()
+    expect(started).toMatchObject({ via: "status", updated: answer })
+    expect(started!.patch(task({ title: "Kept" }))).toMatchObject({ title: "Kept", status: "In Progress" })
+    expect(titles()).toEqual([])
+  })
+
+  it("joins a friend's task as a worker and hands back the joined task", async () => {
+    const joined = friends({ isWorking: true, workerCount: 2 })
+    vi.mocked(joinTodo).mockResolvedValue(joined)
+    let started: StartedWork | undefined
+
+    await actionsFor({ work: dashboardWording }).startWork(friends(), (w) => { started = w })
+
+    expect(joinTodo).toHaveBeenCalledWith("f-1")
+    expect(api.put).not.toHaveBeenCalled()
+    expect(started).toMatchObject({ via: "worker", updated: joined })
+    expect(started!.patch(friends({ authorName: "Ada" }))).toMatchObject({ authorName: "Ada", isWorking: true, workerCount: 2 })
+    expect(titles()).toEqual(["Task taken"])
+  })
+
+  it("words a failed start the page's way, the owner's and a worker's alike by default", async () => {
+    vi.mocked(api.put).mockRejectedValue(new Error("Conflict"))
+    vi.mocked(joinTodo).mockRejectedValue(full)
+    const apply = vi.fn()
+
+    expect(await said(() => actionsFor().startWork(task(), apply))).toEqual(["Couldn't update task"])
+    expect(await said(() => actionsFor().startWork(friends(), apply))).toEqual(["Couldn't update task"])
+    expect(await said(() => actionsFor({ work: dashboardWording }).startWork(friends(), apply))).toEqual(["Couldn't take task"])
+    expect(await said(() => actionsFor({ work: tasksWording }).startWork(task(), apply))).toEqual(["Couldn't update task"])
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it("explains a full task where the page does, and reads it again for the page that asks", async () => {
+    vi.mocked(joinTodo).mockRejectedValue(full)
+    const fresh = friends({ workerCount: 3 })
+    vi.mocked(fetchTaskById).mockResolvedValue(fresh)
+    const onFull = vi.fn()
+    const actions = actionsFor({ work: tasksWording })
+
+    await actions.startWork(friends(), vi.fn(), { onFull })
+    expect(toasts()).toEqual([{ type: "warning", title: "Task is full or you have already joined", description: undefined }])
+    expect(onFull).toHaveBeenCalledWith(fresh)
+
+    await actions.startWork(friends(), vi.fn())
+    expect(fetchTaskById).toHaveBeenCalledTimes(1)
+
+    vi.mocked(fetchTaskById).mockRejectedValue(new Error("Gone"))
+    await actions.startWork(friends(), vi.fn(), { onFull })
+    expect(onFull).toHaveBeenCalledTimes(1)
+
+    vi.mocked(joinTodo).mockRejectedValue(new Error("Offline"))
+    expect(await said(() => actions.startWork(friends(), vi.fn(), { onFull }))).toEqual(["Couldn't join task"])
+  })
+
+  it("takes the owner's task out of work through its status", async () => {
+    const answer = task({ status: TodoStatus.Pending })
+    vi.mocked(api.put).mockResolvedValue({ data: answer })
+    let stopped: StoppedWork | undefined
+
+    await actionsFor({ work: dashboardWording }).stopWork(task({ status: TodoStatus.InProgress }), (w) => { stopped = w })
+
+    expect(api.put).toHaveBeenCalledWith("/todos/api/v1/todos/t-1", { status: "todo" })
+    expect(stopped).toMatchObject({ via: "status", updated: answer })
+    expect(stopped!.patch(task({ status: TodoStatus.InProgress }))).toMatchObject({ status: "Todo" })
+    expect(titles()).toEqual(["Left task"])
+  })
+
+  it("leaves a friend's task as one worker fewer", async () => {
+    vi.mocked(leaveTodo).mockResolvedValue(undefined)
+    let stopped: StoppedWork | undefined
+
+    await actionsFor().stopWork(friends(), (w) => { stopped = w })
+
+    expect(leaveTodo).toHaveBeenCalledWith("f-1")
+    expect(stopped?.via).toBe("worker")
+    expect(stopped!.patch(friends({ isWorking: true, workerCount: 2 }))).toMatchObject({ isWorking: false, workerCount: 1 })
+    expect(stopped!.patch(friends({ isWorking: true }))).toMatchObject({ workerCount: 0 })
+    expect(stopped!.patch(friends({ workerCount: 0 }))).toMatchObject({ workerCount: 0 })
+    expect(titles()).toEqual([])
+  })
+
+  it("words a failed stop the page's way", async () => {
+    vi.mocked(api.put).mockRejectedValue(new Error("Conflict"))
+    vi.mocked(leaveTodo).mockRejectedValue(new Error("Conflict"))
+    const apply = vi.fn()
+
+    expect(await said(() => actionsFor().stopWork(task(), apply))).toEqual(["Couldn't stop working"])
+    expect(await said(() => actionsFor().stopWork(friends(), apply))).toEqual(["Couldn't stop working"])
+    expect(await said(() => actionsFor({ work: tasksWording }).stopWork(task(), apply))).toEqual(["Couldn't stop working"])
+    expect(await said(() => actionsFor({ work: tasksWording }).stopWork(friends(), apply))).toEqual(["Couldn't leave task"])
+    expect(await said(() => actionsFor({ work: dashboardWording }).stopWork(friends(), apply))).toEqual(["Couldn't leave task"])
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it("describes a failure with the server's message where the page asks", async () => {
+    vi.mocked(joinTodo).mockRejectedValue(new Error("The task is full"))
+    vi.mocked(api.put).mockRejectedValue(new Error("Locked"))
+    const actions = actionsFor({ describe: true })
+
+    await actions.startWork(friends(), vi.fn())
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't update task", description: "The task is full" }])
+    useToastStore.setState({ toasts: [] })
+    await actions.stopWork(task(), vi.fn())
+    expect(toasts()).toEqual([{ type: "error", title: "Couldn't stop working", description: "Locked" }])
+  })
+
+  it("does nothing for a task the page no longer holds", async () => {
+    const actions = actionsFor()
+
+    await actions.startWork(undefined, vi.fn())
+    await actions.stopWork(null, vi.fn())
+
+    expect(api.put).not.toHaveBeenCalled()
+    expect(joinTodo).not.toHaveBeenCalled()
+    expect(leaveTodo).not.toHaveBeenCalled()
   })
 })
