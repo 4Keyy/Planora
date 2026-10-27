@@ -184,9 +184,11 @@ export class GeometryRateBudget {
           return;
         }
         this.events.push({ path, retryAfterSeconds: seconds });
-        // Recover the primary task-list load. Background notification polling must
-        // not keep extending that deadline while the geometry test waits.
-        if (path === '/todos/api/v1/todos') {
+        // Recover the primary task-list load, and the session restore it waits for: in CI every
+        // page shares one IP, and once the auth limiter answers the restore with 429 no card
+        // can load until its Retry-After has passed. Background notification polling must not
+        // keep extending that deadline while the geometry test waits.
+        if (path === '/todos/api/v1/todos' || path.startsWith('/auth/api/v1/auth/')) {
           this.retryAt = Math.max(this.retryAt, Date.now() + Math.ceil(seconds * 1000) + 100);
         }
       })().catch(() => { this.invalidHeader = true; });

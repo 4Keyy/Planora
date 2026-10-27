@@ -235,6 +235,11 @@ async function keyboardReveal(page: Page, info: TestInfo) {
   expect.soft(last.card!.buttonBottom).toBeLessThanOrEqual(last.innerHeight);
 }
 
+// One attempt: the matrix may use its whole 20-minute limit, and each retry spent another 20
+// minutes of the shard on the same scenarios — three attempts exhausted it before Playwright
+// could print why the first one failed.
+test.describe.configure({ retries: 0 });
+
 // Every scenario has its own fresh browser context. Soft metric failures retain the
 // rest of the matrix and its raw evidence without retrying Auth or hiding defects.
 test('real services satisfy the motion regression matrix', async ({ browser }, info) => {

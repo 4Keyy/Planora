@@ -3,11 +3,15 @@ import { persistJsonEvidence, assertGeometry, beginRailLayoutObservation, endRai
 import { requireFrontendReachable } from './_helpers';
 
 test.beforeAll(async () => { await requireFrontendReachable(); });
+// Every case opens its own context, so CI may deal them to different shards one by one: run as
+// one file group, the DPR-2 matrix alone kept a shard busy for most of an hour.
+test.describe.configure({ mode: 'parallel' });
 
 for (const dpr of [1, 2]) {
   for (const width of [390, 768, 1280, 1600]) {
     test('public shipped cards keep the eye aligned at ' + width + 'px DPR ' + dpr, async ({ browser }, info) => {
-      test.setTimeout(480_000);
+      // The 1280 and 1600px DPR-2 cases measured 4-5 minutes on one CI run and passed 8 on another.
+      test.setTimeout(900_000);
       const context = await browser.newContext({ baseURL: process.env.E2E_FRONTEND_URL ?? 'http://127.0.0.1:3000', viewport: { width, height: 1000 }, deviceScaleFactor: dpr });
       const page = await context.newPage();
       const measurements: unknown[] = [];

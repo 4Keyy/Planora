@@ -140,7 +140,9 @@ fixture setup uses 15132. The helper now records real Retry-After from both
 origins; service rate limits and response bodies are unchanged. Public demo
 readiness also allows the actual 10-second session request and CSRF retry before
 asserting all six cards, and — because every CI page load shares one IP — the auth limiter's
-60-second Retry-After once it answers 429 (75 seconds in all). Without that minute the
+60-second Retry-After once it answers 429 (75 seconds in all). The card-geometry load helper
+(`e2e/ui/_card-geometry.ts`) waits out a real 429 on the session restore (`/auth/api/v1/auth/…`)
+as it does one on the task list: until it does, no card can load. Without that minute the
 768px DPR-1 case failed twice in each run and passed on the third attempt. Its strict 44px hit
 targets and geometry limits remain.
 
@@ -1107,8 +1109,13 @@ spec files per shard. With one worker it runs for well over two hours: every run
 `main` until 2026-10-26 hit the former single job's 30-minute limit about half-way
 through the browser specs and was cancelled, and four 45-minute shards still cut two
 off before their summaries — Playwright balances shards by test count, and the live
-motion matrices (`motion-geometry`, `motion-regressions`) take tens of minutes each. An
-`always()` step
+motion matrices (`motion-geometry`, `motion-regressions`) take tens of minutes each.
+`compact-rail.ui.spec.ts` therefore runs in parallel mode, so its independent width/DPR cases
+are dealt to shards one by one (900 seconds each), and the motion regression matrix runs once
+(`retries: 0`): three 20-minute attempts used to fill its shard before Playwright printed why
+the first one failed. The expanded-card geometry probe reads columns from the cards the grid
+places absolutely (`[data-masonry-card]`, since `7532703`); it used to look for column elements
+that no longer exist and failed every case. An `always()` step
 summarizes skipped tests, retried tests and retry attempts from private Playwright JSON.
 Only numeric aggregates are published; the raw report is deleted. Missing or invalid
 reports are marked unavailable rather than reported as zero skips/retries.

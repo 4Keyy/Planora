@@ -452,11 +452,16 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
       await expect(categoryNameInput).toBeVisible();
       await categoryNameInput.fill(categoryName);
       // The API accepts six-digit hex; choose it through the actual colour field, which folds
-      // out under the swatches when "Custom colour" is pressed.
-      await categoryDialog.getByRole('radio', { name: 'Custom colour', exact: true }).click();
+      // out under the swatches when "Custom colour" is pressed. Type it as a person does once
+      // the wheel is open: a fill while it was still folding left the field empty.
+      const customColour = categoryDialog.getByRole('radio', { name: 'Custom colour', exact: true });
+      await customColour.click();
+      await expect(customColour).toHaveAttribute('aria-expanded', 'true');
       const categoryColour = categoryDialog.getByRole('textbox', { name: 'Hex colour', exact: true });
       await expect(categoryColour).toBeVisible();
-      await categoryColour.fill('0ea5e9');
+      await categoryColour.click();
+      await categoryColour.press('ControlOrMeta+a');
+      await categoryColour.pressSequentially('0ea5e9');
       await expect(categoryColour).toHaveValue('0ea5e9');
       const category = await pressWrite('POST', '/categories/api/v1/categories', categoryDialog.getByRole('button', { name: 'Create category', exact: true }));
       expect(typeof category.id).toBe('string');

@@ -189,16 +189,28 @@ async function measureGrids(page: Page, surface: Surface, mount: string, pageNum
         if (width > 0.02 && height > 0.02) overlaps.push({ first, second, area: width * height });
       }
     }
+    // The grid deals cards into one box and places each absolutely (7532703): a column is the
+    // cards that share a left edge, and its height runs from its first card's top to its last
+    // card's bottom.
     const roots = new Set<Element>();
     for (const card of cards) {
-      const column = card.closest('[class~="relative"][class~="flex-col"][class~="flex-1"]');
-      if (!column?.parentElement) throw new Error('Expected a real task masonry column');
-      roots.add(column.parentElement);
+      const placed = card.closest('[data-masonry-card]');
+      if (!placed?.parentElement) throw new Error('Expected a real task masonry card');
+      roots.add(placed.parentElement);
     }
     const grids = Array.from(roots).map(root => {
-      const columns = Array.from(root.children).map(column => ({
-        height: column.getBoundingClientRect().height, cards: column.querySelectorAll('[data-task-card]').length,
-      }));
+      const byLeft = new Map<number, Element[]>();
+      for (const placed of Array.from(root.children).filter(child => child.hasAttribute('data-masonry-card'))) {
+        const left = Math.round(placed.getBoundingClientRect().left);
+        byLeft.set(left, [...(byLeft.get(left) ?? []), placed]);
+      }
+      const columns = Array.from(byLeft.entries()).sort(([a], [b]) => a - b).map(([, placed]) => {
+        const boxes = placed.map(element => element.getBoundingClientRect());
+        return {
+          height: Math.max(...boxes.map(box => box.bottom)) - Math.min(...boxes.map(box => box.top)),
+          cards: placed.reduce((count, element) => count + element.querySelectorAll('[data-task-card]').length, 0),
+        };
+      });
       const heights = columns.map(column => column.height);
       return { columns, heightDifference: Math.max(...heights) - Math.min(...heights) };
     });
