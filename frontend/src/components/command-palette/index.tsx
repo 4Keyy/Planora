@@ -15,7 +15,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutGroup, animate, useMotionValue, useReducedMotion, useTransform, type AnimationPlaybackControls } from "framer-motion"
+import { LayoutGroup, useReducedMotion } from "framer-motion"
 import { CloudOff, Search, X } from "lucide-react"
 import { motion } from "@/components/ui/motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
@@ -25,6 +25,7 @@ import { requestNewTask } from "@/lib/create-task-request"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useFriends } from "@/hooks/use-friends"
+import { cornerRadius, dropMorph, measureAtRest, morphFrom, useOriginMorph } from "@/hooks/use-origin-morph"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { api } from "@/lib/api"
 import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, SPRING_STANDARD } from "@/lib/animations"
@@ -103,55 +104,13 @@ export function requestPalette(from?: HTMLElement | null): void {
   )
 }
 
-/** Where the panel's surface starts (and ends) relative to where it rests. */
-interface Morph {
-  /** Grows out of a control and folds back into it, rather than dropping in. */
-  grow: boolean
-  x: number
-  y: number
-  sx: number
-  sy: number
-  /** Corner radius at the start, in screen pixels. */
-  radius: number
-  /** The control's rect, kept for a close whose control has gone. */
-  origin: OriginRect | null
-}
-
-const PANEL_RADIUS = parseFloat(tokens.radius.xl)
 /** Opened from the keyboard: from just above, a touch smaller. */
-const DROP: Morph = { grow: false, x: 0, y: -12, sx: 0.97, sy: 0.97, radius: PANEL_RADIUS, origin: null }
-/** Reduced motion: a fade, nothing moves. */
-const STILL: Morph = { grow: false, x: 0, y: 0, sx: 1, sy: 1, radius: PANEL_RADIUS, origin: null }
+const DROP = dropMorph(parseFloat(tokens.radius.xl), -12, 0.97)
 
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-const mix = (from: number, to: number, t: number) => from + (to - from) * t
-const scalesAt = (p: number, m: Morph) => {
-  const t = clamp01(p)
-  return { t, sx: mix(m.sx, 1, t), sy: mix(m.sy, 1, t) }
-}
-
-/** The surface's start as `origin`'s own rectangle, centre on centre, with the control's corners. */
-function morphFrom(origin: OriginRect, target: OriginRect, control: Element | null): Morph {
-  const declared = control?.isConnected ? parseFloat(getComputedStyle(control).borderTopLeftRadius) : NaN
-  const radius = Math.min(Number.isFinite(declared) ? declared : origin.height / 2, origin.height / 2, origin.width / 2)
-  return {
-    grow: true,
-    x: Math.round(origin.left + origin.width / 2 - (target.left + target.width / 2)),
-    y: Math.round(origin.top + origin.height / 2 - (target.top + target.height / 2)),
-    sx: origin.width / target.width,
-    sy: origin.height / target.height,
-    radius,
-    origin,
-  }
-}
-
-/** The panel's rect at rest, read with its transform lifted for the one measurement. */
-function untransformedRect(panel: HTMLElement): OriginRect | null {
-  const previous = panel.style.transform
-  panel.style.transform = "none"
-  const rect = rectOf(panel)
-  panel.style.transform = previous
-  return rect
+/** The search button's corners: its own radius, or round ends when it cannot be read. */
+function controlRadius(control: Element | null, origin: OriginRect): number {
+  const declared = cornerRadius(control)
+  return Number.isFinite(declared) ? declared : origin.height / 2
 }
 
 function rectOf(element: Element | null | undefined): OriginRect | null {
@@ -776,13 +735,10 @@ export function CommandPalette() {
    * whole panel uniformly with a floor of 0.55, so a palette closing into a 98×44 button ended as a
    * 445×333 box centred on it — mostly above the screen, under the bar — and read as flying away.
    *
-   * The x and y scales differ, so the surface's corners are drawn counter-scaled (the radius is
-   * given per axis) and the content is counter-scaled to its own size: nothing is ever stretched.
-   * Opened from the keyboard it drops in from just above instead. One progress value drives every
-   * part, so a close interrupted by a reopening turns round where it is.
+   * The geometry is `useOriginMorph`'s, shared with the category sheets. Opened from the keyboard
+   * it drops in from just above instead.
    */
-  const progress = useMotionValue(0)
-  const morph = useMotionValue<Morph>(DROP)
+  const { morph, play, stop, surfaceStyle, contentStyle } = useOriginMorph(DROP)
   const [panel, setPanel] = useState<HTMLDivElement | null>(null)
   const attachPanel = useCallback((node: HTMLDivElement | null) => {
     trapRef(node)
@@ -791,42 +747,22 @@ export function CommandPalette() {
   }, [trapRef])
   const wasOpen = useRef(false)
   const animationRun = useRef(0)
-  const running = useRef<AnimationPlaybackControls | null>(null)
-
-  const surfaceX = useTransform(() => mix(morph.get().x, 0, clamp01(progress.get())))
-  const surfaceY = useTransform(() => mix(morph.get().y, 0, clamp01(progress.get())))
-  const surfaceScaleX = useTransform(() => scalesAt(progress.get(), morph.get()).sx)
-  const surfaceScaleY = useTransform(() => scalesAt(progress.get(), morph.get()).sy)
-  const surfaceRadius = useTransform(() => {
-    const m = morph.get()
-    const { t, sx, sy } = scalesAt(progress.get(), m)
-    const r = mix(m.radius, PANEL_RADIUS, t)
-    return `${r / sx}px / ${r / sy}px`
-  })
-  const surfaceOpacity = useTransform(() => {
-    const p = progress.get()
-    return morph.get().grow ? clamp01(p / 0.16) : clamp01(p)
-  })
-  const contentScaleX = useTransform(() => (morph.get().grow ? 1 / scalesAt(progress.get(), morph.get()).sx : 1))
-  const contentScaleY = useTransform(() => (morph.get().grow ? 1 / scalesAt(progress.get(), morph.get()).sy : 1))
-  const contentOpacity = useTransform(() => (morph.get().grow ? clamp01((progress.get() - 0.42) / 0.33) : 1))
 
   useLayoutEffect(() => {
     if (!panel) return
     if (!open) {
       if (!wasOpen.current) return
       wasOpen.current = false
-      running.current?.stop()
+      stop()
       const exitRun = ++animationRun.current
       if (!reduce) {
         const control = originElement.current?.isConnected ? originElement.current : null
         const origin = rectOf(control) ?? morph.get().origin
-        const target = untransformedRect(panel)
-        if (origin && target) morph.set(morphFrom(origin, target, originElement.current))
+        const { rect, radius } = measureAtRest(panel)
+        if (origin && rect) morph.set(morphFrom(origin, rect, controlRadius(control, origin), radius))
       }
       const grow = morph.get().grow && !reduce
-      running.current = animate(progress, 0, { duration: grow ? DURATION_UI : DURATION_FAST, ease: EASE_STANDARD })
-      void running.current.then(() => {
+      void play(0, { duration: grow ? DURATION_UI : DURATION_FAST, ease: EASE_STANDARD }).then(() => {
         // An interrupted close must never remove a palette that reopened meanwhile.
         if (animationRun.current === exitRun && !wasOpen.current) finishExit()
       })
@@ -835,22 +771,24 @@ export function CommandPalette() {
     if (wasOpen.current) return
     wasOpen.current = true
     ++animationRun.current
-    running.current?.stop()
+    stop()
     const origin = originRef.current
     originRef.current = null
-    const target = untransformedRect(panel)
-    morph.set(reduce ? STILL : origin && target ? morphFrom(origin, target, originElement.current) : DROP)
-    running.current = animate(
-      progress,
-      1,
-      reduce ? { duration: DURATION_FAST, ease: EASE_STANDARD } : { ...SPRING_LAYOUT, restDelta: 0.0005, restSpeed: 0.005 },
+    const { rect, radius } = measureAtRest(panel)
+    morph.set(
+      reduce
+        ? dropMorph(radius, 0, 1)
+        : origin && rect
+          ? morphFrom(origin, rect, controlRadius(originElement.current, origin), radius)
+          : dropMorph(radius, -12, 0.97),
     )
-  }, [panel, open, reduce, finishExit, morph, progress])
+    void play(1, reduce ? { duration: DURATION_FAST, ease: EASE_STANDARD } : { ...SPRING_LAYOUT, restDelta: 0.0005, restSpeed: 0.005 })
+  }, [panel, open, reduce, finishExit, morph, play, stop])
 
   useLayoutEffect(() => () => {
     ++animationRun.current
-    running.current?.stop()
-  }, [])
+    stop()
+  }, [stop])
 
   if (!isAuthenticated) return null
 
@@ -915,22 +853,12 @@ export function CommandPalette() {
             aria-modal="true"
             aria-label="Command palette"
             tabIndex={-1}
-            style={{
-              x: surfaceX,
-              y: surfaceY,
-              scaleX: surfaceScaleX,
-              scaleY: surfaceScaleY,
-              borderRadius: surfaceRadius,
-              opacity: surfaceOpacity,
-            }}
+            style={surfaceStyle}
             onKeyDown={isolateKeys}
             className="relative flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-xl outline-none"
           >
             {/* The content at its own size, uncovered by the surface as it grows. */}
-            <motion.div
-              style={{ scaleX: contentScaleX, scaleY: contentScaleY, opacity: contentOpacity }}
-              className="flex min-h-0 flex-1 flex-col"
-            >
+            <motion.div style={contentStyle} className="flex min-h-0 flex-1 flex-col">
             <LayoutGroup id="palette">
               {/* The question */}
               <div className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-line px-4">

@@ -438,8 +438,11 @@ CSS (`.dropdown-surface` in `globals.css`) and kept mounted through its exit by
    `.backdrop-surface` and raise the dialog 8px with `.dialog-surface` — `base` in, `fast` out.
    While a dialog folds away it lets clicks through to the page it is uncovering. The task
    editor and the category editor's `animateFromOrigin` overlay share the card-to-dialog
-   choreography: `SPRING_LAYOUT` in, 220ms `EASE_STANDARD` back to the pressed card,
-   `TWEEN_FAST` scrim. New Category uses the task editor's centered fallback with its
+   timing: `SPRING_LAYOUT` in, 220ms `EASE_STANDARD` back to the pressed card or button,
+   `TWEEN_FAST` scrim. The category overlay (like the palette) is a container transform
+   (`hooks/use-origin-morph.ts`): it starts and ends as the origin's own rectangle and
+   corners, with the content counter-scaled to its natural size; the task editor keeps
+   its uniform scale, which lands because a card is about half the editor's width. New Category uses the task editor's centered fallback with its
    160ms exit. Controlled animation completion keeps the surface mounted through exit;
    an interrupted entrance leaves from its current pose, and rapid reopening invalidates
    the old exit completion. Reduced motion keeps the fade without transform travel (§ 9.3).
@@ -1408,7 +1411,7 @@ the user's tasks, categories, friends, the smart views, every screen and the glo
 actions; `docs/features.md` § Command palette has the behaviour. The design decisions:
 
 - **It grows out of the button that opened it.** A container transform, not the task
-  editor's uniform scale: the button is a 98×44 pill and the panel 768px wide, so a
+  editor's uniform scale (`useOriginMorph`, shared with the category sheets): the button is a 98×44 pill and the panel 768px wide, so a
   uniform scale (floored at 0.55) could not land on it. The surface starts as the
   button's exact rectangle and round ends — x and y scaled apart, the corner radius
   drawn per axis — and springs open on the critically damped `SPRING_LAYOUT`; the content

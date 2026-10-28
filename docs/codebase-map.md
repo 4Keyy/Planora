@@ -358,6 +358,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `use-exit-presence.ts` | keeps a dropdown mounted through its CSS fold-away; unmounts on the surface's own `animationend` |
 | `use-focus-trap.ts` | remembers focus, traps Tab inside a dialog, restores it on close |
 | `use-friends.ts` | the shared friend cache; `invalidateFriends()` after any mutation |
+| `use-origin-morph.ts` | a surface that grows out of its control and folds back into it (command palette, category sheets): per-axis scale and radius, counter-scaled content, one progress value |
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
 | `use-new-task-shortcut.ts` | page-scoped `C` and palette requests open `CreateTodoPanel` on Dashboard or Tasks and request title focus |
 | `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
@@ -387,7 +388,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `notifications/web-notifications.ts` | OS notification permission and delivery |
 | `realtime/client.ts` | the SignalR client and its payload types |
 | `realtime/hooks.ts` | connection lifecycle and the per-topic subscriptions (`useFeedSync` and friends) |
-| `shared-origin.ts` | the card→dialog transition geometry: `rememberOrigin`, `takeOrigin`, `originTransform`, `editorDialogRect` |
+| `shared-origin.ts` | the card→dialog transition geometry: `rememberOrigin`, `takeOrigin`, `takeOriginShape` (with the corner radius), `originTransform`, `editorDialogRect` |
 | `subtask-warning.ts` | the copy and predicates for "finish a task that still has open subtasks?" |
 | `trace.ts` | the W3C `traceparent` header for the browser→gateway boundary |
 | `ui-preferences.ts` | SSR-safe localStorage preferences; never security- or correctness-relevant |

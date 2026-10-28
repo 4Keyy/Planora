@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { useMemo } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import CategoriesPage from "@/app/(app)/categories/page"
 import { api } from "@/lib/api"
@@ -10,20 +9,18 @@ import { useToastStore } from "@/store/toast"
 import type { Category } from "@/types/category"
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }))
-const animation = vi.hoisted(() => ({ set: vi.fn() }))
+// The sheet's progress stays where each run starts, so its opening pose can be read off the panel;
+// a close lands at once.
 vi.mock("framer-motion", async (importOriginal) => {
   const actual = await importOriginal<typeof import("framer-motion")>()
   return {
     ...actual,
-    useAnimationControls: () => {
-      const controls = actual.useAnimationControls()
-      return useMemo(() => ({
-        ...controls,
-        set: (...args: Parameters<typeof controls.set>) => {
-          animation.set(...args)
-          return controls.set(...args)
-        },
-      }), [controls])
+    animate: (...args: Parameters<typeof actual.animate>) => {
+      const [value, to] = args as unknown as [import("framer-motion").MotionValue<number>, number]
+      if (typeof to !== "number" || typeof value?.set !== "function") return actual.animate(...args)
+      if (to === 0) value.set(0)
+      const done = to === 0 ? Promise.resolve() : new Promise<void>(() => undefined)
+      return { stop: () => undefined, then: (onDone: () => void) => done.then(onDone) }
     },
   }
 })
@@ -79,7 +76,9 @@ describe("Category motion parity", () => {
     }
     const dialog = screen.getByRole("dialog", { name: "New category" })
     expect(dialog.style.animation).toBe("none")
-    expect(animation.set).toHaveBeenCalledWith({ opacity: 0, scale: 0.95, x: 0, y: 20 })
+    // No usable origin (the button has no box here, the stale card is not this opening's): it
+    // rises from just below at 95% instead of growing out of anything.
+    await waitFor(() => expect(dialog.style.transform).toContain("translateY(20px) scaleX(0.95) scaleY(0.95)"))
     expect(takeOrigin()).toBeNull()
   })
 

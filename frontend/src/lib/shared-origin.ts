@@ -51,7 +51,7 @@ export interface OriginTransform {
  */
 const MAX_AGE_MS = 1000
 
-let slot: { rect: OriginRect; at: number } | null = null
+let slot: { rect: OriginRect; radius: number; at: number } | null = null
 
 /** Records the element the user pressed. Call it in the click handler, not later. */
 export function rememberOrigin(element: HTMLElement | null | undefined): void {
@@ -66,20 +66,28 @@ export function rememberOrigin(element: HTMLElement | null | undefined): void {
     slot = null
     return
   }
+  // Its corners too: a surface that grows out of it starts with the same shape.
+  const radius = typeof getComputedStyle === "undefined" ? NaN : parseFloat(getComputedStyle(element).borderTopLeftRadius)
   slot = {
     rect: { top: r.top, left: r.left, width: r.width, height: r.height },
+    radius: Number.isFinite(radius) ? radius : 0,
     at: typeof performance !== "undefined" ? performance.now() : 0,
   }
 }
 
 /** Reads and clears the slot. Returns null when nothing was recorded, or it is stale. */
 export function takeOrigin(): OriginRect | null {
+  return takeOriginShape()?.rect ?? null
+}
+
+/** {@link takeOrigin} with the pressed element's corner radius, for a surface that takes its shape. */
+export function takeOriginShape(): { rect: OriginRect; radius: number } | null {
   const held = slot
   slot = null
   if (!held) return null
   const now = typeof performance !== "undefined" ? performance.now() : 0
   if (now - held.at > MAX_AGE_MS) return null
-  return held.rect
+  return { rect: held.rect, radius: held.radius }
 }
 
 /** Drops anything recorded. Used when a press turns out not to open the editor. */

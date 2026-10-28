@@ -113,6 +113,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(categories): category sheets fold back into the button or card they came from (2026-10-28)
+
+The category sheet closed the way the search used to: it scaled uniformly from its origin with a
+floor of 0.55, so closing into the 191×44 New category button ended as a 484×417 box with its top
+above the screen. The sheet now uses the search's container transform, moved into
+`hooks/use-origin-morph.ts` so both share one geometry: it starts and ends as the button's or the
+card's own rectangle and corners (`takeOriginShape` now carries the pressed element's radius), with
+the content at its natural size, uncovered as the sheet grows and faded first on the way back. On a
+production build the last visible close frame is 194×48 on the 191×44 button and 265×87 on a 258×80
+card. Dialogs opened without an origin rise from 20px below at 95% as before.
+
 ### test(auth): the failed-restore report no longer counts other tests' events (2026-10-28)
 
 "keeps the event, then sends it with the same user's next token" failed whenever a local gateway

@@ -8,7 +8,8 @@ import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
-import { originTransform, takeOrigin, type OriginTransform } from "@/lib/shared-origin"
+import { takeOriginShape } from "@/lib/shared-origin"
+import { dropMorph, measureAtRest, morphFrom, useOriginMorph } from "@/hooks/use-origin-morph"
 import { cn } from "@/lib/utils"
 
 /**
@@ -65,8 +66,6 @@ export interface OverlayProps {
   children: ReactNode
 }
 
-const RESTING_TRANSFORM = { opacity: 1, scale: 1, x: 0, y: 0 }
-
 function OriginBackdrop({ open, ...props }: Omit<HTMLMotionProps<"div">, "animate" | "initial"> & { open: boolean }) {
   const controls = useAnimationControls()
   useLayoutEffect(() => {
@@ -82,6 +81,15 @@ function OriginBackdrop({ open, ...props }: Omit<HTMLMotionProps<"div">, "animat
   return <motion.div {...props} initial={{ opacity: 0 }} animate={controls} style={{ animation: "none" }} />
 }
 
+/**
+ * The dialog panel. Opened from a card or a button (`fromOrigin` and a recorded origin), it is that
+ * control, grown — `useOriginMorph`: the panel starts and ends as the control's own rectangle and
+ * corners on the task editor's critically damped spring, its content at its natural size,
+ * uncovered as it grows and faded first on the way back. Without an origin it rises from 20px
+ * below at 95%; under reduced motion it only fades. The category sheet used to scale uniformly
+ * from the control with a floor of 0.55, so closing into the 191×44 New category button ended as
+ * a 484×417 box with its top above the screen.
+ */
 function OriginDialog({
   open,
   fromOrigin,
@@ -90,18 +98,17 @@ function OriginDialog({
   onExitDurationChange,
   children,
   ...props
-}: Omit<HTMLMotionProps<"div">, "animate" | "initial" | "ref"> & {
+}: Omit<HTMLMotionProps<"div">, "animate" | "initial" | "ref" | "style"> & {
   open: boolean
   fromOrigin: boolean
   dialogRef: RefCallback<HTMLDivElement>
   onExitComplete: () => void
   onExitDurationChange: (durationMs: number) => void
 }) {
-  const controls = useAnimationControls()
   const reduce = useReducedMotion() ?? false
+  const { morph, play, stop, surfaceStyle, contentStyle } = useOriginMorph(dropMorph(0, 20, 0.95))
   const [node, setNode] = useState<HTMLDivElement | null>(null)
   const wasOpen = useRef(false)
-  const entranceRef = useRef<OriginTransform | null>(null)
   const animationRun = useRef(0)
   const attachRef = useCallback((element: HTMLDivElement | null) => {
     dialogRef(element)
@@ -113,17 +120,13 @@ function OriginDialog({
     if (!open) {
       if (!wasOpen.current) return
       wasOpen.current = false
-      controls.stop()
+      stop()
       const run = ++animationRun.current
-      const entrance = reduce ? null : entranceRef.current
-      const duration = entrance ? DURATION_UI : DURATION_FAST
+      const grow = !reduce && morph.get().grow
+      const duration = grow ? DURATION_UI : DURATION_FAST
       onExitDurationChange(duration * 1000)
-      void controls.start(
-        entrance
-          ? { opacity: 0, ...entrance }
-          : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 },
-        { duration, ease: EASE_STANDARD },
-      ).then(() => {
+      // From wherever it is: a close during the entrance turns round without a jump.
+      void play(0, { duration, ease: EASE_STANDARD }).then(() => {
         // An interrupted close must never remove a freshly reopened editor.
         if (animationRun.current === run && !wasOpen.current) onExitComplete()
       })
@@ -132,42 +135,32 @@ function OriginDialog({
     if (wasOpen.current) return
     wasOpen.current = true
     ++animationRun.current
-    controls.stop()
+    stop()
 
-    // The portal attaches later, and this dialog has natural height. Measure its
-    // untransformed panel before the first visible frame, once per opening edge.
-    // Only card editors own the shared origin. Filters and confirmations must leave it intact.
-    const origin = fromOrigin ? takeOrigin() : null
-    // Motion's DOM write can lag its values by a frame on a rapid reopen.
-    const previousTransform = node.style.transform
-    node.style.transform = "none"
-    const target = node.getBoundingClientRect()
-    node.style.transform = previousTransform
-    const entrance = !reduce && origin && target.width > 0 && target.height > 0
-      ? originTransform(origin, target)
-      : null
-    entranceRef.current = entrance
-    onExitDurationChange((entrance ? DURATION_UI : DURATION_FAST) * 1000)
-    controls.set(entrance
-      ? { opacity: 0, ...entrance }
-      : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 })
-    void controls.start(RESTING_TRANSFORM, reduce ? TWEEN_FAST : SPRING_LAYOUT)
-  }, [node, open, fromOrigin, reduce, controls, onExitComplete, onExitDurationChange])
+    // The portal attaches later, and this dialog has natural height. Measure its untransformed
+    // panel before the first visible frame, once per opening edge. Only card editors own the
+    // shared origin. Filters and confirmations must leave it intact.
+    const origin = fromOrigin ? takeOriginShape() : null
+    const { rect, radius } = measureAtRest(node)
+    const next = reduce
+      ? dropMorph(radius, 0, 1)
+      : origin && rect
+        ? morphFrom(origin.rect, rect, origin.radius, radius)
+        : dropMorph(radius, 20, 0.95)
+    morph.set(next)
+    onExitDurationChange((next.grow ? DURATION_UI : DURATION_FAST) * 1000)
+    void play(1, reduce ? TWEEN_FAST : { ...SPRING_LAYOUT, restDelta: 0.0005, restSpeed: 0.005 })
+  }, [node, open, fromOrigin, reduce, morph, play, stop, onExitComplete, onExitDurationChange])
 
   useLayoutEffect(() => () => {
     ++animationRun.current
-    controls.stop()
-  }, [controls])
+    stop()
+  }, [stop])
 
   return (
-    <motion.div
-      {...props}
-      ref={attachRef}
-      initial={{ opacity: 0 }}
-      animate={controls}
-      style={{ animation: "none" }}
-    >
-      {children}
+    <motion.div {...props} ref={attachRef} style={{ ...surfaceStyle, animation: "none" }}>
+      {/* The content at its own size, uncovered by the panel as it grows. */}
+      <motion.div style={contentStyle}>{children}</motion.div>
     </motion.div>
   )
 }
