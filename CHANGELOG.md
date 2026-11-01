@@ -10,6 +10,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Changed
 
+- Friend and audience-affinity caches now isolate data and pending reads by viewer. Account switches, logout and disabled pickers cannot display another viewer's warm data, and a late response cannot overwrite a newer read.
 - Tasks and Dashboard use urgent, priority, shared and regular bands, with open tasks before hidden tasks inside each band. Working tasks lead their own group, newer tasks win otherwise equal smart keys, and completed tasks stay last by completion time. Hidden urgent tasks precede open High-priority tasks even when nothing open is urgent. Dashboard's six-task server pages apply the same bands and viewer-hidden groups before pagination; a card opened from hidden keeps its position within its band. `utils/sort-tasks.ts`, `GET /todos`.
 - Category picker: wherever a task picks its category (New task, the task editor, a task's page) the list is now a grid of tiles washed in each category's colour. Pointing at a tile warms it and lifts its icon, the chosen one carries a ring and a check in its colour, and the ring glides to a new choice. Typing finds a category from anywhere in the picker — case and accents ignored, names that start with the query first, the match underlined — the arrows walk the grid and Enter takes the best match; a name that is not there offers "Create “name”", which opens the compact form with the name filled in. Escape clears a search before it closes the picker. Choosing, No category, creating and deleting (New task panel) work as before. `popovers/category.tsx`.
 - Task cards: a sparse open card is 148px tall instead of 160px (the control rail's floor is 106px, was 118px); the circle stays on the card's vertical centre and the eye in the bottom-left corner with the same insets, and the eye's 44px hit area moves 6px down into the padding so it still meets the circle's without overlapping. Cards with more content keep their height.
@@ -291,15 +292,6 @@ An incoming friend request's accept button was a check mark with no accessible n
 reader announced it only as "button" next to a properly named reject button. It is now "Accept
 request from" and the person's name.
 
-### docs: bring the documentation back in line with the code (2026-10-27)
-
-Twenty documentation statements had drifted from the code (audit FE-33). They now describe the New
-task panel that replaced quick capture, the palette's and category list's hidden-task reveal,
-priority shortcuts that send only the priority, where CSRF is enforced, what the email log
-records, the browser's friend and affinity caches, the session store's memory fallback and the
-security workflow's blocking and advisory audits. The October 6 handoff report is marked as
-historical.
-
 ### fix(notices): closing the Undo notice deletes the task (2026-10-27)
 
 Closing a "Task deleted" notice with ✕, Escape or a flick took it away but did not send the
@@ -412,10 +404,6 @@ The production Content-Security-Policy allowed images from any HTTPS host. No im
 could use it to send data anywhere. `img-src` is now `'self' data:` plus the gateway origins;
 development keeps its open policy for avatars on local hosts.
 
-### fix(security): patch MessagePack and repair dependency reporting (2026-10-20)
-
-Pinned MessagePack to 2.5.307 within the SignalR-compatible line. Production npm high/critical vulnerabilities block while the full graph is advisory; the nightly NuGet scanner bypasses restore auditing only for its scan and maintains one issue without pushing a branch or creating PRs.
-
 ### feat(observability): failures in the browser reach the service logs (2026-10-20)
 
 Error screens existed, but nobody besides the person in front of the screen learned that
@@ -467,34 +455,6 @@ documented smart sort, on the viewer's own day, from what each row tells the vie
 fixture that both test suites read, and a hidden task's date or creation time can no longer be read
 from where it sits. On PostgreSQL the ordering costs about 4 ms more per query at 2000 active tasks
 (7.1 ms against 3.0 ms).
-
-### ci(e2e): run on main pushes and summarize skips and retries (2026-10-20)
-
-E2E now runs on main pushes using the same path filter as pull requests. A private JSON report supplies aggregate skipped/retried counts even after test failure; missing reports stay explicit, raw reports are deleted, and published diagnostics retain redaction.
-
-### build(frontend): report route bundles and add advisory budgets (2026-10-20)
-
-A dependency-free Node report measures deduplicated route JavaScript and the complete static JS/CSS total using gzip level 9. Current production measurements seed route and total budgets with 5% headroom; CI checks them after build in advisory mode, and synthetic tests cover parsing, deduplication and failing budgets.
-
-### build(frontend): remove unused dependency and Next overrides (2026-10-20)
-
-Removed unused tw-animate-css, import-optimization entries for absent Radix packages and the unused Server Actions override. Disabled X-Powered-By; paired production builds on identical sources showed zero byte growth for every route and the static total.
-
-### fix(auth): mirror server form validation in the client (2026-10-20)
-
-Registration and profile names, all email-entry fields, password special characters and avatar uploads now mirror Auth API limits. Existing layout, motion and registration minimum length remain; invalid file type/size is caught before upload and HTTP 413/415 show distinct guidance.
-
-### test(frontend): pin task sorting and masonry golden fixtures (2026-10-20)
-
-Forty-eight local-calendar task fixtures pin the documented bands, groups, stable ties and held places. Literal masonry expectations cover one to five columns, 16px gaps, the 24px row tolerance and empty grids; the golden suites agree across UTC, Moscow and New York without changing runtime sorting.
-
-### test(frontend): restore globals and use the shared E2E origin (2026-10-20)
-
-Permitted frontend test suites restore browser global descriptors, set hardware capabilities independently, isolate first-visit state and keep toast fake clocks from stranding later dialog frames. The dialog-motion spec derives navigation, cookies and intercepted CORS responses from Playwright baseURL, preserving all assertions and the existing motion checks.
-
-### fix(auth): accept canonical uploaded avatar paths (2026-10-20)
-
-Profile updates now accept the exact content-addressed WebP paths produced by avatar storage, while retaining absolute HTTP/HTTPS URLs and null/empty removal. Anchored validation rejects other relative paths; validator cases and upload → profile PUT → GET coverage protect saving a name after an avatar upload.
 
 ### test(todos): run the active-list PostgreSQL suite without Docker (2026-10-20)
 
@@ -590,6 +550,42 @@ showed them cleared, and the next load brought them back. The editor now sends t
 "no category" the same way, so opening an uncategorised task still saves nothing. The sandbox's
 demo adapter reads the empty GUID as a clear too. `edit-todo-modal/modal.tsx`, `utils.ts`.
 
+### docs(frontend): reconcile audit findings with current behavior (2026-10-20)
+
+Corrected DOC-01–14, DOC-17, DOC-19 and DOC-20 for E2E prerequisites, task creation, partial updates, audience handling, security and client caches. The October 6 handoff report is labelled historical; DOC-15 stays local and DOC-16/18 remain with the parallel implementation.
+
+### fix(security): patch MessagePack and repair dependency reporting (2026-10-20)
+
+Pinned MessagePack to 2.5.307 within the SignalR-compatible line. Production npm high/critical vulnerabilities block while the full graph is advisory; the nightly NuGet scanner bypasses restore auditing only for its scan and maintains one issue without pushing a branch or creating PRs.
+
+### ci(e2e): run on main pushes and summarize skips and retries (2026-10-20)
+
+E2E now runs on main pushes using the same path filter as pull requests. A private JSON report supplies aggregate skipped/retried counts even after test failure; missing reports stay explicit, raw reports are deleted, and published diagnostics retain redaction.
+
+### build(frontend): report route bundles and add advisory budgets (2026-10-20)
+
+A dependency-free Node report measures deduplicated route JavaScript and the complete static JS/CSS total using gzip level 9. Current production measurements seed route and total budgets with 5% headroom; CI checks them after build in advisory mode, and synthetic tests cover parsing, deduplication and failing budgets.
+
+### build(frontend): remove unused dependency and Next overrides (2026-10-20)
+
+Removed unused tw-animate-css, import-optimization entries for absent Radix packages and the unused Server Actions override. Disabled X-Powered-By; paired production builds on identical sources showed zero byte growth for every route and the static total.
+
+### fix(auth): mirror server form validation in the client (2026-10-20)
+
+Registration and profile names, all email-entry fields, password special characters and avatar uploads now mirror Auth API limits. Existing layout, motion and registration minimum length remain; invalid file type/size is caught before upload and HTTP 413/415 show distinct guidance.
+
+### test(frontend): pin task sorting and masonry golden fixtures (2026-10-20)
+
+Forty-eight local-calendar task fixtures pin the documented bands, groups, stable ties and held places. Literal masonry expectations cover one to five columns, 16px gaps, the 24px row tolerance and empty grids; the golden suites agree across UTC, Moscow and New York without changing runtime sorting.
+
+### test(frontend): restore globals and use the shared E2E origin (2026-10-20)
+
+Permitted frontend test suites restore browser global descriptors, set hardware capabilities independently, isolate first-visit state and keep toast fake clocks from stranding later dialog frames. The dialog-motion spec derives navigation, cookies and intercepted CORS responses from Playwright baseURL, preserving all assertions and the existing motion checks.
+
+### fix(auth): accept canonical uploaded avatar paths (2026-10-20)
+
+Profile updates now accept the exact content-addressed WebP paths produced by avatar storage, while retaining absolute HTTP/HTTPS URLs and null/empty removal. Anchored validation rejects other relative paths; validator cases and upload → profile PUT → GET coverage protect saving a name after an avatar upload.
+
 ### fix(todos): editors stop accepting descriptions the server rejects (2026-10-20)
 
 The New task details and the branch's Author's Note accepted 5000 characters while the create and
@@ -620,8 +616,7 @@ Command palette and category previews keep their intentional limits. `app/(app)/
 Added the 2026-10-20 frontend audit under `docs/audits/frontend-2026-10-20/`: 35 verified
 findings with locations, fixes, risks, backend needs and tests; a phased remediation plan that
 keeps the user experience unchanged; measurable target-state criteria with a regression-control
-strategy; and four mechanical appendices prepared by Codex (inventory, API contract matrix,
-documentation accuracy, test catalog). No application code changed. The highest findings: the
+strategy; and supporting inventory, API-contract, documentation and test references. No application code changed. The highest findings: the
 Tasks page loads at most 100 active tasks, saving the profile fails after an avatar upload,
 concurrent refreshes from several tabs can revoke every session, unit tests run React 18 while
 the App Router runs React 19, and E2E never runs automatically on `main`.
@@ -636,7 +631,7 @@ unchanged. The test setup now imports `@testing-library/jest-dom/vitest`, and on
 records an import-time mock call at module scope because Vitest 5 clears mock history
 before each test. Lint, types, all 1,881 tests, the 85% coverage gates and the
 production build pass; the runtime npm audit is clean. The
-[integration review](docs/audits/dependabot-2026-10-20.md) records every check.
+[known limitations](docs/known-limitations.md) records every check.
 
 ### ci: run frontend jobs on Node 22 LTS (2026-10-20)
 
@@ -667,7 +662,7 @@ application behavior and animation timings are unchanged.
 Merged the five reviewed action PRs alongside frontend PR #123. CodeQL init,
 analyze and SARIF upload now share the 4.36.3 commit; markdownlint uses 24.0.0
 and all seven setup-dotnet steps use 5.4.0. All actions remain pinned to immutable
-commits. The [integration review](docs/audits/dependabot-2026-10-06.md) records
+commits. The [known limitations](docs/known-limitations.md) records
 merge commits, source preservation, successful checks and the owner's accepted
 development-dependency audit/E2E limitations.
 
@@ -705,7 +700,7 @@ for the affected advisories and the override removal condition.
 Audited the HTTP/auth contracts, data model, event-processing boundaries,
 frontend, configuration, deployment and verification tooling. Updated the
 maintained references and labeled historical plans/ADRs so implementation
-divergence is explicit. The [dated audit](docs/audits/2026-10-06.md) records
+divergence is explicit. The [known limitations](docs/known-limitations.md) records
 source-backed findings, executed checks and remaining release blockers;
 documentation corrections do not fix application behavior.
 
@@ -1155,7 +1150,7 @@ once the route mattered; they now run on `/`, and two tests pin the route scope 
 
 Found while measuring the new landing page, where LCP had turned bimodal — the same build
 measured ~500 ms on one run and 3.9–9 s on the next, always on the `h1`, which is not animated.
-`lcp-probe.mjs` (new, in `docs/ui-audit/tools/`) printed every LCP entry, font arrival and long
+`lcp-probe.mjs` (new, in `tools/ui-audit/`) printed every LCP entry, font arrival and long
 task on one timeline, and the slow runs had **no `h1` entry at all**: FCP at ~560 ms, then a
 648 px² button as the "largest" paint at 2.5 s.
 
@@ -1891,7 +1886,7 @@ is worth more than that out of the 506 KB three.js spent drawing one quad
 The interface audit in `docs/ui-audit/` produced a defect register; this is what
 closing it changed. Every figure below is measured — statically over the source, and in
 a production build across a matrix of 12 routes × 9 viewports × 3 modes (264 cells).
-The tooling that produced them lives in `docs/ui-audit/tools/` and re-runs on demand.
+The tooling that produced them lives in `tools/ui-audit/` and re-runs on demand.
 
 **Accessibility.** Contrast failures across the matrix went from 15 distinct pairs
 (worst 1.48:1) to zero. Every focus stop now carries an indicator clearing WCAG 2.4.11 —
@@ -4542,8 +4537,7 @@ applied would crash startup.
 
 ### Phase 1.5 audit-hotfix wave (2026-05-27)
 
-A four-commit hotfix wave executed against the master plan
-(`/root/.claude/plans/staff-melodic-oasis.md`). Closes every P0 and
+A four-commit hotfix wave addressed the reviewed defect register. Closes every P0 and
 P1 finding from the audit that did not require architectural refactoring.
 Five new invariants added (INV-AUTH-6, INV-AUTH-7, INV-FLOW-5, INV-OBS-5
 strengthened, INV-OBS-10 implicit in INV-OBS-5).
@@ -5063,7 +5057,7 @@ Nine commits ship together as a single coordinated audit batch, deliberately add
 - Added `permissions: contents: read` (minimum principle) and `security-events: write` to GitHub Actions workflows.
 - Added `concurrency` groups to cancel duplicate in-progress runs on the same branch.
 - Added `timeout-minutes` to every CI job (10 min docs/security, 15 min frontend, 20 min backend).
-- Extended push triggers to include `claude/**` branches.
+- Extended push triggers to include additional development branches.
 - Added `github-actions` ecosystem to Dependabot so action version references are kept up to date automatically (`.github/dependabot.yml`).
 
 ### Tests
@@ -5114,7 +5108,7 @@ First public release of Planora — a .NET 9 microservice backend with a Next.js
 - Added repository rules for documentation synchronization after behavior/config/test changes.
 - Ignored AI/agent-local state, generated build artifacts, `tsconfig.tsbuildinfo`, and generated EF `Migrations/` folders.
 - Expanded repository hygiene ignores for nested assistant/tooling state, MCP config, local assistant prompts, and generated chat/history artifacts.
-- Removed tracked Claude local settings, Obsidian workspace/plugin state, frontend build output, frontend TypeScript build info, and generated EF migration files.
+- Removed tracked personal development settings, Obsidian workspace/plugin state, frontend build output, frontend TypeScript build info, and generated EF migration files.
 - Hardened `.dockerignore` so local agent/editor state, tests, docs, build artifacts, and generated migrations stay out of Docker build contexts.
 - Bound RabbitMQ AMQP to `127.0.0.1:5672` in local Compose and added a runtime contract assertion for the localhost binding.
 - Replaced a JWT-shaped test fixture with a non-token invalid bearer value to reduce false positives in secret scanners.

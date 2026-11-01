@@ -1,6 +1,7 @@
-import { renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { useFriends, invalidateFriends } from "@/hooks/use-friends"
+import { useFriends, invalidateFriends, getCachedFriends } from "@/hooks/use-friends"
+import { useAuthStore } from "@/store/auth"
 import { api } from "@/lib/api"
 import type { FriendDto, PagedResult } from "@/types/auth"
 
@@ -26,6 +27,7 @@ const page = (items: FriendDto[], hasNextPage = false, pageSize = 100): PagedRes
 describe("useFriends", () => {
   afterEach(() => {
     invalidateFriends() // reset the shared module cache so tests stay isolated
+    useAuthStore.setState({ user: undefined })
     vi.restoreAllMocks()
   })
 
@@ -36,6 +38,76 @@ describe("useFriends", () => {
 
     expect(result.current).toEqual([])
     expect(get).not.toHaveBeenCalled()
+  })
+
+  const account = (userId: string) => {
+    useAuthStore.setState({ user: { userId, email: `${userId}@example.test`, firstName: "User", lastName: "Test" } })
+  }
+
+  it("never renders a previous account's cached friends during an account switch", async () => {
+    account("first")
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: page([friend("private-first")]) })
+      .mockImplementationOnce(() => new Promise(() => {}))
+    const { result } = renderHook(() => useFriends(true))
+    await waitFor(() => expect(result.current[0]?.id).toBe("private-first"))
+
+    act(() => account("second"))
+    expect(result.current).toEqual([])
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+  })
+
+  it("discards an old account's pending response without clearing the new request", async () => {
+    account("first")
+    let finishFirst!: (value: { data: PagedResult<FriendDto> }) => void
+    let finishSecond!: (value: { data: PagedResult<FriendDto> }) => void
+    const get = vi.spyOn(api, "get")
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { finishSecond = resolve }))
+    const first = getCachedFriends()
+    account("second")
+    const second = getCachedFriends()
+    expect(get).toHaveBeenCalledTimes(2)
+    finishFirst({ data: page([friend("private-first")]) })
+    await expect(first).resolves.toEqual([])
+    expect(getCachedFriends()).toBe(second)
+    finishSecond({ data: page([friend("private-second")]) })
+    await expect(second).resolves.toEqual([friend("private-second")])
+    await expect(getCachedFriends()).resolves.toEqual([friend("private-second")])
+  })
+
+  it("does not repopulate an explicitly invalidated cache with a stale result", async () => {
+    let finish!: (value: { data: PagedResult<FriendDto> }) => void
+    const get = vi.spyOn(api, "get")
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+      .mockResolvedValueOnce({ data: page([friend("fresh")]) })
+    const old = getCachedFriends()
+    invalidateFriends()
+    finish({ data: page([friend("stale")]) })
+    await expect(old).resolves.toEqual([])
+    await expect(getCachedFriends()).resolves.toEqual([friend("fresh")])
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
+  it("stops paging if the account changes while a page is pending", async () => {
+    account("first")
+    let finish!: (value: { data: PagedResult<FriendDto> }) => void
+    const get = vi.spyOn(api, "get")
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    const pending = getCachedFriends()
+    account("second")
+    finish({ data: page(Array.from({ length: 100 }, (_, i) => friend(String(i))), true) })
+    await expect(pending).resolves.toEqual([])
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it("clears visible friends on logout and does not initialize a disabled hook from cache", async () => {
+    account("first")
+    vi.spyOn(api, "get").mockResolvedValue({ data: page([friend("private")]) })
+    const { result } = renderHook(() => useFriends(true))
+    await waitFor(() => expect(result.current[0]?.id).toBe("private"))
+    expect(renderHook(() => useFriends(false)).result.current).toEqual([])
+    act(() => useAuthStore.setState({ user: undefined }))
+    expect(result.current).toEqual([])
   })
 
   it("loads friends across pages when enabled", async () => {

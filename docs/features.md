@@ -113,6 +113,11 @@ Let users manage profile data, password/email changes, email verification, sessi
 
 ## Friendships
 
+The frontend shares friend and audience-affinity reads within the current viewer. Changing
+accounts or logging out hides the old viewer's data immediately; late responses from an old
+viewer or invalidated read cannot refill the cache or clear a newer request. Disabled pickers
+expose no warm friend or affinity data. Friend-list paging stops if the viewer changes mid-read.
+
 ### Purpose
 
 Establish social relationships required for task sharing and friend-scoped task visibility.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
+import { useAuthStore } from "@/store/auth"
 import type { FriendAffinity } from "@/lib/audience-map"
 
 /**
@@ -16,41 +17,57 @@ import type { FriendAffinity } from "@/lib/audience-map"
 const TTL_MS = 60_000
 const EMPTY: ReadonlyMap<string, FriendAffinity> = new Map()
 
-let cache: { value: ReadonlyMap<string, FriendAffinity>; at: number } | null = null
+const viewerId = () => useAuthStore.getState().user?.userId
+let ownerId = viewerId()
+let generation = 0
+let cache: { userId: string | undefined; value: ReadonlyMap<string, FriendAffinity>; at: number } | null = null
 let inflight: Promise<ReadonlyMap<string, FriendAffinity>> | null = null
 
 function loadAffinity(): Promise<ReadonlyMap<string, FriendAffinity>> {
+  const userId = viewerId()
+  if (ownerId !== userId) {
+    invalidateFriendAffinity()
+    ownerId = userId
+  }
   if (cache && Date.now() - cache.at < TTL_MS) return Promise.resolve(cache.value)
   if (inflight) return inflight
-  inflight = Promise.resolve()
+  const requestGeneration = generation
+  const promise = Promise.resolve()
     .then(() => api.get<FriendAffinity[]>("/todos/api/v1/todos/friend-affinity"))
     .then((res) => {
+      if (requestGeneration !== generation || viewerId() !== userId) return EMPTY
       const rows = Array.isArray(res?.data) ? res.data : []
       const value: ReadonlyMap<string, FriendAffinity> = new Map(rows.map((entry) => [entry.friendId, entry] as const))
-      cache = { value, at: Date.now() }
+      cache = { userId, value, at: Date.now() }
       return value
     })
     .finally(() => {
-      inflight = null
+      if (inflight === promise) inflight = null
     })
+  inflight = promise
   return inflight
 }
 
 /** Drop the cached closeness, so the next read asks again — after a share changes, for one. */
 export function invalidateFriendAffinity(): void {
+  generation++
   cache = null
   inflight = null
 }
 
 export function useFriendAffinity(enabled: boolean): ReadonlyMap<string, FriendAffinity> {
-  const [affinity, setAffinity] = useState<ReadonlyMap<string, FriendAffinity>>(() => cache?.value ?? EMPTY)
+  const userId = useAuthStore((state) => state.user?.userId)
+  const [affinity, setAffinity] = useState(() => ({
+    userId,
+    value: cache?.userId === userId ? cache?.value ?? EMPTY : EMPTY,
+  }))
 
   useEffect(() => {
     if (!enabled) return
     let active = true
     loadAffinity()
       .then((value) => {
-        if (active) setAffinity(value)
+        if (active && viewerId() === userId) setAffinity({ userId, value })
       })
       .catch(() => {
         // No closeness to order by: the map falls back to names.
@@ -58,7 +75,7 @@ export function useFriendAffinity(enabled: boolean): ReadonlyMap<string, FriendA
     return () => {
       active = false
     }
-  }, [enabled])
+  }, [enabled, userId])
 
-  return affinity
+  return enabled && affinity.userId === userId ? affinity.value : EMPTY
 }

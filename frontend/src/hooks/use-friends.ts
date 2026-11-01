@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { api } from "@/lib/api"
+import { useAuthStore } from "@/store/auth"
 import type { FriendDto, PagedResult } from "@/types/auth"
 
 // The friend list is read by several components (the create panel, the edit modal, pickers) and
@@ -12,22 +13,28 @@ import type { FriendDto, PagedResult } from "@/types/auth"
 // mutations call invalidateFriends() to force the next read to refetch.
 const TTL_MS = 60_000
 
-let cache: { value: FriendDto[]; at: number } | null = null
-let inflight: Promise<FriendDto[]> | null = null
+const EMPTY: FriendDto[] = []
+const viewerId = () => useAuthStore.getState().user?.userId
+let ownerId = viewerId()
+let generation = 0
+let cache: { userId: string | undefined; value: FriendDto[]; at: number } | null = null
+let inflight: { userId: string | undefined; promise: Promise<FriendDto[]> } | null = null
 
 /** The server's largest page (`PaginationParameters.MaxPageSize`); it clamps any larger request. */
 const PAGE_SIZE = 100
 /** A backstop against a server that never says it is done: 5,000 friends. */
 const PAGE_LIMIT = 50
 
-async function fetchAllFriends(): Promise<FriendDto[]> {
+async function fetchAllFriends(isCurrent: () => boolean): Promise<FriendDto[]> {
   const byId = new Map<string, FriendDto>()
   let page = 1
 
   while (true) {
+    if (!isCurrent()) return EMPTY
     const res = await api.get<PagedResult<FriendDto>>("/friendships", {
       params: { pageNumber: page, pageSize: PAGE_SIZE },
     })
+    if (!isCurrent()) return EMPTY
     const data = res.data
     const items = data?.items ?? []
     // A friendship accepted while the pages load can shift a friend across a page boundary; keep
@@ -43,19 +50,28 @@ async function fetchAllFriends(): Promise<FriendDto[]> {
 }
 
 function loadFriends(): Promise<FriendDto[]> {
+  const userId = viewerId()
+  if (ownerId !== userId) {
+    invalidateFriends()
+    ownerId = userId
+  }
   if (cache && Date.now() - cache.at < TTL_MS) return Promise.resolve(cache.value)
-  if (inflight) return inflight
+  if (inflight) return inflight.promise
 
-  inflight = fetchAllFriends()
+  const requestGeneration = generation
+  const isCurrent = () => requestGeneration === generation && viewerId() === userId
+  const promise = fetchAllFriends(isCurrent)
     .then((value) => {
-      cache = { value, at: Date.now() }
+      if (!isCurrent()) return EMPTY
+      cache = { userId, value, at: Date.now() }
       return value
     })
     .finally(() => {
-      inflight = null
+      if (inflight?.promise === promise) inflight = null
     })
 
-  return inflight
+  inflight = { userId, promise }
+  return promise
 }
 
 /**
@@ -63,6 +79,7 @@ function loadFriends(): Promise<FriendDto[]> {
  * that changes the caller's friends (accepting/rejecting a request, removing a friend).
  */
 export function invalidateFriends(): void {
+  generation++
   cache = null
   inflight = null
 }
@@ -77,7 +94,11 @@ export function getCachedFriends(): Promise<FriendDto[]> {
 }
 
 export function useFriends(enabled: boolean): FriendDto[] {
-  const [friends, setFriends] = useState<FriendDto[]>(() => cache?.value ?? [])
+  const userId = useAuthStore((state) => state.user?.userId)
+  const [friends, setFriends] = useState(() => ({
+    userId,
+    value: cache?.userId === userId ? cache?.value ?? EMPTY : EMPTY,
+  }))
 
   useEffect(() => {
     if (!enabled) return
@@ -85,7 +106,7 @@ export function useFriends(enabled: boolean): FriendDto[] {
 
     loadFriends()
       .then((value) => {
-        if (active) setFriends(value)
+        if (active && viewerId() === userId) setFriends({ userId, value })
       })
       .catch(() => {
         // Silent fail — friends list falls back to whatever is cached (or empty).
@@ -94,7 +115,7 @@ export function useFriends(enabled: boolean): FriendDto[] {
     return () => {
       active = false
     }
-  }, [enabled])
+  }, [enabled, userId])
 
-  return friends
+  return enabled && friends.userId === userId ? friends.value : EMPTY
 }
