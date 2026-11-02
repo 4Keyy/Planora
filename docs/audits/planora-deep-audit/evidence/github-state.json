@@ -1,0 +1,161 @@
+{
+  "protection": {
+    "exit": 0,
+    "data": {
+      "url": "https://api.github.com/repos/4Keyy/Planora/branches/main/protection",
+      "required_signatures": {
+        "url": "https://api.github.com/repos/4Keyy/Planora/branches/main/protection/required_signatures",
+        "enabled": false
+      },
+      "enforce_admins": {
+        "url": "https://api.github.com/repos/4Keyy/Planora/branches/main/protection/enforce_admins",
+        "enabled": false
+      },
+      "required_linear_history": {
+        "enabled": true
+      },
+      "allow_force_pushes": {
+        "enabled": true
+      },
+      "allow_deletions": {
+        "enabled": false
+      },
+      "block_creations": {
+        "enabled": false
+      },
+      "required_conversation_resolution": {
+        "enabled": true
+      },
+      "lock_branch": {
+        "enabled": false
+      },
+      "allow_fork_syncing": {
+        "enabled": false
+      }
+    }
+  },
+  "rulesets": {
+    "exit": 0,
+    "data": []
+  },
+  "branches": {
+    "exit": 0,
+    "data": [
+      {
+        "name": "dependabot/npm_and_yarn/frontend/npm-patch-minor-cb6816a198",
+        "sha": "db19de25b4f8e75b63337bb04a00ae037b5b5e34",
+        "protected": false
+      },
+      {
+        "name": "main",
+        "sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "protected": true
+      },
+      {
+        "name": "security/nuget-vuln-tracking",
+        "sha": "be62fb578869178e589558b18b888840debde521",
+        "protected": false
+      }
+    ]
+  },
+  "runs": {
+    "exit": 0,
+    "data": [
+      {
+        "id": 41428219316,
+        "name": "NuGet Vulnerability Tracking",
+        "event": "schedule",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41428219316",
+        "created_at": "2026-11-02T10:21:59Z",
+        "updated_at": "2026-11-02T10:22:55Z"
+      },
+      {
+        "id": 41416485392,
+        "name": "Security Scan",
+        "event": "schedule",
+        "status": "completed",
+        "conclusion": "failure",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41416485392",
+        "created_at": "2026-11-02T08:54:40Z",
+        "updated_at": "2026-11-02T09:00:41Z"
+      },
+      {
+        "id": 41389474410,
+        "name": "docker in /., /Planora.ApiGateway, /Services/AuthApi/Planora.Auth.Api, /Services/CategoryApi/Planora.Category.Api, /Services/MessagingApi/Planora.Messaging.Api, /Services/RealtimeApi/Planora.Realtime.Api, /Services/TodoApi/Planora.Todo.Api - Update #1672333613",
+        "event": "dynamic",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41389474410",
+        "created_at": "2026-11-02T04:37:09Z",
+        "updated_at": "2026-11-02T04:37:56Z"
+      },
+      {
+        "id": 41389467955,
+        "name": "github_actions in /. - Update #1672333340",
+        "event": "dynamic",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41389467955",
+        "created_at": "2026-11-02T04:37:05Z",
+        "updated_at": "2026-11-02T04:39:51Z"
+      },
+      {
+        "id": 41389467492,
+        "name": "npm_and_yarn in /frontend - Update #1672333342",
+        "event": "dynamic",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41389467492",
+        "created_at": "2026-11-02T04:37:04Z",
+        "updated_at": "2026-11-02T04:38:35Z"
+      },
+      {
+        "id": 41368376503,
+        "name": "E2E",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41368376503",
+        "created_at": "2026-11-02T00:40:06Z",
+        "updated_at": "2026-11-02T01:35:14Z"
+      },
+      {
+        "id": 41368376339,
+        "name": "CI",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41368376339",
+        "created_at": "2026-11-02T00:40:05Z",
+        "updated_at": "2026-11-02T00:44:10Z"
+      },
+      {
+        "id": 41368376369,
+        "name": "Security Scan",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+        "html_url": "https://github.com/4Keyy/Planora/actions/runs/41368376369",
+        "created_at": "2026-11-02T00:40:05Z",
+        "updated_at": "2026-11-02T00:46:01Z"
+      }
+    ]
+  },
+  "environments": {
+    "exit": 0,
+    "data": {
+      "total_count": 0,
+      "environments": []
+    }
+  }
+}

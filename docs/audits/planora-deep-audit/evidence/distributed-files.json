@@ -1,0 +1,1871 @@
+[
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Behaviors/LoggingBehavior.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Behaviors/PerformanceBehavior.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Behaviors/UnhandledExceptionBehavior.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Behaviors/ValidationBehavior.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Context/ICurrentUserContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/CQRS/ICommand.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/CQRS/ICommandHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/CQRS/IQuery.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/CQRS/IQueryHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/AccountLockedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/CategoryDeletedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/EmailVerifiedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/FriendshipRemovedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/NotificationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/NotificationType.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/PasswordChangedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/RealtimeSyncIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/SubtaskDeletedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskActivityIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskCreatedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskDeletedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/UserDeletedIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/UserRegisteredIntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IDomainEventDispatcher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IDomainEventHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IEventBus.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IIntegrationEventHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IntegrationEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Models/Error.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Models/Result.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/IOutboxProcessor.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/IOutboxRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessage.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-140",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessageStatus.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationQuery.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Persistence/ICurrentUserService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Planora.BuildingBlocks.Application.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Validation/ValidationException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/AggregateRoot.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ApiResponse.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/BaseEntity.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/DomainEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/BusinessRuleViolationException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ConcurrencyException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DomainException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DuplicateEntityException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/EntityNotFoundException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ErrorCode.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ForbiddenException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/InvalidValueObjectException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/MappedDomainException.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ProblemDetailsContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IAggregateRoot.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IDomainEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IUnitOfWork.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Planora.BuildingBlocks.Domain.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Result.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Specifications/BaseSpecification.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Specifications/ISpecification.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ValueObject.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ValueObjects.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheInvalidator.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-40",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheKeyBuilder.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-32",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheOptions.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-17",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-291",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/ICacheInvalidator.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/ICacheService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Compatibility/CompatibilityStubs.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/SecurityConstants.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-111",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-83",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-81",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ResultExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ResultToActionResultFilter.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ValidationFilter.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/GrpcExceptionInterceptor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-198",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyClientInterceptor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-64",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-94",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/HealthChecks/RabbitMqHealthCheck.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/IIdempotentMessageHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/IInboxRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/InboxMessage.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/InboxMessageStatus.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/BusinessEvent.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/CorrelationIdContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/CorrelationIdEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/EventTypeEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/OperationEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/RequestPathEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/ServiceNameEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/UserIdEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Events/BusinessEvents.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/EventTypeContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/EventTypeEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LoggingConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LogSanitizer.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/OperationContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/OperationEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SpanIdContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SpanIdEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/UserIdEnricher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/DomainEventDispatcher.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/IRabbitMqConnectionManager.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqConnectionManager.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-124",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-411",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CorrelationIdMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-118",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/IdempotencyMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxNotifyInterceptor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-73",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-221",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxSignal.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/CurrentUserService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/N1Sentinel.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/OutboxRepository.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-65",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Planora.BuildingBlocks.Infrastructure.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/ResiliencePolicies.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-126",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/IRetentionLock.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/IRetentionPolicy.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/ProcessedMessagePurgePolicy.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/SoftDeletedPurgePolicy.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/PostgresAdvisoryLock.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-89",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionBackgroundService.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-146",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionExecutor.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-131",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionServiceCollectionExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/SecurityStampValidator.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-65",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Services/BusinessEventLogger.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Services/SystemInfoController.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Specifications/SpecificationEvaluator.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/GrpcContracts.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/Protos/auth.proto",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/Protos/category.proto",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/Protos/messaging.proto",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/Protos/realtime.proto",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "GrpcContracts/Protos/todo.proto",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/appsettings.Docker.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/appsettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Configuration/OcelotConfiguration.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-17",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Planora.ApiGateway/Dockerfile",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Extensions/ServiceCollectionExtensions.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-19",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Planora.ApiGateway/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Middleware/CorrelationIdMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Middleware/RequestLoggingMiddleware.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/ocelot.Docker.json",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-295",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Planora.ApiGateway/ocelot.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Planora.ApiGateway.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Planora.ApiGateway/Program.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-378",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Planora.ApiGateway/Properties/launchSettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.Docker.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-68",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Dockerfile",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Grpc/MessagingGrpcService.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-37",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Program.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Properties/launchSettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Common/OutboxExtensions.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/DependencyInjection.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/DTOs/MessageDto.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommand.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommandHandler.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-74",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommandValidator.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Mappings/MessageMappingProfile.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQuery.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQueryHandler.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-43",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQueryValidator.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Planora.Messaging.Application.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Application/Services/IFriendshipService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Domain/Entities/Message.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Domain/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Domain/Planora.Messaging.Domain.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Domain/Repositories.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-71",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Repositories/MessageRepository.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-73",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/UnitOfWork.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Retention/MessageRetentionPurgePolicy.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Services/FriendshipGrpcService.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-60",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/appsettings.Docker.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/appsettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/ConnectionsController.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-68",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-172",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Dockerfile",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Grpc/RealtimeGrpcService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-241",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Properties/launchSettings.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/TaskDeletedNotificationCleanupHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/UserDeletedNotificationCleanupHandler.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-69",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Handlers/RealtimeSyncEventHandler.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-50",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationReadStore.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationStore.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/IRealtimeBroadcaster.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/ITaskBranchAuthorizer.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Planora.Realtime.Application.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/BroadcastNotificationRequest.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/MarkNotificationsReadRequest.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/SendNotificationRequest.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ActiveConnectionsResponse.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionInfo.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionsResponse.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionStatsResponse.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationPayload.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationSummary.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Domain/Entities/Notification.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Domain/Entities/NotificationDelivery.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Domain/Enums/NotificationDeliveryStatus.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Domain/Planora.Realtime.Domain.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/DependencyInjection.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-160",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/DesignTime/RealtimeDbContextFactory.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/GlobalUsings.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Grpc/TaskBranchAuthorizer.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-64",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-228",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationDeliveryConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Retention/NotificationRetentionPolicies.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-113",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/ConnectionManager.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/IConnectionManager.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "Inventory only; continuation required",
+    "lines": "",
+    "note": "Not claimed read; belongs to distributed continuation batch"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-130",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationService.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-118",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-111",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/RealtimeBroadcaster.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-92",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Caching/CacheServiceMetricsTests.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-169",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqEventBusFailureTests.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-76",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/RealtimeApi/Handlers/NotificationEventHandlerTests.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-107",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/NotificationReadStoreTests.cs",
+    "status": "REVIEWED",
+    "pass": "P1 static semantic review; callers/tests/history where cited",
+    "lines": "1-77",
+    "note": "Source read in full; findings/positive controls in distributed-review.md; no runtime proof implied"
+  }
+]

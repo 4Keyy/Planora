@@ -1,0 +1,247 @@
+[
+  {
+    "id": "FE-001",
+    "title": "Поздний refresh восстанавливает завершённую сессию",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "frontend/src/store/auth.ts",
+        "lines": "243-257,290-339,346-377",
+        "symbol": "clearAuth / restoreSession / scheduleTokenRefresh",
+        "observation": "clearAuth отменяет таймер, но не инвалидирует уже начатый refresh; restoreSession и timer callback без проверки поколения вызывают applyRefresh."
+      },
+      {
+        "path": "frontend/src/lib/api.ts",
+        "lines": "377-417",
+        "symbol": "401 response interceptor",
+        "observation": "После ожидания shared refresh без проверки исходного владельца применяет токен и повторяет исходный запрос."
+      },
+      {
+        "path": "frontend/src/lib/auth-public.ts",
+        "lines": "101-129",
+        "symbol": "refreshAccessToken",
+        "observation": "Single-flight и Web Lock сериализуют refresh, но не инвалидируют запрос при logout."
+      },
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/frontend-review.md",
+        "lines": "diagnostic harness",
+        "symbol": "D-FE-1",
+        "observation": "Выполнение исходного auth.ts: restoreSession -> clearAuth -> resolve старого refresh даёт isAuthenticated=true, old-account."
+      },
+      {
+        "path": "frontend/src/app/auth/verify-email/page.tsx",
+        "lines": "57-70",
+        "symbol": "verify",
+        "observation": "Прямой refresh->applyRefresh без identity guard."
+      },
+      {
+        "path": "frontend/src/app/(app)/profile/page.tsx",
+        "lines": "775-815",
+        "symbol": "handleAvatarUpload",
+        "observation": "Avatar update и refresh continuation без session guard."
+      }
+    ],
+    "trigger": "Начать restore/scheduled/401 refresh; завершить сессию либо войти другим аккаунтом, пока ответ задержан; доставить старый ответ.",
+    "impact": "Клиент вновь принимает старую идентичность; возможны показ чужих данных и повтор mutation с неверным session context. Валидность старого JWT сервером после logout отдельно не проверялась.",
+    "root_cause": "Отсутствует монотонное поколение auth session на всех async auth continuations.",
+    "fix": "Ввести session epoch, изменяемый при явном setAuth/clearAuth, но не при нормальной ротации. Каждый restore/validate/refresh/interceptor захватывает epoch до await и перед apply/clear/redirect/retry проверяет его; отменённый refresh не повторяет mutation. Не переносить токены в storage.",
+    "alternatives": [
+      "AbortController полезен, но недостаточен после получения ответа; обязательна проверка epoch.",
+      "Не использовать сравнение только userId: logout/login того же пользователя тоже меняет сессию."
+    ],
+    "tests": [
+      "Deferred restore success/reject после clearAuth и после login B.",
+      "Scheduled refresh success после logout.",
+      "401 refresh + logout/login -> ни retry, ни clear новой сессии; token rotation внутри текущей сессии работает."
+    ],
+    "acceptance": [
+      "Старый async response не меняет auth/roles/profile и не повторяет запрос.",
+      "Существующие Web Lock, CSRF retry и 429 tests остаются зелёными."
+    ],
+    "dependencies": [],
+    "package": "T10",
+    "limitations": "Три пути просмотрены статически; динамический harness воспроизводит restore path с mocked network/JWT boundary, не браузер/сервер."
+  },
+  {
+    "id": "FE-002",
+    "title": "Notification store принимает ответы прошлой сессии после reset",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "frontend/src/store/notifications.ts",
+        "lines": "123-143,193-213,251-275",
+        "symbol": "hydrate / loadList / markTaskRead / markRead / reset",
+        "observation": "Async responses без owner/epoch проверок записываются в глобальный singleton."
+      },
+      {
+        "path": "frontend/src/lib/realtime/hooks.ts",
+        "lines": "58-112",
+        "symbol": "useNotificationsLifecycle",
+        "observation": "Reset только при isAuthenticated=false; effect не зависит от userId, ReceiveNotification не сверяет payload.userId."
+      },
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/frontend-review.md",
+        "lines": "diagnostic harness",
+        "symbol": "D-FE-2",
+        "observation": "loadList -> reset -> resolve возвращает old-account item в store."
+      }
+    ],
+    "trigger": "При открытом bell задержать GET notifications, logout/reset, login B, разрешить старому запросу завершиться.",
+    "impact": "В bell новой сессии могут оказаться title/message/taskId предыдущего аккаунта; summary count также откатывается поздними ответами.",
+    "root_cause": "Reset очищает значения, но не закрывает async lifecycle; singleton не имеет владельца.",
+    "fix": "Привязать store к auth epoch/userId; reset инвалидирует pending операции. Проверять epoch перед каждым set после await, включая catch listLoaded, и before ingest. Lifecycle должен реагировать на identity change; подписку/OS notification фильтровать по текущему владельцу. Для summary race с push использовать локальную revision и reconcile после изменившегося snapshot.",
+    "alternatives": [
+      "Отдельный store instance per session сложнее; epoch поверх текущего singleton меньше.",
+      "Abort запросов только дополнение к stale-response guards."
+    ],
+    "tests": [
+      "loadList/hydrate/markRead/markTaskRead resolve/reject после reset.",
+      "A -> B и A -> logout -> A.",
+      "Чужой ReceiveNotification не меняет store и не показывает OS notification; текущий payload дедуплицируется."
+    ],
+    "acceptance": [
+      "После reset поздние ответы не меняют items/perTask/seen/listLoaded.",
+      "Bell не содержит данных чужого userId; счётчик восстанавливается при reconnect."
+    ],
+    "dependencies": [
+      "T10 auth epoch"
+    ],
+    "package": "T10",
+    "limitations": "Dynamic harness покрывает loadList; остальные continuations подтверждены чтением, browser cross-account не запускался."
+  },
+  {
+    "id": "FE-003",
+    "title": "Branch room присоединяется после unmount во время connect",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "frontend/src/lib/realtime/hooks.ts",
+        "lines": "172-196",
+        "symbol": "useBranchRoom",
+        "observation": "start().then(joinTask) не отменяется cleanup; cleanup раньше вызывает leaveTask."
+      },
+      {
+        "path": "frontend/src/lib/realtime/client.ts",
+        "lines": "220-235,334-337",
+        "symbol": "joinTask / leaveTask / rejoinAll",
+        "observation": "Поздний join вновь увеличивает joinedTasks; room сохраняется для rejoin."
+      },
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/frontend-review.md",
+        "lines": "diagnostic harness",
+        "symbol": "D-FE-3",
+        "observation": "deferred start -> cleanup -> resolve: один join после unmount и один leave до join."
+      }
+    ],
+    "trigger": "Открыть branch/editor при отложенном подключении, закрыть до завершения start.",
+    "impact": "Неиспользуемая room остаётся подписанной до logout; лишние сообщения и восстановление устаревших подписок. Серверный доступ room этим не обходится.",
+    "root_cause": "Promise continuation не связана с lifecycle effect и регистрацией refcount.",
+    "fix": "В effect учитывать active/cancelled flag и session epoch; регистрировать room до start либо после start только если подписчик жив. Cleanup должен симметрично отменять именно свою регистрацию, не чужую. Проверить StrictMode и два подписчика.",
+    "alternatives": [
+      "Синхронный reference-count registration + start безопаснее при существующем joinTask, но не допускает двойной invokeJoin; проверить client contract.",
+      "Минимальный active guard вокруг late join с boolean joined для cleanup."
+    ],
+    "tests": [
+      "Deferred start resolves после unmount; join не происходит.",
+      "task A -> B до start; только B входит.",
+      "Два одновременно живых подписчика A: один wire join, wire leave после последнего."
+    ],
+    "acceptance": [
+      "Нулевые ghost memberships после cleanup.",
+      "Reconnect восстанавливает только текущие комнаты; обработчики отписаны."
+    ],
+    "dependencies": [
+      "T10 auth epoch"
+    ],
+    "package": "T10",
+    "limitations": "Harness исполняет useBranchRoom с mocked React effect и realtime boundary; реальный SignalR reconnect не запускался."
+  },
+  {
+    "id": "FE-004",
+    "title": "Avatar hydration может записать ответ прошлого аккаунта в новый",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "frontend/src/components/security-initializer.tsx",
+        "lines": "72-91",
+        "symbol": "fetchAvatar effect",
+        "observation": "GET /users/me завершает updateUser без проверки владельца/cleanup; dependency только isAuthenticated."
+      },
+      {
+        "path": "frontend/src/store/auth.ts",
+        "lines": "230-234",
+        "symbol": "updateUser",
+        "observation": "Patch применяется к текущему user, независимо от инициатора запроса."
+      }
+    ],
+    "trigger": "A начинает /users/me; logout/login B; ответ A приходит позже B.",
+    "impact": "В текущем профиле показывается avatar URL A, возможна утечка идентичности/путаница; изменение backend profile не производится.",
+    "root_cause": "Root-mounted effect не scoped к user identity и не отменяет старый request.",
+    "fix": "Захватить auth epoch/userId, AbortController и active flag; сравнить перед updateUser. Dependency userId; нормальный refresh не должен вызывать лишнюю загрузку.",
+    "alternatives": [
+      "Объединить hydration с session restore допустимо только при сохранении нынешнего nonfatal поведения; минимальный scoped effect предпочтителен."
+    ],
+    "tests": [
+      "Deferred avatar A после B не применяется.",
+      "Unmount/clearAuth не вызывает updateUser.",
+      "ProfilePictureUrl null и сеть 5xx не ломают login."
+    ],
+    "acceptance": [
+      "Avatar относится только к текущей сессии; прежние ошибки остаются nonfatal."
+    ],
+    "dependencies": [
+      "T10 auth epoch"
+    ],
+    "package": "T10",
+    "limitations": "Статически подтверждён путь; динамический browser сценарий не запускался."
+  },
+  {
+    "id": "FE-005",
+    "title": "Standalone branch load не защищён от устаревшего ответа",
+    "confidence": "LIKELY",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "frontend/src/app/(app)/branch/[id]/page.tsx",
+        "lines": "35-48,60-68",
+        "symbol": "load / handleSaveViewerPreference",
+        "observation": "load без abort/epoch; completion всегда setTodo/setNotFound/setLoading. Зависит только от todoId."
+      }
+    ],
+    "trigger": "При сохранении экземпляра route-компонента навигация A -> B с обратным порядком ответов; либо action reload перекрывается новым read.",
+    "impact": "URL B может показать task A либо старый error. Реальный App Router remount для перехода между ID в этой сборке требуется проверить до изменения.",
+    "root_cause": "Нет per-read latest-wins guard; часть UI-сохранений имеет собственные callbacks.",
+    "fix": "Сначала route-level deferred test и browser навигация. Если сценарий воспроизводится, добавить request epoch + AbortSignal в load, привязать к todoId/session; успешные actions обновляют только текущий task.",
+    "alternatives": [
+      "Keyed remount по todoId может скрыть race, но сбрасывает editor state и motion; не выбирать без сравнения UX.",
+      "Если router всегда remount и иных конкурирующих load нет, закрыть finding с доказательством без code change."
+    ],
+    "tests": [
+      "A slow -> B fast -> A resolves; final URL/data B.",
+      "404 A после B success не показывает MissingTask.",
+      "Pending autosave/duplicate transition не теряет пользовательские правки."
+    ],
+    "acceptance": [
+      "Доказана воспроизводимость или finding закрыт как nonissue; patch только при доказанном race."
+    ],
+    "dependencies": [
+      "T10"
+    ],
+    "package": "T11",
+    "limitations": "Статическое наблюдение, runtime navigation NOT_VERIFIED; нельзя маркировать confirmed UI defect."
+  }
+]

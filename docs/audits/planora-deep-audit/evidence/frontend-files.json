@@ -1,0 +1,3411 @@
+[
+  {
+    "path": "frontend/.gitignore",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/bundle-budget.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/components.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/README.md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/_email.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/_rate-limit.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/_report-redaction.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/_report-summary.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/auth-todos-sharing-hidden.api.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/avatar-native-upload.api.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/bundle-report.test.mjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/docker-compose.http.yml",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/frozen-audience.api.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/report-redaction.test.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/report-summary.test.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/run-ci.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/run-ci.test.cjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/_card-geometry.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/_helpers.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/_motion-fixtures.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/_motion-frames.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/_motion-pagination-modal.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/auth-forgot-password.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/auth-login.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/auth-register.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/auth-reset-password.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/auth-verify-email.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/compact-rail.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/dialog-motion.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/expanded-card-geometry.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/landing-seat-rail.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/motion-geometry.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/motion-regressions.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/notices-errors.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/profile-update.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/session-restore.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/task-height-motion.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/e2e/ui/tasks-page.ui.spec.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/eslint.config.mjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/next-env.d.ts",
+    "status": "BLOCKED",
+    "pass": "baseline-ownership",
+    "lines": "",
+    "note": "Pre-existing user modification; generated declaration, not read/overwritten."
+  },
+  {
+    "path": "frontend/next.config.js",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-243",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/package-lock.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Lockfile SCA/reproducibility owned by root/T12; not read entirely by frontend reviewer."
+  },
+  {
+    "path": "frontend/package.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/playwright.config.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-54",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/postcss.config.js",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/public/apple-touch-icon.png",
+    "status": "EXCLUDED_WITH_REASON",
+    "pass": "inventory",
+    "lines": "",
+    "note": "Brand binary/vector asset; retained. Visual/brand validation in T11/T13; not semantic source review."
+  },
+  {
+    "path": "frontend/public/favicon.svg",
+    "status": "EXCLUDED_WITH_REASON",
+    "pass": "inventory",
+    "lines": "",
+    "note": "Brand binary/vector asset; retained. Visual/brand validation in T11/T13; not semantic source review."
+  },
+  {
+    "path": "frontend/public/icon-192.png",
+    "status": "EXCLUDED_WITH_REASON",
+    "pass": "inventory",
+    "lines": "",
+    "note": "Brand binary/vector asset; retained. Visual/brand validation in T11/T13; not semantic source review."
+  },
+  {
+    "path": "frontend/public/icon-32.png",
+    "status": "EXCLUDED_WITH_REASON",
+    "pass": "inventory",
+    "lines": "",
+    "note": "Brand binary/vector asset; retained. Visual/brand validation in T11/T13; not semantic source review."
+  },
+  {
+    "path": "frontend/public/icon-512.png",
+    "status": "EXCLUDED_WITH_REASON",
+    "pass": "inventory",
+    "lines": "",
+    "note": "Brand binary/vector asset; retained. Visual/brand validation in T11/T13; not semantic source review."
+  },
+  {
+    "path": "frontend/scripts/bundle-report.mjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/scripts/generate-brand-assets.mjs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/(app)/branch/[id]/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/branch/[id]/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/branch/[id]/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-158",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/categories/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-13",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/categories/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/categories/loading.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-16",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/categories/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1-partial",
+    "lines": "1-165,244-319",
+    "note": "Only listed ranges reviewed; remaining file lines NEEDS_DEEP_REVIEW. See frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/(app)/dashboard/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-13",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/dashboard/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/dashboard/loading.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-65",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/dashboard/page.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/(app)/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-16",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/profile/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-13",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/profile/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/profile/loading.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-21",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/profile/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2-partial",
+    "lines": "760-825,930-980",
+    "note": "Partial only: avatar refresh, session revoke and delete account. Remaining 2000+ lines need deeper review."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/completed/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/completed/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/completed/page.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-13",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-11",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/loading.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-23",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/(app)/tasks/page.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/(app)/template.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-22",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/_landing/audience-console.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/audience-ring.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/audience-spine.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/branch-story.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/card-moves.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/closing-ring.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/console-skeleton.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/demo-sandbox.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/fixtures.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/keyboard-console.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/landing-nav.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/parallax.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/scroll-kit.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/seat-rail.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/sharing-ceiling.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/trust-lab.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/_landing/viewer-side.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/auth/forgot-password/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/forgot-password/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-123",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/auth/forgot-password/sent/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/forgot-password/sent/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-154",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/auth/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-13",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/login/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/login/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-346",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/auth/register/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/register/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-217",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/auth/reset-password/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/reset-password/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-214",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/auth/template.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-34",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/verify-email/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-7",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/auth/verify-email/page.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-210",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/app/error.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-11",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/global-error.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/globals.css",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/layout.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-188",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/app/manifest.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/not-found.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/page.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/app/template.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-80",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/components/animated/celebration.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/animated/entrance.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/animated/fade-in.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/animated/loading.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth-guard.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-27",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/components/auth/auth-chrome.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/auth-frame.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/email-suggestion.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/one-time-code-input.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/password-checklist.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/password-input.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/auth/passwords-match.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/backgrounds/color-bends-layer.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/backgrounds/color-bends.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/categories/category-card-skeleton.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/categories/category-card.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/categories/category-dialog.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/categories/category-look.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/categories/new-category-form.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/client-error-reporter.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/command-palette/chrome.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/command-palette/index.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1-partial",
+    "lines": "99-225,311-444",
+    "note": "Only listed ranges reviewed; remaining file lines NEEDS_DEEP_REVIEW. See frontend-review.md."
+  },
+  {
+    "path": "frontend/src/components/command-palette/preview.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/command-palette/recent.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-47",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/components/command-palette/rows.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/command-palette/search.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/command-palette/sections.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/error-boundary.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/errors/error-scene.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/errors/scenes.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/layout/app-shell.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-40",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/components/layout/droplet.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/layout/navbar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/layout/page-header.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/motion-preferences-provider.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/notifications/notification-badge-cluster.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/notifications/notification-badge.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/notifications/notification-bell.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/profile/change-email-form.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/profile/change-password-form.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/realtime-manager.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-18",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/components/security-initializer.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-94",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/components/todos/advanced-search-bar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/audience/audience-map.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/category-filter-modal.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/create-todo-panel.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/date-filter-popover.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/color-picker.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/friend-avatar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/index.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/inline-token-strip.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/lazy.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/modal.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/page-meta-panel.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/popover.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/popovers/category.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/popovers/date.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/popovers/priority.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/popovers/visibility.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/edit-todo-modal/utils.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/keyboard-hints.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/plate-placeholder.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/plate.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/quick-filter-bar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/task-comments.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/task-deletion-badge.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/todo-card.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/todo-skeleton.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/todos/worker-join-button.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/audience-motion.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/audience-ring.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/autosave-indicator.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/avatar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/button.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/card.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/confirm-dialog.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/dropdown-menu.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/field-label.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/field.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/height-glide.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/icon-picker.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/ink-check.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/input.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/key-legend.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/masonry-columns.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/modal-portal.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/motion.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/number-roll.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/overlay.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/pagination.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/presence-row.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/priority-meter.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/redaction-badge.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/segment-error.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/selection-bar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/shortcuts-overlay.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/stat-row.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/status-panel.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/surfaces.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/textarea.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/toast.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1-partial",
+    "lines": "93-360",
+    "note": "Only listed ranges reviewed; remaining file lines NEEDS_DEEP_REVIEW. See frontend-review.md."
+  },
+  {
+    "path": "frontend/src/components/ui/undo-bar.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/update-pill.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/week-bars.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/components/ui/wordmark.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-author-names.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-51",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/hooks/use-autosave.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-181",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-categories.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-196",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/hooks/use-collapse-scroll.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-dismiss-hidden-anchor.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-dock-clearance.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-exit-presence.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-fixed-popover-position.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-focus-trap.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-94",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-friend-affinity.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-friends.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-131",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/hooks/use-height-transition.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-inert.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-22",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-list-navigation.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-new-task-shortcut.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-origin-morph.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-priority-target.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-priority-writer.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/hooks/use-scroll-lock.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-64",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-task-actions.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-415",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-task-visibility.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-224",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/hooks/use-warm-editor.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/analytics.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-111",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/animations.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/announce.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/api-contract.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/api.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-623",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/audience-map.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/auth-broadcast.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-27",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/auth-flow.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-123",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/auth-public.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-139",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/brand-mark.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/calendar-date.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/client-errors.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-109",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/config.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-94",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/create-task-request.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-31",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/csrf.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-128",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/datetime.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/demo/adapter.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/demo/enable.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/demo/flag.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/demo/state.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/design-tokens.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/droplet.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/errors.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/friend-names.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-42",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/haptics.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/icon-map.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/jwt.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-53",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/key-echo.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-audience.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-branch.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-card.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-circle.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-keys.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-trust.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/landing-viewer.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/limits.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/notifications/types.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-117",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/notifications/web-notifications.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-71",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/pagination.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-26",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/password-policy.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-82",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/lib/priority-keys.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/realtime/client.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-358",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/realtime/hooks.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-311",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/lib/route-transition.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/scroll-hold.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/shared-origin.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/subtask-warning.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/task-grid.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/text-entry.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/trace.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/ui-preferences.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/lib/utils.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/proxy.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-132",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/store/auth.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-412",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/store/notifications.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-281",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/store/toast.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1-partial",
+    "lines": "1-197",
+    "note": "Only listed ranges reviewed; remaining file lines NEEDS_DEEP_REVIEW. See frontend-review.md."
+  },
+  {
+    "path": "frontend/src/test/app/auth-pages.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/branch-page-edges.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/branch-page.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/categories-page.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/completed-page-actions.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/completed-page.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/dashboard-page.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/keyboard-console.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/landing-blocks.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/profile-actions.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/profile-validation.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/tasks-page-actions.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/tasks-page-completed-row.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/template.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/todos-page.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/app/trust-lab.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/advanced-search-bar.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/animated.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/audience-map.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/audience-motion.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/auth-chrome.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/auth-frame.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/auth-guard.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/autosave-indicator.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/branch-feed.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/category-card.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/category-dialog.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/category-popover.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/color-bends.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/command-palette-chrome.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/command-palette-recent.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/command-palette-search.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/command-palette-sections.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/command-palette.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/create-todo-panel-clear.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/create-todo-panel-pickers.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/create-todo-panel-submit.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/dashboard-primitives.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/date-filter-popover.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/demo-sandbox.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/dropdown-viewport.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/droplet-frame.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/due-range.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/edit-todo-modal-clear.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/entrance.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/error-boundary.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/field.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/global-error.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/height-glide.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/keyboard-hints.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/landing-category-metadata.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/landing-seat-rail.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/lazy-edit-todo-modal.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/masonry-deal.golden.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/navbar.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/new-category-form.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/notification-badge-cluster.reduced-motion.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/notification-badge-cluster.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/notification-badge.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/notification-bell.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/number-roll.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/overlay-origin.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/overlay.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/presence-row.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/priority-meter.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/profile-forms.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/quick-filter-bar.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/realtime-manager.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/redaction-badge.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/segment-error.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/share-all-friends.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/shell-components.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/shortcuts-overlay.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/stable-motion.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/status-panel.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/task-dates-time-zone.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/task-deletion-badge.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/toaster.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-card-notification.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-card-priority-keys.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-card-rail.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-card-reveal-intent.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-heavy-components.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/todo-small-components.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/ui-radix-and-icon.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/ui-wrappers.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/ui.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/update-pill.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/components/worker-and-comments.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/fixtures/golden-tasks.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/priority-fields-time-zone.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-author-names.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-autosave.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-categories.test.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-176",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-collapse-scroll.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-exit-presence.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-focus-trap.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-friend-affinity.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-friends.test.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-route-frame-pass",
+    "lines": "1-206",
+    "note": "Full source read; route metadata/loading/error/animation lifecycle or cache regression cases traced. No browser/visual verification claim."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-height-transition.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-list-navigation.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-new-task-shortcut.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-origin-morph.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-priority-writer.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-task-actions.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-task-visibility.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/hooks/use-warm-editor.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/analytics.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/api-contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/api-interceptors.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/api.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/audience-map.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/auth-flow.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/auth-public.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/calendar-date.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/client-errors.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/comments-api.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/config.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/csrf-rejection.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/csrf.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/datetime.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/demo-adapter.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/demo-category-metadata.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/demo-enable.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/describe-error.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/design-tokens.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/droplet.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/duplicate-api.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/e2e-rate-limit.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/errors.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/friend-names.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/haptics.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/jwt.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-audience.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-branch.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-card.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-circle.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-keys.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-trust.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/landing-viewer.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/notification-types.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/notifications-lifecycle.test.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-73",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/test/lib/pagination.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/password-policy.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/priority-keys.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/realtime-client.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/realtime-hooks.test.tsx",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-262",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/test/lib/scroll-hold.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/shared-origin.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/subtask-warning.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/subtasks-api.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/trace.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/ui-preferences.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/utils.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/lib/web-notifications.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/proxy.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/brand-assets.contract.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/design-tokens.contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/gateway-routes.contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/text-limits.contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/time-zone-helper.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/quality/usability-contract.test.tsx",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/setup.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-8",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/test/store/auth.test.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1-partial",
+    "lines": "1-80,241-335,551-626",
+    "note": "Only listed ranges reviewed; remaining file lines NEEDS_DEEP_REVIEW. See frontend-review.md."
+  },
+  {
+    "path": "frontend/src/test/store/notifications.test.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-278",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  },
+  {
+    "path": "frontend/src/test/store/toast.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/time-zone.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/types/todo.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/active-list-order.contract.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/category-filter.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/completion-window.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/deletion-countdown.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/sort-tasks.golden.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/sort-tasks.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/test/utils/todo-utils.test.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/types/auth.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-181",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/types/category.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-15",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/types/todo.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/utils/category-filter.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/utils/completion-window.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-31",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/utils/deletion-countdown.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-56",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/src/utils/sort-tasks.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/src/utils/todo-utils.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-2",
+    "lines": "1-23",
+    "note": "Full source read; auth lifecycle/contract/privacy or UI helper invariants reviewed. Runtime/browser limits in frontend-review.md."
+  },
+  {
+    "path": "frontend/tailwind.config.ts",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/tsconfig.json",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "inventory-only",
+    "lines": "",
+    "note": "Inventoried by git ls-files; no semantic review claim. Continue under T10/T11/T13 according to module."
+  },
+  {
+    "path": "frontend/vitest.config.ts",
+    "status": "REVIEWED",
+    "pass": "FE-risk-pass-1",
+    "lines": "1-61",
+    "note": "Full source read, relevant callers/async lifecycle/contract/tests considered; see frontend-review.md. No browser verification claim."
+  }
+]

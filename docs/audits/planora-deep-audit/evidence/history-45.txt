@@ -1,0 +1,475 @@
+dc6b1781a24d43d967c418de30acda10fcafb8f9|2026-11-02T03:40:00+03:00|chore(repo): keep maintained guides and reusable checks
+
+10	1	.dockerignore
+1	1	.github/security/frontend-dependencies-2026-10.md
+0	69	.github/security/nuget-vuln-report.md
+13	6	.github/workflows/ci.yml
+6	0	.github/workflows/e2e.yml
+40	4	.gitignore
+0	4	.markdownlint-cli2.jsonc
+13	2	ARCHITECTURE.md
+3	2	CHANGELOG.md
+19	3	CONTRIBUTING.md
+11	11	README.md
+15	1	SECURITY.md
+10	10	TESTING.md
+19	8	deploy/fly/README.md
+14	8	deploy/fly/set-secrets.ps1
+2	1	docker-compose.yml
+18	0	docs/API.md
+27	9	docs/INVARIANTS.md
+16	1	docs/OPERATIONS.md
+22	1	docs/architecture.md
+0	173	docs/audits/2026-10-06.md
+0	76	docs/audits/claude-completion-2026-10-06.md
+0	134	docs/audits/dependabot-2026-10-06.md
+0	105	docs/audits/dependabot-2026-10-20.md
+0	55	docs/audits/dependabot-2026-10-27.md
+0	165	docs/audits/frontend-2026-10-20/README.md
+0	532	docs/audits/frontend-2026-10-20/api-contract.md
+0	124	docs/audits/frontend-2026-10-20/docs-accuracy.md
+0	585	docs/audits/frontend-2026-10-20/findings.md
+0	1300	docs/audits/frontend-2026-10-20/inventory.md
+0	118	docs/audits/frontend-2026-10-20/remediation-plan.md
+0	100	docs/audits/frontend-2026-10-20/target-state.md
+0	875	docs/audits/frontend-2026-10-20/test-catalog.md
+31	3	docs/auth-security.md
+12	0	docs/caching.md
+22	6	docs/codebase-map.md
+0	418	docs/codex-protocol.md
+26	3	docs/configuration.md
+20	2	docs/database.md
+15	5	docs/deployment.md
+36	14	docs/design-system.md
+34	16	docs/development.md
+0	1507	docs/eco/RESEARCH.md
+0	1033	docs/eco/UX-BLUEPRINT.md
+14	3	docs/faq.md
+23	1	docs/features.md
+39	34	docs/frontend.md
+18	6	docs/getting-started.md
+50	156	docs/index.md
+16	0	docs/observability.md
+13	0	docs/overview.md
+0	386	docs/plans/2026-06-23-audit-fixes.md
+0	446	docs/plans/2026-09-12-ui-audit-research-prompt.md
+0	272	docs/plans/2026-09-16-public-pages-redesign-prompt.md
+0	818	docs/plans/2026-09-21-public-pages-redesign.md
+21	9	docs/production.md
+14	2	docs/secrets-management.md
+16	0	docs/security-idor-coverage.md
+15	0	docs/slo.md
+31	604	docs/testing.md
+17	5	docs/troubleshooting.md
+0	1235	docs/ui-audit/BLUEPRINT.md
+0	645	docs/ui-audit/DEFECTS.md
+0	735	docs/ui-audit/EXECUTION.md
+0	282	docs/ui-audit/INVENTORY.md
+0	1244	docs/ui-audit/RESEARCH.md
+0	517	docs/ui-audit/RESULTS.md
+0	214	docs/ui-audit/TARGET.md
+0	81	docs/ui-audit/tools/link-check.mjs
+7	1	frontend/e2e/README.md
+16	0	frontend/e2e/docker-compose.http.yml
+1	1	frontend/e2e/ui/notices-errors.ui.spec.ts
+0	141	research/REPO_ANALYSIS.md
+12	3	tools/Planora.Migrator/Dockerfile
+28	0	tools/docs/README.md
+113	0	tools/docs/check.mjs
+51	0	tools/docs/check.test.mjs
+10	0	tools/docs/lint.mjs
+1455	0	tools/docs/package-lock.json
+20	0	tools/docs/package.json
+40	0	tools/ui-audit/README.md
+4	2	{docs/ui-audit/tools => tools/ui-audit}/a11y-static.mjs
+-	-	{docs/ui-audit/tools => tools/ui-audit}/class-audit.mjs
+3	3	{docs/ui-audit/tools => tools/ui-audit}/contrast-scan.mjs
+17	9	{docs/ui-audit/tools => tools/ui-audit}/focus-scan.mjs
+2	2	{docs/ui-audit/tools => tools/ui-audit}/lcp-probe.mjs
+10	0	tools/ui-audit/link-check.mjs
+8	8	{docs/ui-audit/tools => tools/ui-audit}/live-scan.mjs
+0	0	{docs/ui-audit/tools => tools/ui-audit}/mock-api.mjs
+4	4	{docs/ui-audit/tools => tools/ui-audit}/static-scan.mjs
+086975977177f999aab1581c9cf79192ada97ca1|2026-11-02T03:32:24+03:00|fix(frontend): reject stale friend-name reads after logout
+
+1	1	CHANGELOG.md
+2	0	docs/features.md
+12	9	frontend/src/hooks/use-author-names.ts
+7	0	frontend/src/hooks/use-friend-affinity.ts
+13	3	frontend/src/hooks/use-friends.ts
+3	0	frontend/src/lib/friend-names.ts
+19	3	frontend/src/test/hooks/use-author-names.test.tsx
+19	0	frontend/src/test/hooks/use-friends.test.tsx
+16	0	frontend/src/test/lib/friend-names.test.ts
+0b652cade8d85d2f17d59a287dce6ae313181a0d|2026-11-02T03:22:35+03:00|docs(operations): define safe backup and recovery checkpoints
+
+127	0	docs/backup-recovery.md
+59	0	docs/known-limitations.md
+e5956c647f71fbaae9a3041bcff57514fa3b66d3|2026-11-02T02:46:47+03:00|fix(deps): update follow-redirects to patched 1.16.2
+
+1	0	CHANGELOG.md
+3	3	frontend/package-lock.json
+3dcaf9dc316046235f6417e4af307a3c8cea3989|2026-11-02T02:43:00+03:00|fix(frontend): isolate friend caches between accounts
+
+103	109	CHANGELOG.md
+5	0	docs/features.md
+25	8	frontend/src/hooks/use-friend-affinity.ts
+33	12	frontend/src/hooks/use-friends.ts
+59	0	frontend/src/test/hooks/use-friend-affinity.test.tsx
+74	2	frontend/src/test/hooks/use-friends.test.tsx
+02a80829cb3f5355c2c16655ebff0d3c51cb2af9|2026-10-28T08:47:56+03:00|fix(categories): fold category sheets back into their button or card
+
+11	0	CHANGELOG.md
+2	1	docs/codebase-map.md
+6	3	docs/design-system.md
+2	2	docs/features.md
+28	100	frontend/src/components/command-palette/index.tsx
+38	45	frontend/src/components/ui/overlay.tsx
+139	0	frontend/src/hooks/use-origin-morph.ts
+10	2	frontend/src/lib/shared-origin.ts
+11	12	frontend/src/test/app/categories-page.test.tsx
+117	96	frontend/src/test/components/overlay-origin.test.tsx
+104	0	frontend/src/test/hooks/use-origin-morph.test.ts
+7f98a6e216f94efa91052e9b51c4dafc3907d245|2026-10-28T01:37:53+03:00|test(auth): keep each auth store test's network to itself
+
+8	0	CHANGELOG.md
+7	0	frontend/src/test/store/auth.test.ts
+7538ee4ef30078db0f64455f5f631d4d08832944|2026-10-28T01:34:52+03:00|docs(rate-limit): explain the forwarded client address on Auth routes
+
+9	0	docs/auth-security.md
+86ebd600dfab15f057ee0936f935422a30f0afb5|2026-10-28T01:34:03+03:00|fix(palette): fold search back into its button and open without a stall
+
+14	0	CHANGELOG.md
+9	5	docs/design-system.md
+2	2	docs/features.md
+189	42	frontend/src/components/command-palette/index.tsx
+5	2	frontend/src/components/layout/navbar.tsx
+40	3	frontend/src/test/components/command-palette.test.tsx
+1	1	frontend/src/test/components/navbar.test.tsx
+08f97cbbd1893859698682a57ec8dc99de47a1ac|2026-10-28T01:12:11+03:00|fix(notices): let notices expire again after one is closed by hand
+
+10	0	CHANGELOG.md
+1	1	docs/features.md
+46	5	frontend/src/components/ui/toast.tsx
+85	3	frontend/src/test/components/toaster.test.tsx
+76bad1cdfc1219eb16c95cd8640530b79e5ccc24|2026-10-28T01:11:51+03:00|fix(categories): load categories once, early, and retry for New task
+
+14	0	CHANGELOG.md
+1	0	docs/caching.md
+2	1	docs/features.md
+4	2	docs/frontend.md
+4	13	frontend/src/app/(app)/branch/[id]/page.tsx
+10	0	frontend/src/app/(app)/categories/page.tsx
+5	21	frontend/src/app/(app)/dashboard/page.tsx
+4	21	frontend/src/app/(app)/tasks/completed/page.tsx
+4	14	frontend/src/app/(app)/tasks/page.tsx
+7	8	frontend/src/components/command-palette/index.tsx
+6	0	frontend/src/components/todos/create-todo-panel.tsx
+196	0	frontend/src/hooks/use-categories.ts
+3	0	frontend/src/test/app/completed-page.test.tsx
+176	0	frontend/src/test/hooks/use-categories.test.tsx
+bb16d9eb9f378e03e84f2ab0b6dd31cef12a161f|2026-10-28T00:32:53+03:00|docs(rate-limit): document per-user partitions and the raised limits
+
+12	0	README.md
+28	14	docs/API.md
+21	5	docs/architecture.md
+32	26	docs/auth-security.md
+29	1	docs/configuration.md
+1	1	docs/observability.md
+13	5	perf/README.md
+7e6428dae20230a9542bfcf2c2f3c5a0dbb9c897|2026-10-28T00:32:17+03:00|fix(landing): keep the owner's category off the viewer's copy
+
+12	5	frontend/src/app/_landing/viewer-side.tsx
+43	10	frontend/src/test/components/landing-category-metadata.test.tsx
+eae74a733da113df80a1db877bdf585a05650c86|2026-10-28T00:12:15+03:00|fix(rate-limit): partition limits per user and raise them 2.5x
+
+110	39	BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs
+30	0	CHANGELOG.md
+26	25	Planora.ApiGateway/Program.cs
+3	0	Planora.ApiGateway/ocelot.Docker.json
+3	0	Planora.ApiGateway/ocelot.json
+3	3	Services/AuthApi/Planora.Auth.Api/Program.cs
+3	3	Services/CategoryApi/Planora.Category.Api/Program.cs
+3	3	Services/CollaborationApi/Planora.Collaboration.Api/Program.cs
+3	3	Services/MessagingApi/Planora.Messaging.Api/Program.cs
+3	3	Services/RealtimeApi/Planora.Realtime.Api/Program.cs
+3	3	Services/TodoApi/Planora.Todo.Api/Program.cs
+226	0	tests/Planora.UnitTests/Services/Infrastructure/RateLimitPolicyTests.cs
+c83999ab255bc253f67848f87bfb7e94e489fe81|2026-10-27T23:16:28+03:00|docs(audit): record where FE-24 was fixed
+
+4	3	docs/audits/frontend-2026-10-20/README.md
+84f1bc5c9368af6a8b115338fad57dd07f13f336|2026-10-27T23:15:57+03:00|refactor(tasks): share friends' names on task cards across pages
+
+8	0	CHANGELOG.md
+1	0	docs/codebase-map.md
+7	0	docs/features.md
+3	1	docs/frontend.md
+11	39	frontend/src/app/(app)/dashboard/page.tsx
+8	36	frontend/src/app/(app)/tasks/completed/page.tsx
+8	36	frontend/src/app/(app)/tasks/page.tsx
+5	4	frontend/src/components/command-palette/search.ts
+48	0	frontend/src/hooks/use-author-names.ts
+9	0	frontend/src/test/components/command-palette-search.test.ts
+112	0	frontend/src/test/hooks/use-author-names.test.tsx
+308792b6caf2d3299be247d9ce3f982b4877355f|2026-10-27T19:14:00+03:00|refactor(tasks): share deleting a task across task pages
+
+10	0	CHANGELOG.md
+1	1	docs/codebase-map.md
+14	0	docs/features.md
+15	32	frontend/src/app/(app)/dashboard/page.tsx
+4	12	frontend/src/app/(app)/tasks/completed/page.tsx
+12	51	frontend/src/app/(app)/tasks/page.tsx
+4	21	frontend/src/app/_landing/keyboard-console.tsx
+51	1	frontend/src/hooks/use-task-actions.ts
+172	0	frontend/src/test/app/tasks-page-completed-row.test.tsx
+95	1	frontend/src/test/hooks/use-task-actions.test.tsx
+29	1	frontend/src/test/utils/todo-utils.test.ts
+12	0	frontend/src/utils/todo-utils.ts
+af20004dcb6c3ed8e3b65249a3fea96ff9f326bc|2026-10-27T19:02:27+03:00|refactor(tasks): share duplicating and the editor's saves across pages
+
+11	0	CHANGELOG.md
+1	1	docs/codebase-map.md
+22	3	docs/features.md
+18	39	frontend/src/app/(app)/branch/[id]/page.tsx
+23	49	frontend/src/app/(app)/dashboard/page.tsx
+20	51	frontend/src/app/(app)/tasks/completed/page.tsx
+28	72	frontend/src/app/(app)/tasks/page.tsx
+80	4	frontend/src/hooks/use-task-actions.ts
+147	3	frontend/src/test/hooks/use-task-actions.test.tsx
+7f8c7820b227b73c66d19084059d42897bf00679|2026-10-27T18:55:56+03:00|refactor(tasks): share starting and stopping work across task pages
+
+10	0	CHANGELOG.md
+1	1	docs/codebase-map.md
+20	0	docs/features.md
+1	1	docs/frontend.md
+14	24	frontend/src/app/(app)/branch/[id]/page.tsx
+28	45	frontend/src/app/(app)/dashboard/page.tsx
+22	79	frontend/src/app/(app)/tasks/page.tsx
+130	5	frontend/src/hooks/use-task-actions.ts
+139	3	frontend/src/test/hooks/use-task-actions.test.tsx
+6b3bbb4a1c88da4d09ac16e5a6db0f569dbb67fa|2026-10-27T18:46:31+03:00|refactor(tasks): share completing and reopening across task pages
+
+11	0	CHANGELOG.md
+2	1	docs/codebase-map.md
+29	0	docs/features.md
+17	1	docs/frontend.md
+17	31	frontend/src/app/(app)/branch/[id]/page.tsx
+15	58	frontend/src/app/(app)/dashboard/page.tsx
+13	37	frontend/src/app/(app)/tasks/completed/page.tsx
+11	55	frontend/src/app/(app)/tasks/page.tsx
+8	13	frontend/src/app/_landing/keyboard-console.tsx
+164	0	frontend/src/hooks/use-task-actions.ts
+81	0	frontend/src/test/app/branch-page-edges.test.tsx
+310	0	frontend/src/test/hooks/use-task-actions.test.tsx
+49a0f81e9b3762b5fc0f6fe7f29e6a4152299c9e|2026-10-27T18:43:58+03:00|fix(branch): delete a subtask from the keyboard
+
+9	0	CHANGELOG.md
+6	0	docs/features.md
+12	8	docs/testing.md
+44	39	frontend/src/components/todos/edit-todo-modal/branch-feed.tsx
+85	6	frontend/src/test/components/branch-feed.test.tsx
+2	2	frontend/vitest.config.ts
+b371120df13cc69558b85a44ec12f760c5f49335|2026-10-27T09:54:54+03:00|docs(audit): record where every frontend finding was fixed
+
+48	15	docs/audits/frontend-2026-10-20/README.md
+b0c0361e9361a38727e88f07b1513b4bbd049bf3|2026-10-27T08:52:41+03:00|test(e2e): find masonry columns by position in the motion specs too
+
+7	4	docs/testing.md
+9	2	frontend/e2e/ui/_motion-frames.ts
+14	5	frontend/e2e/ui/motion-regressions.ui.spec.ts
+30	9	frontend/e2e/ui/task-height-motion.ui.spec.ts
+830847e9aabcd8ba8f82878e8d802b633d6a56b0|2026-10-27T08:52:17+03:00|fix(security): clear the full dependency audit (undici, postcss-selector-parser)
+
+28	0	.github/security/undici-2026-10.md
+7	0	CHANGELOG.md
+7	0	docs/auth-security.md
+6	6	frontend/package-lock.json
+1	1	frontend/package.json
+9d39f667ffb6a57e15093030c6f6934a80c05f63|2026-10-27T08:51:55+03:00|build(deps): integrate react-hook-form 7.91.0 from Dependabot #142
+
+5	0	CHANGELOG.md
+1	1	README.md
+4	3	docs/audits/dependabot-2026-10-27.md
+4	4	frontend/package-lock.json
+1	1	frontend/package.json
+27feb128dd58a92357ee1a5596b0fc31644606df|2026-10-27T08:08:23+03:00|build(deps): integrate Dependabot npm updates #141 and #136
+
+7	0	CHANGELOG.md
+4	4	README.md
+54	0	docs/audits/dependabot-2026-10-27.md
+3	0	docs/testing.md
+129	135	frontend/package-lock.json
+6	6	frontend/package.json
+fa4af053ed3d550cf2187a0d042b8cba6a69265b|2026-10-27T08:04:45+03:00|ci(deps): integrate Dependabot action updates #134, #137-#140
+
+4	4	.github/workflows/cd.yml
+6	6	.github/workflows/ci.yml
+3	3	.github/workflows/e2e.yml
+2	2	.github/workflows/migrations.yml
+3	3	.github/workflows/nuget-vuln-pr.yml
+2	2	.github/workflows/openapi.yml
+2	2	.github/workflows/perf-smoke.yml
+13	13	.github/workflows/security.yml
+32511ce5d476410d8b73f364ab3b94f65ba3d4bd|2026-10-27T08:03:55+03:00|test(e2e): read the grid the way it is built, wait out auth limits
+
+10	3	docs/testing.md
+5	3	frontend/e2e/ui/_card-geometry.ts
+5	1	frontend/e2e/ui/compact-rail.ui.spec.ts
+18	6	frontend/e2e/ui/expanded-card-geometry.ui.spec.ts
+5	0	frontend/e2e/ui/motion-regressions.ui.spec.ts
+8	3	frontend/e2e/ui/notices-errors.ui.spec.ts
+a863ca56f533357e151c63f4d5bc429e631e3974|2026-10-27T08:03:39+03:00|test(coverage): count the pages and the task editor, and ratchet them
+
+7	0	CHANGELOG.md
+4	3	TESTING.md
+6	6	docs/frontend.md
+17	4	docs/testing.md
+24	10	frontend/vitest.config.ts
+0271f9f22bf23cd53ad3de1f83f2afa85a7bdf5d|2026-10-27T08:03:23+03:00|test(pages): drive every signed-in page through its own handlers
+
+9	0	docs/testing.md
+263	0	frontend/src/test/app/branch-page.test.tsx
+254	0	frontend/src/test/app/completed-page-actions.test.tsx
+138	6	frontend/src/test/app/dashboard-page.test.tsx
+196	0	frontend/src/test/app/keyboard-console.test.tsx
+386	0	frontend/src/test/app/tasks-page-actions.test.tsx
+dc53776041660f77d28e03e573f0adcbddb6f71f|2026-10-27T08:02:40+03:00|fix(profile): name the button that accepts a friend request
+
+6	0	CHANGELOG.md
+3	0	docs/features.md
+6	1	frontend/src/app/(app)/profile/page.tsx
+250	0	frontend/src/test/app/profile-actions.test.tsx
+ea1174bf0e83ac65c06def75e4b4ddd492c9700b|2026-10-27T03:04:11+03:00|docs: bring twenty drifted statements back in line with the code
+
+9	0	CHANGELOG.md
+3	1	TESTING.md
+3	3	docs/API.md
+8	8	docs/DECISIONS/0004-viewer-specific-todo-visibility.md
+5	3	docs/DECISIONS/0006-force-dynamic-and-csp-nonce.md
+1	1	docs/INVARIANTS.md
+3	0	docs/audits/claude-completion-2026-10-06.md
+2	2	docs/auth-security.md
+1	0	docs/caching.md
+11	10	docs/codebase-map.md
+22	36	docs/design-system.md
+5	4	docs/features.md
+15	1	docs/frontend.md
+1	1	docs/getting-started.md
+3	3	docs/glossary.md
+2	2	docs/index.md
+3	3	docs/overview.md
+2	1	docs/testing.md
+2	2	docs/troubleshooting.md
+958284ac8ae695c10ec69d64c0ecb6268bb8966f|2026-10-27T03:02:47+03:00|test(e2e): follow the UI the notice specs drifted from, in six shards
+
+8	7	.github/workflows/e2e.yml
+7	4	docs/testing.md
+3	3	frontend/e2e/README.md
+17	12	frontend/e2e/ui/notices-errors.ui.spec.ts
+62faa0bf0f01a9d815b7f07289f646e2d5fa37c6|2026-10-27T03:00:09+03:00|fix(notices): send the deletion when the Undo notice is closed
+
+7	0	CHANGELOG.md
+6	1	docs/design-system.md
+1	1	docs/features.md
+1	1	frontend/src/app/(app)/dashboard/page.tsx
+1	1	frontend/src/app/(app)/tasks/page.tsx
+2	2	frontend/src/app/_landing/keyboard-console.tsx
+27	4	frontend/src/components/ui/undo-bar.tsx
+41	1	frontend/src/test/components/dashboard-primitives.test.tsx
+9013b822354b0943397b4016ab15a1b39210e877|2026-10-27T02:57:11+03:00|test(todos): expect the New task panel's Today in the viewer's zone
+
+4	1	frontend/src/test/components/todo-heavy-components.test.tsx
+1b3ecebef4d64a7e92b38ab3ba3edab9e6ef36f9|2026-10-27T02:48:54+03:00|test(e2e): fix the compact rail's stale expected failure and wait
+
+12	8	docs/testing.md
+1	1	frontend/e2e/README.md
+7	6	frontend/e2e/ui/compact-rail.ui.spec.ts
+6a6f7fff767eb055fe3ef5e8f53b977aa7477c54|2026-10-27T02:48:10+03:00|test(branch): cover the branch feed's conversation and subtasks
+
+12	0	docs/testing.md
+380	0	frontend/src/test/components/branch-feed.test.tsx
+c032fbd9dabbc91ca06ab851053b20d1392fa238|2026-10-27T02:47:05+03:00|fix(dashboard): let Try again replace the load error with the tasks
+
+6	0	CHANGELOG.md
+1	1	docs/features.md
+3	0	frontend/src/app/(app)/dashboard/page.tsx
+330	0	frontend/src/test/app/dashboard-page.test.tsx
+8e6376848e50da4159af3d494bf4bb6175fb8eae|2026-10-27T02:45:39+03:00|chore(lint): run jsx-a11y in ESLint, lint the tests, allow no warning
+
+7	0	CHANGELOG.md
+17	1	docs/frontend.md
+3	0	docs/testing.md
+31	9	frontend/eslint.config.mjs
+1	0	frontend/package-lock.json
+2	1	frontend/package.json
+2	0	frontend/src/app/auth/login/page.tsx
+1	0	frontend/src/components/auth/one-time-code-input.tsx
+1	0	frontend/src/components/categories/category-dialog.tsx
+1	0	frontend/src/components/categories/category-look.tsx
+1	0	frontend/src/components/command-palette/index.tsx
+6	5	frontend/src/components/todos/advanced-search-bar.tsx
+2	0	frontend/src/components/todos/create-todo-panel.tsx
+1	0	frontend/src/components/todos/edit-todo-modal/branch-feed.tsx
+2	0	frontend/src/components/todos/edit-todo-modal/modal.tsx
+2	0	frontend/src/components/todos/task-comments.tsx
+2	0	frontend/src/components/todos/worker-join-button.tsx
+4	2	frontend/src/components/ui/card.tsx
+14	1	frontend/src/test/components/advanced-search-bar.test.tsx
+0	1	frontend/src/test/components/todo-heavy-components.test.tsx
+0ba18b03202025845e7a60618e90d7d604b60726|2026-10-26T22:19:26+03:00|fix(ci): let the E2E suite finish and print its progress as it runs
+
+11	3	.github/workflows/e2e.yml
+7	0	CHANGELOG.md
+12	4	docs/testing.md
+7	4	frontend/e2e/README.md
+38	16	frontend/e2e/run-ci.cjs
+37	0	frontend/e2e/run-ci.test.cjs
+937d3f1ff3f5d467667fcb9760b5dfa7b7ea8459|2026-10-26T22:19:09+03:00|perf(frontend): keep zod out of every page's first-load JS
+
+9	0	CHANGELOG.md
+1	1	docs/development.md
+10	1	docs/frontend.md
+5	0	docs/testing.md
+8	5	frontend/src/app/(app)/profile/page.tsx
+2	2	frontend/src/app/auth/forgot-password/page.tsx
+3	3	frontend/src/app/auth/login/page.tsx
+13	9	frontend/src/app/auth/register/page.tsx
+4	4	frontend/src/app/auth/reset-password/page.tsx
+47	43	frontend/src/lib/api-contract.ts
+38	3	frontend/src/lib/api.ts
+10	10	frontend/src/lib/password-policy.ts
+17	5	frontend/src/test/lib/api-interceptors.test.ts
+30	15	frontend/src/test/quality/api-contract.contract.test.ts
+fb42a0069e8c0a61b06be1af892789867914e315|2026-10-26T22:13:56+03:00|fix(security): move the frontend to zod 4.6.7 for GHSA-mrhx-c7xc-m3w5
+
+49	0	.github/security/zod-2026-10.md
+7	0	CHANGELOG.md
+1	1	README.md
+7	0	docs/auth-security.md
+199	24	frontend/package-lock.json
+2	2	frontend/package.json
+32	15	frontend/src/lib/api-contract.ts
+35	1	frontend/src/test/app/auth-pages.test.tsx
+1	1	frontend/src/test/quality/api-contract.contract.test.ts
+b394eaca385cb3a68bf31c4739746d221af1bcf3|2026-10-26T17:37:29+03:00|fix(todos): send only fields the create command binds
+
+6	0	CHANGELOG.md
+0	1	frontend/src/components/todos/create-todo-panel.tsx
+0	1	frontend/src/test/components/todo-heavy-components.test.tsx
+18	0	frontend/src/test/quality/api-contract.contract.test.ts
+0	1	frontend/src/types/todo.ts
+e1876e87ee9d9813b23d60d83505da5c542c9cbe|2026-10-26T17:37:25+03:00|fix(gateway): route the admin user list and check every client path
+
+7	0	CHANGELOG.md
+16	0	Planora.ApiGateway/ocelot.Docker.json
+16	0	Planora.ApiGateway/ocelot.json
+2	1	docs/API.md
+4	0	docs/testing.md
+70	0	frontend/src/test/quality/gateway-routes.contract.test.ts
+189fdec24748883e7660537e040bf69d0b203723|2026-10-26T17:37:22+03:00|fix(realtime): push one notification shape from every sender
+
+7	0	CHANGELOG.md
+32	33	Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationService.cs
+9	0	docs/API.md
+17	0	frontend/src/test/quality/api-contract.contract.test.ts
+84	0	tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/NotificationWireShapeTests.cs

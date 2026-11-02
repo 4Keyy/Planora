@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "tasks": 16,
+  "prompts": 16,
+  "findings": 34,
+  "confidence": {
+    "CONFIRMED": 31,
+    "LIKELY": 3
+  },
+  "priority": {
+    "P1": 16,
+    "P2": 16,
+    "P3": 2
+  },
+  "indexed_files": 1558,
+  "continuation_batches": 80,
+  "foreign_file_blob": "ce4e94a6b10f160ee021fe18939af160d2927dcf",
+  "checks": [
+    "JSON parse",
+    "required task fields",
+    "unique IDs",
+    "DAG acyclic",
+    "package files",
+    "finding references",
+    "evidence paths exist",
+    "inventory exact coverage",
+    "continuation exact pending set",
+    "prompt baseline and contract",
+    "foreign file unchanged"
+  ],
+  "errors": []
+}

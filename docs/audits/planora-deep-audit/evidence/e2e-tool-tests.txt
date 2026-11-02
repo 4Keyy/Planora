@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: deduplicates each route, strips route groups, and totals JS/CSS separately from maps
+ok 1 - deduplicates each route, strips route groups, and totals JS/CSS separately from maps
+  ---
+  duration_ms: 37.3632
+  type: 'test'
+  ...
+# Subtest: merges multiple manifests for the same public route without counting shared chunks twice
+ok 2 - merges multiple manifests for the same public route without counting shared chunks twice
+  ---
+  duration_ms: 20.3838
+  type: 'test'
+  ...
+# Subtest: fails on absent manifests, missing chunks and path traversal
+ok 3 - fails on absent manifests, missing chunks and path traversal
+  ---
+  duration_ms: 18.2656
+  type: 'test'
+  ...
+# Subtest: budgets check exact gzip bytes, every route, and the unique static total
+ok 4 - budgets check exact gzip bytes, every route, and the unique static total
+  ---
+  duration_ms: 16.5245
+  type: 'test'
+  ...
+# Subtest: CLI uses NEXT_DIST_DIR, emits parseable JSON, and fails an exceeded budget
+not ok 5 - CLI uses NEXT_DIST_DIR, emits parseable JSON, and fails an exceeded budget
+  ---
+  duration_ms: 57.9461
+  type: 'test'
+  location: 'F:\\Projects\\Planora\\frontend\\e2e\\bundle-report.test.mjs:76:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    node:internal/modules/cjs/loader:1368
+      throw err;
+      ^
+
+    Error: Cannot find module 'F:\Projects\Planora\scripts\bundle-report.mjs'
+        at Function._resolveFilename (node:internal/modules/cjs/loader:1365:15)
+        at defaultResolveImpl (node:internal/modules/cjs/loader:1021:19)
+        at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1026:22)
+        at Function._load (node:internal/modules/cjs/loader:1175:37)
+        at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+        at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+        at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+        at node:internal/main/run_main_module:36:49 {
+      code: 'MODULE_NOT_FOUND',
+      requireStack: []
+    }
+
+    Node.js v22.18.0
+
+
+    1 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    Function._resolveFilename (node:internal/modules/cjs/loader:1365:15)
+    defaultResolveImpl (node:internal/modules/cjs/loader:1021:19)
+    resolveForCJSWithHooks (node:internal/modules/cjs/loader:1026:22)
+    Function._load (node:internal/modules/cjs/loader:1175:37)
+    TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    node:internal/main/run_main_module:36:49 {
+    TestContext.<anonymous> (file:///F:/Projects/Planora/frontend/e2e/bundle-report.test.mjs:81:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: prints each redacted line while the child is still running
+ok 6 - prints each redacted line while the child is still running
+  ---
+  duration_ms: 666.2957
+  type: 'test'
+  ...
+# Subtest: keeps the last line without a newline and passes the exit status on
+ok 7 - keeps the last line without a newline and passes the exit status on
+  ---
+  duration_ms: 56.2834
+  type: 'test'
+  ...
+# Subtest: reports a child killed by a signal as a failure
+ok 8 - reports a child killed by a signal as a failure
+  ---
+  duration_ms: 47.4848
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 854.0207

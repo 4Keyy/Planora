@@ -1,0 +1,136 @@
+TAP version 13
+# Subtest: a successful clean report has no findings
+ok 1 - a successful clean report has no findings
+  ---
+  duration_ms: 1.623
+  type: 'test'
+  ...
+# Subtest: both direct and transitive vulnerabilities are retained with severity and provenance
+ok 2 - both direct and transitive vulnerabilities are retained with severity and provenance
+  ---
+  duration_ms: 0.2656
+  type: 'test'
+  ...
+# Subtest: unknown, incomplete and scanner-error reports fail before any GitHub call
+ok 3 - unknown, incomplete and scanner-error reports fail before any GitHub call
+  ---
+  duration_ms: 0.5458
+  type: 'test'
+  ...
+# Subtest: a malformed vulnerability cannot be treated as clean
+ok 4 - a malformed vulnerability cannot be treated as clean
+  ---
+  duration_ms: 0.203
+  type: 'test'
+  ...
+# Subtest: explicit null arrays fail closed instead of being treated as omitted clean fields
+ok 5 - explicit null arrays fail closed instead of being treated as omitted clean fields
+  ---
+  duration_ms: 0.4814
+  type: 'test'
+  ...
+# Subtest: feed warnings cannot close a previously open tracking issue
+ok 6 - feed warnings cannot close a previously open tracking issue
+  ---
+  duration_ms: 0.1639
+  type: 'test'
+  ...
+# Subtest: a vulnerability creates one tracking issue using an exact body file, then removes that file
+ok 7 - a vulnerability creates one tracking issue using an exact body file, then removes that file
+  ---
+  duration_ms: 4.8304
+  type: 'test'
+  ...
+# Subtest: an open tracking issue is updated without creating duplicates
+ok 8 - an open tracking issue is updated without creating duplicates
+  ---
+  duration_ms: 2.4628
+  type: 'test'
+  ...
+# Subtest: a closed tracking issue is updated and reopened when vulnerabilities return
+ok 9 - a closed tracking issue is updated and reopened when vulnerabilities return
+  ---
+  duration_ms: 2.4081
+  type: 'test'
+  ...
+# Subtest: a successful clean scan closes an existing open issue
+ok 10 - a successful clean scan closes an existing open issue
+  ---
+  duration_ms: 2.7984
+  type: 'test'
+  ...
+# Subtest: a clean scan neither creates an issue nor reopens an already closed issue
+ok 11 - a clean scan neither creates an issue nor reopens an already closed issue
+  ---
+  duration_ms: 0.2727
+  type: 'test'
+  ...
+# Subtest: exact title matching and the oldest issue keep tracking stable
+ok 12 - exact title matching and the oldest issue keep tracking stable
+  ---
+  duration_ms: 2.402
+  type: 'test'
+  ...
+# Subtest: GitHub lookup failures cannot trigger a clean-scan close
+ok 13 - GitHub lookup failures cannot trigger a clean-scan close
+  ---
+  duration_ms: 0.2576
+  type: 'test'
+  ...
+# Subtest: failed GitHub writes preserve the failure and still remove the temporary body
+ok 14 - failed GitHub writes preserve the failure and still remove the temporary body
+  ---
+  duration_ms: 1.6033
+  type: 'test'
+  ...
+# Subtest: the check CLI exits 0 only for a valid clean report and never needs GitHub credentials
+ok 15 - the check CLI exits 0 only for a valid clean report and never needs GitHub credentials
+  ---
+  duration_ms: 157.8756
+  type: 'test'
+  ...
+# Subtest: parses reference links, nested destinations, images and same-page anchors
+ok 16 - parses reference links, nested destinations, images and same-page anchors
+  ---
+  duration_ms: 7.189
+  type: 'test'
+  ...
+# Subtest: GitHub slugs include formatting, Unicode and duplicate heading suffixes
+ok 17 - GitHub slugs include formatting, Unicode and duplicate heading suffixes
+  ---
+  duration_ms: 5.2345
+  type: 'test'
+  ...
+# Subtest: code examples do not introduce links or anchors
+ok 18 - code examples do not introduce links or anchors
+  ---
+  duration_ms: 0.432
+  type: 'test'
+  ...
+# Subtest: HTML comments do not create published links or anchors
+ok 19 - HTML comments do not create published links or anchors
+  ---
+  duration_ms: 1.946
+  type: 'test'
+  ...
+# Subtest: quoted comment-like text does not hide real HTML attributes
+ok 20 - quoted comment-like text does not hide real HTML attributes
+  ---
+  duration_ms: 0.8437
+  type: 'test'
+  ...
+# Subtest: checks only published paths, case, same-page headings and HTML image sources
+ok 21 - checks only published paths, case, same-page headings and HTML image sources
+  ---
+  duration_ms: 8.7828
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 268.1895

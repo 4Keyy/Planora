@@ -1,0 +1,472 @@
+[
+  {
+    "path": ".gitignore",
+    "bytes": 5707,
+    "sha256": "311040cca08f74056fc678d2fa0a4c738929c9f2585792f53b5cfc9688281a0f",
+    "extension": "",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".dockerignore",
+    "bytes": 3501,
+    "sha256": "a09c02262619740fc58dbac22e75c8ff857e30f6e7abaa2c1e6c1e167d530a9c",
+    "extension": "",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "global.json",
+    "bytes": 79,
+    "sha256": "a727f735515a4d2d71d424504f8027bcaae682164a0b089d01e21f15752f754b",
+    "extension": ".json",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "Directory.Build.props",
+    "bytes": 2222,
+    "sha256": "4ff5bda3e1a01f469ca6355789f0cbd1722bf01b9c54063aa7ec5b866d0ab3c9",
+    "extension": ".props",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "frontend/package.json",
+    "bytes": 2087,
+    "sha256": "7eaeb690570795c05c5f1fe13e7c55f557f69da5df21753a08de127f37284786",
+    "extension": ".json",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "frontend/vitest.config.ts",
+    "bytes": 3497,
+    "sha256": "27ae6364421122cb481822408cf5ee05a4f92329216326e201bfc420404eedcc",
+    "extension": ".ts",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "frontend/playwright.config.ts",
+    "bytes": 1423,
+    "sha256": "39ba09f5c5ec7c81b991d2ff47548f93929b40a5f645477a798a401af3f63f9d",
+    "extension": ".ts",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".markdownlint-cli2.jsonc",
+    "bytes": 552,
+    "sha256": "4a523a06f53627fbbd8340a19dbb6239e55df0f2f867b9d9d14082d0d369694a",
+    "extension": ".jsonc",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".gitleaks.toml",
+    "bytes": 3786,
+    "sha256": "3fdc61d235798fa7a9b15456b93e4ce4ec8696714f20eb1ff457d9730137c009",
+    "extension": ".toml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".gitleaksignore",
+    "bytes": 982,
+    "sha256": "09e248efb8ee5623ab5799d195d771bc1316f58149ca5cef4738e15830958003",
+    "extension": "",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/dependabot.yml",
+    "bytes": 2892,
+    "sha256": "94759090e50d0458f9511264aea7e1f0d6fae1cc6593036c291cd27847f1dc57",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".config/dotnet-tools.json",
+    "bytes": 335,
+    "sha256": "1c78fea1cf75547edd027e55a641577ac67117dd643d16ed67fac8b21ae8512f",
+    "extension": ".json",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/scripts/nuget-vulnerability-report.mjs",
+    "bytes": 6342,
+    "sha256": "265ec0a07e88b8517a9f9b0d5523f6e0e4cb3451331986b0b522ef7e1912fc95",
+    "extension": ".mjs",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tools/docs/check.mjs",
+    "bytes": 4652,
+    "sha256": "e353297f38c7adb45bca9b0ace8c4fff04ad05f3cf9f67977ab141c5ba3fc81d",
+    "extension": ".mjs",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tools/docs/lint.mjs",
+    "bytes": 649,
+    "sha256": "f5a831e32bc3adfdced2deb754a95b31c54974b35ffc2dbf19b45c38f391105d",
+    "extension": ".mjs",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tools/docs/package.json",
+    "bytes": 421,
+    "sha256": "e5e3a9f51f77f16abc24609c23eadfcaca736f3750555b383edd476cbd579fdd",
+    "extension": ".json",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tools/Planora.Migrator/Program.cs",
+    "bytes": 15839,
+    "sha256": "b56f912a591d6e18424e7656e2efed1d0dbe4a1b184c52ea57df50baa2e193e0",
+    "extension": ".cs",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tools/Planora.Migrator/Dockerfile",
+    "bytes": 4794,
+    "sha256": "95ca97ca26e6bfdf1e0e0a39614db8595b8ad3f217ad6c6d542f5546498edd5a",
+    "extension": "",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "deploy/fly/migrator.fly.toml",
+    "bytes": 1001,
+    "sha256": "5d3b8b0d902b065739e932d75a8e4806dbe045a9c3b91f9a30276105bd52b6d0",
+    "extension": ".toml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "deploy/fly/auth.fly.toml",
+    "bytes": 1777,
+    "sha256": "514667babadf6c17641445f3dc145d15b578dd6ce342ddd1091a89bbb13a23c5",
+    "extension": ".toml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "deploy/fly/gateway.fly.toml",
+    "bytes": 1234,
+    "sha256": "70c22726adf21f8d27ebf50dd6bf5643b7ee2392a3fc686cdfdb318c8db9df90",
+    "extension": ".toml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "docker-compose.yml",
+    "bytes": 18539,
+    "sha256": "711e5f6387f4d4f476ad2bfd335aa6b0e0d4c950bcf9e55dbe318a9391c1c828",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "perf/k6/scenarios/login.js",
+    "bytes": 1309,
+    "sha256": "17829e63f3454b766eae4276d29508ec93dc16155442d159f2d44e17e224687e",
+    "extension": ".js",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "perf/k6/scenarios/todo-list.js",
+    "bytes": 1411,
+    "sha256": "870e7a6c3ede755be1cef6f4a2fc167eba5941bd9d0d0b4aef64c4f543187976",
+    "extension": ".js",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "perf/k6/lib/api.js",
+    "bytes": 2882,
+    "sha256": "a6c2c978c29c3b7eca5a9c37938199a899a248276a54d4803994395757a14f88",
+    "extension": ".js",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "perf/README.md",
+    "bytes": 4153,
+    "sha256": "a7469c32fd628569f3270b17f1493ea5824868f11aa5fa70eb7ba97de8e84d3d",
+    "extension": ".md",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "docs/known-limitations.md",
+    "bytes": 3821,
+    "sha256": "6ad3d2491dd2d1ae9d89115c3907892447d9f9a8a6d6f2b45121748a0ba81d6e",
+    "extension": ".md",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "docs/backup-recovery.md",
+    "bytes": 7947,
+    "sha256": "ffd694ddcc4b7e9b6ecacc861fb7cbf01e963bff3db07dd2dec3382920ef1892",
+    "extension": ".md",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Planora.UnitTests.csproj",
+    "bytes": 3826,
+    "sha256": "53f7e7908737959aec044906874b01cd926435b084e1ec905191afbb364c90f3",
+    "extension": ".csproj",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj",
+    "bytes": 1759,
+    "sha256": "5d629863796771ac41ad40b5cbc2cee2d6f0d9bdc00c33947dc079ac9e0677dd",
+    "extension": ".csproj",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/cd.yml",
+    "bytes": 9583,
+    "sha256": "d50e5ef17e0011833f4dadce36c70b65bec8f943994e022a4f8886946c7f8014",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "bytes": 4003,
+    "sha256": "06269d30d9f21cd345a58a018ccdc47a88252ac6bf08f3bc821584f9f461437c",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/e2e.yml",
+    "bytes": 6822,
+    "sha256": "4ad4135314d8355b2dcd6bedea94e12c5c8d5cb8ed8fdaa39a29c799222e6e2f",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/migrations.yml",
+    "bytes": 6283,
+    "sha256": "739eadd4e8dd7217a05f0631575e54f59a0b681e765d4b38e835fa02844ed8cf",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/nuget-vuln-pr.yml",
+    "bytes": 2268,
+    "sha256": "aff423de77965584feb8e8aa602d6eb8c2249233a761ed8bc75c00013f5cdc39",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/openapi.yml",
+    "bytes": 7268,
+    "sha256": "fd9ed73b90e568b010f22b9a12780d8bd7bd3a0b4cc934fb8f49d7602c7fdfde",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/perf-smoke.yml",
+    "bytes": 3697,
+    "sha256": "e72ebce6e562afa3fb28a4a1489099c68cd014eacbaf337676f060f743283d87",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": ".github/workflows/security.yml",
+    "bytes": 9807,
+    "sha256": "f4eb9fbea81ee36ec38f04270cb35b0f0288a22d66a88f763110890e0f769c84",
+    "extension": ".yml",
+    "status": "REVIEWED",
+    "pass": "root-static-and-history",
+    "lines": "full",
+    "note": "Full content read and compared to related config/code/tests; runtime scope separately recorded"
+  },
+  {
+    "path": "docs/INVARIANTS.md",
+    "bytes": 38932,
+    "sha256": "dead940fc8ce70dc8a593c725716aebe1eccd09c1cc3517abf43726bcbf42225",
+    "extension": ".md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "1-85",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "docs/codebase-map.md",
+    "bytes": 34568,
+    "sha256": "26c8cdd6d816ad682658aae9b78336eb680cc1ff37c036074413bc98f0a6a5f7",
+    "extension": ".md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "1-150",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "docs/deployment.md",
+    "bytes": 12003,
+    "sha256": "76fe18bbdfdae23d37bf25beda6499fe704fb971de8452c78e8c6542b095eff4",
+    "extension": ".md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "41-240",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "docs/slo.md",
+    "bytes": 8448,
+    "sha256": "25be97e2a1774b8c66b124bcf09721dc4566862b9bc686340ac5a4aab4208bf9",
+    "extension": ".md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "1-80 and final sections",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "Directory.Packages.props",
+    "bytes": 8738,
+    "sha256": "1f9360fd5cce57ed914b792df3239cd93f63fe220fc8ac82327391a04ce08634",
+    "extension": ".props",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "selected package declarations; truncated middle output",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "tests/Planora.ErrorHandlingTests/Integration/TodoApiTestFactory.cs",
+    "bytes": 12826,
+    "sha256": "380545bbd88b81eef88371f0718d0e5f8fef6be863939caf38bdae5402b643b8",
+    "extension": ".cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "1-150",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres/TodoActiveListPostgresTests.cs",
+    "bytes": 25155,
+    "sha256": "0069e6907b76444b2d9a5c97bc8d54a56651915870989c9c6fe89fee4f2bc9e4",
+    "extension": ".cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "431-490",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Quality/RuntimeContractTests.cs",
+    "bytes": 15097,
+    "sha256": "5a976a20b05fd2a523074cc0bc8de4b8248b9b989d5a6c6a0990a75f53779a91",
+    "extension": ".cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "1-175",
+    "note": "Root selected ranges only; continue complete file review"
+  },
+  {
+    "path": "deploy/fly/set-secrets.ps1",
+    "bytes": 7474,
+    "sha256": "b92d8f1d7eae9fdd744ad42c5719e55cb8c72dc55deb5d8f220c55a090641ee6",
+    "extension": ".ps1",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "root-partial",
+    "lines": "146-177",
+    "note": "Root selected ranges only; continue complete file review"
+  }
+]

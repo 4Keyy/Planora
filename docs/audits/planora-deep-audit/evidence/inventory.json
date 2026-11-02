@@ -1,0 +1,222 @@
+{
+  "tracked_files": 1558,
+  "bytes": 9878000,
+  "by_top": {
+    ".config": 1,
+    "[root]": 28,
+    ".githooks": 1,
+    ".github": 21,
+    "BuildingBlocks": 151,
+    "GrpcContracts": 7,
+    "Planora.ApiGateway": 13,
+    "Services": 587,
+    "deploy": 13,
+    "docs": 35,
+    "frontend": 487,
+    "perf": 4,
+    "scripts": 5,
+    "tests": 184,
+    "tools": 21
+  },
+  "by_extension": {
+    ".json": 35,
+    "": 17,
+    ".example": 3,
+    ".yml": 14,
+    ".md": 51,
+    ".mjs": 18,
+    ".toml": 11,
+    ".jsonc": 1,
+    ".yaml": 1,
+    ".cs": 878,
+    ".csproj": 32,
+    ".props": 2,
+    ".proto": 5,
+    ".sln": 1,
+    ".ps1": 5,
+    ".runsettings": 1,
+    ".svg": 2,
+    ".ts": 198,
+    ".cjs": 6,
+    ".js": 5,
+    ".png": 4,
+    ".tsx": 263,
+    ".css": 1,
+    ".psm1": 3,
+    ".sh": 1
+  },
+  "symbol_counts": {
+    "event_contract": 13,
+    "middleware": 7,
+    "hosted_service": 12,
+    "dbset": 33,
+    "http_attribute": 77,
+    "grpc_rpc": 24,
+    "entrypoint": 7
+  },
+  "routes": [
+    "frontend/src/app/(app)/branch/[id]/page.tsx",
+    "frontend/src/app/(app)/categories/page.tsx",
+    "frontend/src/app/(app)/dashboard/page.tsx",
+    "frontend/src/app/(app)/profile/page.tsx",
+    "frontend/src/app/(app)/tasks/completed/page.tsx",
+    "frontend/src/app/(app)/tasks/page.tsx",
+    "frontend/src/app/auth/forgot-password/page.tsx",
+    "frontend/src/app/auth/forgot-password/sent/page.tsx",
+    "frontend/src/app/auth/login/page.tsx",
+    "frontend/src/app/auth/register/page.tsx",
+    "frontend/src/app/auth/reset-password/page.tsx",
+    "frontend/src/app/auth/verify-email/page.tsx",
+    "frontend/src/app/page.tsx"
+  ],
+  "projects": [
+    "BuildingBlocks/Planora.BuildingBlocks.Application/Planora.BuildingBlocks.Application.csproj",
+    "BuildingBlocks/Planora.BuildingBlocks.Domain/Planora.BuildingBlocks.Domain.csproj",
+    "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Planora.BuildingBlocks.Infrastructure.csproj",
+    "GrpcContracts/GrpcContracts.csproj",
+    "Planora.ApiGateway/Planora.ApiGateway.csproj",
+    "Services/AuthApi/Planora.Auth.Api/Planora.Auth.Api.csproj",
+    "Services/AuthApi/Planora.Auth.Application/Planora.Auth.Application.csproj",
+    "Services/AuthApi/Planora.Auth.Domain/Planora.Auth.Domain.csproj",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Planora.Auth.Infrastructure.csproj",
+    "Services/CategoryApi/Planora.Category.Api/Planora.Category.Api.csproj",
+    "Services/CategoryApi/Planora.Category.Application/Planora.Category.Application.csproj",
+    "Services/CategoryApi/Planora.Category.Domain/Planora.Category.Domain.csproj",
+    "Services/CategoryApi/Planora.Category.Infrastructure/Planora.Category.Infrastructure.csproj",
+    "Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Planora.Collaboration.Application.csproj",
+    "Services/CollaborationApi/Planora.Collaboration.Domain/Planora.Collaboration.Domain.csproj",
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Planora.Collaboration.Infrastructure.csproj",
+    "Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj",
+    "Services/MessagingApi/Planora.Messaging.Application/Planora.Messaging.Application.csproj",
+    "Services/MessagingApi/Planora.Messaging.Domain/Planora.Messaging.Domain.csproj",
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj",
+    "Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj",
+    "Services/RealtimeApi/Planora.Realtime.Application/Planora.Realtime.Application.csproj",
+    "Services/RealtimeApi/Planora.Realtime.Domain/Planora.Realtime.Domain.csproj",
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj",
+    "Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj",
+    "Services/TodoApi/Planora.Todo.Application/Planora.Todo.Application.csproj",
+    "Services/TodoApi/Planora.Todo.Domain/Planora.Todo.Domain.csproj",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Planora.Todo.Infrastructure.csproj",
+    "tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj",
+    "tests/Planora.UnitTests/Planora.UnitTests.csproj",
+    "tools/Planora.Migrator/Planora.Migrator.csproj"
+  ],
+  "workflows": [
+    ".github/workflows/cd.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/e2e.yml",
+    ".github/workflows/migrations.yml",
+    ".github/workflows/nuget-vuln-pr.yml",
+    ".github/workflows/openapi.yml",
+    ".github/workflows/perf-smoke.yml",
+    ".github/workflows/security.yml"
+  ],
+  "migrations": [
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs",
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.Designer.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/TodoDbContextModelSnapshot.cs"
+  ],
+  "largest": [
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 451730
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "bytes": 357513
+    },
+    {
+      "path": "docs/features.md",
+      "bytes": 209899
+    },
+    {
+      "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+      "bytes": 149200
+    },
+    {
+      "path": "docs/design-system.md",
+      "bytes": 117113
+    },
+    {
+      "path": "frontend/src/app/(app)/profile/page.tsx",
+      "bytes": 99786
+    },
+    {
+      "path": "docs/API.md",
+      "bytes": 93836
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+      "bytes": 86753
+    },
+    {
+      "path": "Start-Planora-Local.ps1",
+      "bytes": 80701
+    },
+    {
+      "path": "docs/testing.md",
+      "bytes": 62532
+    },
+    {
+      "path": "frontend/src/components/todos/todo-card.tsx",
+      "bytes": 61993
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoQueryHandlerTests.cs",
+      "bytes": 58429
+    },
+    {
+      "path": "frontend/e2e/ui/notices-errors.ui.spec.ts",
+      "bytes": 53771
+    },
+    {
+      "path": "docs/auth-security.md",
+      "bytes": 52519
+    },
+    {
+      "path": "tools/docs/package-lock.json",
+      "bytes": 51343
+    },
+    {
+      "path": "frontend/src/components/todos/audience/audience-map.tsx",
+      "bytes": 49275
+    },
+    {
+      "path": "frontend/src/test/components/todo-heavy-components.test.tsx",
+      "bytes": 48026
+    },
+    {
+      "path": "frontend/src/app/(app)/tasks/page.tsx",
+      "bytes": 47574
+    },
+    {
+      "path": "frontend/src/app/_landing/trust-lab.tsx",
+      "bytes": 46791
+    },
+    {
+      "path": "docs/frontend.md",
+      "bytes": 45882
+    }
+  ]
+}

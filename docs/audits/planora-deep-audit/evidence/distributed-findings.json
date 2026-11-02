@@ -1,0 +1,483 @@
+[
+  {
+    "id": "DIST-001",
+    "title": "Коллизия consumer queue: удаление пользователя не доставляется каждому домену",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "high при совместном broker/vhost",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+        "lines": "158-209",
+        "symbol": "SubscribeAsync",
+        "observation": "queueName строится из eventName и handlerType.Name без namespace/service; одна durable queue"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Api/Program.cs",
+        "lines": "169",
+        "symbol": "SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>",
+        "observation": "Todo подписан на UserDeletedEventConsumer"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+        "lines": "163",
+        "symbol": "SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>",
+        "observation": "Category имеет то же простое имя handler"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+        "lines": "165",
+        "symbol": "SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>",
+        "observation": "Collaboration имеет то же простое имя handler"
+      }
+    ],
+    "trigger": "В одном vhost запустить Todo/Category/Collaboration; опубликовать один UserDeletedIntegrationEvent. Каждый сервис ожидает собственную копию, но все consumers подключены к UserDeletedIntegrationEvent.UserDeletedEventConsumer.",
+    "impact": "Очистка задач, категорий и комментариев выполняется лишь получившим delivery сервисом. Персональные данные остаются в остальных доменах.",
+    "root_cause": "Transport subscription identity равен простому имени типа вместо независимого логического подписчика.",
+    "fix": "Ввести стабильные service/subscription identifiers в именование очереди, сохранить routing key eventName. Каждой подписке соответствует один handler. Подготовить совместимый переход старой очереди с остановкой старых consumers, сохранением backlog и идемпотентным replay по всем трём подписчикам; не удалять очередь автоматически.",
+    "alternatives": [
+      "Полное имя handler устраняет текущую коллизию, но превращает rename namespace в breaking transport change; предпочтительны явные стабильные logical IDs.",
+      "Переименовать три класса как временную меру — менее устойчиво и также требует migration broker topology."
+    ],
+    "tests": [
+      "На настоящем изолированном RabbitMQ один event доставлен всем трём разным logical subscribers.",
+      "Две реплики одного logical subscriber делят работу, не удваивают побочный эффект.",
+      "Replay UserDeletedIntegrationEvent повторно безопасен для каждого домена.",
+      "Mock channel assertion проверяет разные queue names для одинаковых simple class names."
+    ],
+    "acceptance": [
+      "Три домена очищают синтетического пользователя после одного события.",
+      "Очереди и replay lineage документированы; backlog не удалён.",
+      "Конкретные historical event IDs могут быть повторены с подтверждением по каждому домену."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "package": "T05",
+    "limitations": "Коллизия подтверждена кодом и регистрациями. Live broker/topology и реальные данные не запрашивались; runtime reproduction не проводился."
+  },
+  {
+    "id": "DIST-002",
+    "title": "DLX объявлен без durable dead-letter queue и binding",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "high на новом broker",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+        "lines": "26-48",
+        "symbol": "EnsureConnectionAsync",
+        "observation": "DLX объявлен"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+        "lines": "192-200",
+        "symbol": "SubscribeAsync",
+        "observation": "queue содержит x-dead-letter-exchange, но создаётся только основная queue/binding"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+        "lines": "325-340",
+        "symbol": "ProcessEventAsync",
+        "observation": "poison/retry-exhausted nack requeue:false"
+      }
+    ],
+    "trigger": "Fresh broker; обработчик бросает исключение дважды либо malformed JSON попадает в основную очередь. Код отправляет delivery в planora-eventbus-dlx, у которого репозиторий не создаёт ни одного binding.",
+    "impact": "Событие исчезает после ограниченного retry; оператор не может восстановить его из DLQ. Это особенно опасно для account erasure и task lifecycle.",
+    "root_cause": "Объявление exchange ошибочно используется как полноценное хранение dead letters.",
+    "fix": "Добавить декларацию durable DLQ с явным binding до запуска consumers; выбрать отдельную DLQ логического подписчика и dead-letter-routing-key, сохранить headers/source subscription/event id. Добавить runbook bounded replay с согласованием владельца и метрики backlog. Проверить существующие queue arguments до rollout — несовместимые redeclare не лечить удалением.",
+    "alternatives": [
+      "Общая durable quarantine queue с routing '#' проще, но replay должен сохранять оригинального logical subscriber.",
+      "Broker policy управляет DLX без жёстких x-arguments; изменение ownership инфраструктуры согласовать с T14."
+    ],
+    "tests": [
+      "Fresh broker: malformed JSON наблюдаем в DLQ.",
+      "Transient first failure requeues, second moves to DLQ ровно один раз.",
+      "Replay синтетического события сохраняет event Id, не вызывает пропуск другого subscriber.",
+      "Unroutable publish не переводит outbox в Processed."
+    ],
+    "acceptance": [
+      "Ни одно окончательно отклонённое тестовое событие не исчезает.",
+      "DLQ durable и переживает restart; наличие queue/binding проверено.",
+      "Нет бесконечного requeue или авто-replay poison сообщений."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "package": "T05",
+    "limitations": "Отсутствие деклараций подтверждено поиском исходников/compose/deploy; внешняя ручная настройка broker неизвестна. RabbitMQ semantics сверены по официальным docs."
+  },
+  {
+    "id": "DIST-003",
+    "title": "Readiness большинства сервисов не включает базу данных",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "high при DB outage",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs",
+        "lines": "67-70",
+        "symbol": "MapPlanoraHealthEndpoints",
+        "observation": "ready выбирает только checks c tag ready"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+        "lines": "83-96",
+        "symbol": "AddBuildingBlocksInfrastructure",
+        "observation": "DB tags db/postgres, Redis tags cache/redis"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/DependencyInjection.cs",
+        "lines": "131-132",
+        "symbol": "AddRealtimeInfrastructure",
+        "observation": "DbContext check без tags"
+      },
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+        "lines": "65-66",
+        "symbol": "AddMessagingInfrastructure",
+        "observation": "DbContext check без tags"
+      }
+    ],
+    "trigger": "После запуска сделать только тестовую DB недоступной и запросить /health/ready; нет ready-tagged DB registration.",
+    "impact": "Readiness может вернуть 200 при невозможности обслуживать DB-запросы. /health aggregate остаётся отдельной рабочей проверкой; утверждение не распространяется на неё.",
+    "root_cause": "Несогласованный contract registration tags и predicate endpoint.",
+    "fix": "T01 закрепляет ready tagging в shared регистрации/тестах; T02/T03/T04/T05/T06 применяют к service-owned DbContext checks. Liveness не зависит от DB; broker остаётся Degraded на aggregate согласно принятой политике. Не включать Redis fail-open auth в hard ready без согласования политики.",
+    "alternatives": [
+      "Сменить predicate на все checks опасно: transient RabbitMQ заставит убрать сервис с буферизующим outbox из rotation."
+    ],
+    "tests": [
+      "Host test с unhealthy tagged DB: /health/live=200, /health/ready=503.",
+      "Проверить регистрации всех 6 API; Auth Redis check уже ready, DB всё равно отдельно.",
+      "Aggregate /health продолжает показывать broker Degraded."
+    ],
+    "acceptance": [
+      "Для каждого API явно документирован набор readiness dependencies.",
+      "Тесты проверяют реальную DI wiring, не только helper predicate."
+    ],
+    "dependencies": [],
+    "package": "T01",
+    "limitations": "DI соответствующих сервисов дополнительно найден через rg; полный runtime outage не проводился. Реальные probe URLs платформы проверяет T14."
+  },
+  {
+    "id": "DIST-004",
+    "title": "Доступ в SignalR branch room живёт дольше разрешения и токена",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs",
+        "lines": "133-147",
+        "symbol": "JoinTask",
+        "observation": "Права проверяются только при join"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs",
+        "lines": "169-192",
+        "symbol": "StartTyping/StopTyping",
+        "observation": "Последующие вызовы проверяют лишь локальный joined set"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/RealtimeBroadcaster.cs",
+        "lines": "64-85",
+        "symbol": "BranchChangedAsync",
+        "observation": "Событие отправляется всем участникам task group"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "lines": "84-94,219-221",
+        "symbol": "OnTokenValidated/MapHub",
+        "observation": "SecurityStamp проверяется при authentication; MapHub не включает CloseOnAuthenticationExpiration"
+      }
+    ],
+    "trigger": "Пользователь вступает в branch room; затем доступ отозван, дружба удалена, токен истёк либо security stamp изменён. Соединение не разрывается клиентом.",
+    "impact": "Продолжают поступать branch entity/actor metadata и typing display names; бывший участник может посылать typing. Не утверждается доступ к полному тексту задач: HTTP refetch имеет отдельную авторизацию.",
+    "root_cause": "Долгоживущая group membership ошибочно принимается за актуальное право; authentication principal SignalR кэшируется на lifetime connection.",
+    "fix": "Включить close-on-expiry и серверную проверку revocation перед hub invocations. Для branch privacy перейти от группового broadcast к разрешённому списку пользователей: взять текущую audience через защищённый Todo RPC и направить событие personal groups; typing проверяет CanAccessBranchAsync и отправляется только текущей разрешённой аудитории. Удалять stale memberships как cleanup, а не как единственную защиту. Для security-stamp changes нужен серверный disconnect/periodic validation для idle connections; client logout не является контролем безопасности.",
+    "alternatives": [
+      "Надёжное AccessRevoked event + distributed group membership registry может сократить RPC, но требует versioned ordering и гарантированной доставки; не выбирать до доказательства.",
+      "Повторная авторизация только StartTyping не закрывает passive receive."
+    ],
+    "tests": [
+      "Join->revoke->BranchChanged/typing: бывший viewer получает 0 новых payload.",
+      "Valid token expires during open WebSocket: server closes, reconnect with fresh token.",
+      "Password change при открытом idle WebSocket: connection не продолжает private receive.",
+      "Reconnect восстанавливает только разрешённые rooms; два Realtime instances."
+    ],
+    "acceptance": [
+      "Устранены active send и passive receive после revoke.",
+      "Visual/UI contract unchanged; transient auth dependency failure fail-closed.",
+      "Определена и проверена верхняя граница latency revocation."
+    ],
+    "dependencies": [
+      "T02",
+      "T03",
+      "T05",
+      "T07"
+    ],
+    "package": "T06",
+    "limitations": "Подтверждён отсутствующий контроль в server code. WebSocket exploit не выполнялся. Точная revocation policy/latency требует решения владельца; T06 сначала фиксирует её."
+  },
+  {
+    "id": "DIST-005",
+    "title": "Notification persist-then-push теряет push после сбоя",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs",
+        "lines": "57-66",
+        "symbol": "HandleAsync",
+        "observation": "После успешного insert и failed send повторная delivery пропускает push как duplicate"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs",
+        "lines": "26-34",
+        "symbol": "TryAddAsync",
+        "observation": "Наличие SourceEventId возвращает false"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/RealtimeApi/Handlers/NotificationEventHandlerTests.cs",
+        "lines": "63-76,94-106",
+        "symbol": "Duplicate/PropagatesPushFailures",
+        "observation": "Tests отдельно фиксируют skip duplicate и exception; sequence retry-after-commit не проверен"
+      }
+    ],
+    "trigger": "Store commit succeeds; SendToUserAsync fails; Rabbit requeues. Second call sees stored event and returns before Send.",
+    "impact": "Уведомление сохранено и доступно read API, но активный пользователь не получает push до другого refresh/reconnect. Это не потеря durable notification row.",
+    "root_cause": "Dedup persistence и delivery completion сведены в один boolean.",
+    "fix": "Сначала выбрать явный contract best-effort push с гарантированным reconciliation либо retryable delivery. Для retryable: store возвращает stable existing NotificationPayload; delivery имеет отдельный pending/sent state, replay отправляет тот же id, frontend dedup по id. Не генерировать новый Notification.Id на retry. Использовать существующий NotificationDelivery только после проверки его invariants и тестов; не обещать exactly-once network delivery.",
+    "alternatives": [
+      "Если UX допускает best-effort, сохранить server behavior и добавить bounded periodic summary/list reconciliation в T10, документировать latency; это продуктовый выбор."
+    ],
+    "tests": [
+      "Первый send бросает после persist, повторная обработка доставляет тот же id либо reconciliation доказывает согласованный SLA.",
+      "Commit-send-ack crash matrix; duplicate не увеличивает unread дважды.",
+      "Offline client loads persisted rows after reconnect."
+    ],
+    "acceptance": [
+      "Есть один durable row и стабильный notification id.",
+      "Нет дублирующих toast/unread increments.",
+      "Результат соответствует выбранному contract и документирован."
+    ],
+    "dependencies": [
+      "T05",
+      "T10"
+    ],
+    "package": "T06",
+    "limitations": "Статически доказанная последовательность; runtime broker failure не инжектировался. Зависимость T10 является контрактным handoff, не обязательным циклом DAG."
+  },
+  {
+    "id": "DIST-006",
+    "title": "Notification pagination пропускает строки с одинаковым timestamp",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium при burst",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs",
+        "lines": "60-74",
+        "symbol": "GetListAsync",
+        "observation": "Sort только OccurredOnUtc; следующий page WHERE OccurredOnUtc < before"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+        "lines": "59-74",
+        "symbol": "GetList",
+        "observation": "Публичный cursor содержит только DateTime"
+      }
+    ],
+    "trigger": "Создать больше take notifications одному пользователю с одинаковым OccurredOnUtc, взять page1 и запросить before timestamp последней строки.",
+    "impact": "Оставшиеся строки того же timestamp недоступны через load older.",
+    "root_cause": "Неуникальный keyset cursor и отсутствие deterministic tie-breaker.",
+    "fix": "Аддитивно ввести cursor (OccurredOnUtc, Id) с order by descending обеих колонок; timestamp-only before сохранить как legacy explicit mode до обновления T10/T11. Схему/индекс проверить в T08; сравнение UUID провайдера подтвердить PostgreSQL integration test, не предполагать LINQ translation.",
+    "alternatives": [
+      "Offset pagination не устраняет concurrent insertion gaps и ухудшает large backlog; не использовать как быстрый обход."
+    ],
+    "tests": [
+      "3+ равновременных row при take=2 возвращаются без пропусков/повторов.",
+      "Interleaved inserts/mark-read между страницами.",
+      "Два пользователя не смешиваются; malformed cursor дает 400."
+    ],
+    "acceptance": [
+      "Полный обход tied dataset совпадает с expected IDs.",
+      "Клиент и сервер поддерживают согласованный backward-compatible cursor.",
+      "Owner фильтр сохранён."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "package": "T06",
+    "limitations": "Нет динамического воспроизведения; exact query inspect достаточен для finding. Frontend handoff T10/T11 после contract freeze T06."
+  },
+  {
+    "id": "DIST-007",
+    "title": "Некорректный KnownProxies может включить доверие всем forwarded headers",
+    "confidence": "LIKELY",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium при operator misconfiguration",
+    "evidence": [
+      {
+        "path": "Planora.ApiGateway/Program.cs",
+        "lines": "61-82,251-265",
+        "symbol": "ForwardedHeaders configuration",
+        "observation": "Nonempty raw array активирует middleware; оба trusted lists очищены; invalid IP silently skipped; warning советует CIDR, хотя IPAddress.TryParse не принимает CIDR"
+      }
+    ],
+    "trigger": "KnownProxies содержит только CIDR либо invalid value. Исходный array nonempty, parsed KnownProxies empty и KnownIPNetworks empty.",
+    "impact": "При стандартной ASP.NET forwarded-header semantics пустые trusted lists снимают peer restriction; spoofed XFF меняет rate-limit identity и XFP/XFH. Нужен regression на используемом runtime.",
+    "root_cause": "Включение по raw values вместо validated allowlist; silent parse failure; противоречивая подсказка конфигурации.",
+    "fix": "Парсить/валидировать список до registration. Любая непустая invalid запись fail startup с безопасным именем key; при поддержке CIDR использовать KnownIPNetworks явно и тестировать. Включать middleware только при validated allowlist >0. Убрать неверный CIDR совет, сохранить ForwardLimit=1 пока topology не доказана.",
+    "alternatives": [
+      "Оставить middleware выключенным при всех invalid значениях безопаснее trust-all, но скрывает misconfiguration; fail-fast предпочтителен."
+    ],
+    "tests": [
+      "KnownProxies=[] не доверяет spoof XFF.",
+      "Valid proxy only: trusted accepted, untrusted ignored.",
+      "CIDR/invalid/all-whitespace configuration не приводит к empty-trust middleware.",
+      "Статус 429/Retry-After для двух реальных forwarded client IP остаётся раздельным."
+    ],
+    "acceptance": [
+      "Ни одна разрешённая конфигурация не означает implicit trust-all.",
+      "Сценарии проверены на .NET SDK baseline.",
+      "TLS/host trust не расширены."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "package": "T07",
+    "limitations": "Статически доказан empty-list configuration; middleware consequence проверяется host test, поэтому LIKELY. Production config не читалась."
+  },
+  {
+    "id": "DIST-008",
+    "title": "L1 cache может сохранять stale value при failed remove",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "unknown: primitive без найденных runtime consumers",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs",
+        "lines": "186-202",
+        "symbol": "RemoveAsync",
+        "observation": "L1 remove стоит после awaited L2 remove; catch поглощает исключение"
+      }
+    ],
+    "trigger": "ICacheService L1 содержит value; IDistributedCache.RemoveAsync throws; повторный GetAsync возвращает L1.",
+    "impact": "Нарушение primitive invalidate contract до L1 TTL. На baseline не найден application caller ICacheService, поэтому не заявляется текущая утечка private data.",
+    "root_cause": "Best-effort L2 error пропускает независимую локальную invalidation.",
+    "fix": "Всегда удалять L1 независимо от результата L2; cancellation отдельно propagates. Зафиксировать failure contract (лог/метрика или result), не объявлять успешную invalidation в CacheInvalidator после swallowed failure. Не подключать generic cache к authorization paths.",
+    "alternatives": [
+      "Отключить UseLocalCache для sensitive paths, если они появятся, вместо distributed invalidation framework."
+    ],
+    "tests": [
+      "Faulting fake IDistributedCache.RemoveAsync: next read не hit_l1.",
+      "Cancellation не превращается в cache miss/успех.",
+      "Две независимые CacheService instances демонстрируют границы локальной invalidation без claims global consistency."
+    ],
+    "acceptance": [
+      "Primitive test красный до и зелёный после.",
+      "Документирован список реальных runtime callers; если по-прежнему 0, priority остаётся P3.",
+      "Нет новых caching callers или dependencies."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "package": "T09",
+    "limitations": "Дефект primitive confirmed static; продуктовое воздействие NOT_VERIFIED. Сервисы используют отдельные IMemoryCache/Redis implementations, не этот wrapper."
+  },
+  {
+    "id": "DIST-009",
+    "title": "Outbox select/mark не защищён от двух активных процессоров",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "conditional: horizontal replicas",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+        "lines": "118-145",
+        "symbol": "ProcessOutboxMessagesAsync",
+        "observation": "SELECT batch затем отдельный SaveChanges MarkAsProcessing; код прямо предполагает SINGLE processor"
+      }
+    ],
+    "trigger": "Два service replicas выбирают те же Pending rows до изменения status.",
+    "impact": "Двойные публикации и возможные повторные effects в consumers без atomic inbox. At-least-once сам допускает duplicates, но deployment ошибочно может рассчитывать на единичную обработку.",
+    "root_cause": "Нет DB claim/lease atomicity; эксплуатационное ограничение не enforced.",
+    "fix": "Сначала закрепить single active processor как deploy gate. Если horizontal scale требуется: atomic PostgreSQL claim через transaction SKIP LOCKED/UPDATE RETURNING с lease ownership; не держать DB transaction во время broker publish, reclaim проверяет owner/lease. Это отдельное изменение после T08 schema/provider validation.",
+    "alternatives": [
+      "Advisory lock один processor на DB проще и достаточен при текущем объёме; не вводить отдельный worker проект без измерений."
+    ],
+    "tests": [
+      "Два processor instance, barrier синхронизация SELECT; не два concurrent claims одной row.",
+      "Crash после publish допускает redelivery и consumer idempotency.",
+      "Reclaim не отнимает живой lease."
+    ],
+    "acceptance": [
+      "Выбран и доказан single-instance либо atomic-claim contract.",
+      "Нагрузка/throughput измерены до изменения; нет обещания exactly-once.",
+      "Документация deploy не предлагает недопустимую топологию."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "package": "T01",
+    "limitations": "Код подтверждён; live число replicas не проверялось. Это conditional scaling finding, не утверждение текущего инцидента."
+  },
+  {
+    "id": "DIST-010",
+    "title": "Описание outbox backoff в INVARIANTS устарело",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "high для следующих исполнителей",
+    "evidence": [
+      {
+        "path": "docs/INVARIANTS.md",
+        "lines": "73-80",
+        "symbol": "INV-COMM-3a",
+        "observation": "Current-code gap говорит NextRetryUtc не проверяется"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+        "lines": "127-135",
+        "symbol": "ProcessOutboxMessagesAsync",
+        "observation": "Pending уже gated NextRetryUtc"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/OutboxRepository.cs",
+        "lines": "40-44",
+        "symbol": "GetPendingMessagesAsync",
+        "observation": "Та же retry eligibility"
+      }
+    ],
+    "trigger": "Исполнитель берёт docs/INVARIANTS как описание текущего дефекта.",
+    "impact": "Повторное ненужное исправление и риск регрессии корректного retry.",
+    "root_cause": "После commit 0fd486add085950450b96920466f666a6b127cfa документ не синхронизирован.",
+    "fix": "T15 заменить stale gap на текущий контракт с source/test links, сохранив limitation single processor и at-least-once.",
+    "alternatives": [
+      "Не удалять invariant целиком: requirement остаётся важным."
+    ],
+    "tests": [
+      "CanonicalOutboxRepositoryTests.GetPendingMessagesAsync_RespectsScheduledBackoffForPendingRetries",
+      "Docs links validation."
+    ],
+    "acceptance": [
+      "Описание соответствует predicate и existing regression test."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "package": "T15",
+    "limitations": "История и текущий код прочитаны; тест лично этим агентом не запускался."
+  }
+]

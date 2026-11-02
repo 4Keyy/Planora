@@ -1,0 +1,1121 @@
+{
+  "schema_version": 1,
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "tasks": [
+    {
+      "task_id": "T01",
+      "package": "PROMPT_01_FOUNDATIONS.md",
+      "title": "Shared contracts и readiness",
+      "priority": "P2",
+      "severity": "medium",
+      "evidence": [
+        "DIST-003",
+        "DIST-009"
+      ],
+      "paths": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+        "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/DependencyInjection.cs"
+      ],
+      "owner_scope": [
+        "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+        "tests/Planora.UnitTests/Services/Infrastructure"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv"
+      ],
+      "outputs": [
+        "results/T01.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "3–5 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Зафиксировать additive track-only StageAsync: добавить entity в тот же scoped DbContext без SaveChanges. Существующий AddAsync сохраняет semantics, пока каждый caller не переведён отдельным пакетом. Добавить тест shared contract и ready tags. Для outbox сначала сохранить один активный processor как deployment precondition; horizontal scale требует PostgreSQL atomic claim/lease, не одного in-memory lock. Никакой универсальной новой transaction framework."
+    },
+    {
+      "task_id": "T02",
+      "package": "PROMPT_02_AUTH_PRIVACY.md",
+      "title": "Authentication и privacy",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "BE-003",
+        "BE-004"
+      ],
+      "paths": [
+        "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+        "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs",
+        "Services/AuthApi/Planora.Auth.Domain/Entities/RefreshToken.cs",
+        "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs",
+        "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs"
+      ],
+      "owner_scope": [
+        "Services/AuthApi",
+        "tests/Planora.UnitTests/Services/AuthApi"
+      ],
+      "dependencies": [
+        "T08",
+        "T09"
+      ],
+      "blocked_by": [
+        "T08",
+        "T09"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T08.md",
+        "results/T09.md"
+      ],
+      "outputs": [
+        "results/T02.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–7 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Сначала Npgsql reproduction refresh CAS и expired-device uniqueness. Сохранить sequential replay detection, HttpOnly refresh, stamp/cookie semantics. Данные key ring из T09 не переносить без backup и decryption drill."
+    },
+    {
+      "task_id": "T03",
+      "package": "PROMPT_03_TASKS_COLLABORATION.md",
+      "title": "Tasks и Collaboration invariants",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "BE-002",
+        "BE-005",
+        "BE-006"
+      ],
+      "paths": [
+        "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+        "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/SubtaskDeletedEventConsumer.cs",
+        "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs",
+        "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs",
+        "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs",
+        "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs"
+      ],
+      "owner_scope": [
+        "Services/TodoApi",
+        "Services/CollaborationApi",
+        "tests/Planora.UnitTests/Services/TodoApi",
+        "tests/Planora.UnitTests/Services/CollaborationApi"
+      ],
+      "dependencies": [
+        "T01",
+        "T02",
+        "T05",
+        "T08"
+      ],
+      "blocked_by": [
+        "T01",
+        "T02",
+        "T05",
+        "T08"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md",
+        "results/T02.md",
+        "results/T05.md",
+        "results/T08.md"
+      ],
+      "outputs": [
+        "results/T03.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "5–9 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Операция mutation + все durable events должна иметь один commit. До commit получить необходимую authorization/enrichment информацию, затем stage полный fan-out и сохранить; недоступность необязательной enrichment после commit не возвращает ложное failure. Friendship revoke удаляет workers в обе стороны и у subtasks без изменения чужих workers. System comment deletion перевести с title suffix на SourceSubtaskId: optional backward-compatible event field, nullable column, новые события пишут ID; legacy ambiguous строки не удалять. Схему заказывает T08, contract extension согласовать T01/T07 до патча."
+    },
+    {
+      "task_id": "T04",
+      "package": "PROMPT_04_CATEGORIES.md",
+      "title": "Category ownership и atomic deletion",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "BE-001"
+      ],
+      "paths": [
+        "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/DeleteCategory/DeleteCategoryCommandHandler.cs",
+        "Services/CategoryApi/Planora.Category.Application/Features/Categories/Events/CategoryDeletedDomainEventHandler.cs",
+        "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs"
+      ],
+      "owner_scope": [
+        "Services/CategoryApi",
+        "tests/Planora.UnitTests/Services/CategoryApi"
+      ],
+      "dependencies": [
+        "T01",
+        "T05",
+        "T08"
+      ],
+      "blocked_by": [
+        "T01",
+        "T05",
+        "T08"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md",
+        "results/T05.md",
+        "results/T08.md"
+      ],
+      "outputs": [
+        "results/T04.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "2–4 дня",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Сохранить owner predicates и privacy. Перенести staging durable CategoryDeleted event в transaction владельца, исключить повторный post-commit dispatch. Без массового изменения категории чужого viewer."
+    },
+    {
+      "task_id": "T05",
+      "package": "PROMPT_05_MESSAGING.md",
+      "title": "RabbitMQ delivery и Messaging",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "DIST-001",
+        "DIST-002"
+      ],
+      "paths": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+        "Services/CategoryApi/Planora.Category.Api/Program.cs",
+        "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+        "Services/TodoApi/Planora.Todo.Api/Program.cs"
+      ],
+      "owner_scope": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging",
+        "Services/MessagingApi",
+        "tests/Planora.UnitTests/Services/MessagingApi"
+      ],
+      "dependencies": [
+        "T01"
+      ],
+      "blocked_by": [
+        "T01"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md"
+      ],
+      "outputs": [
+        "results/T05.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–7 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Logical subscription ID должен быть стабильным и различаться между сервисами; одинаковые реплики одного сервиса сохраняют одну queue. Использовать event routing key без изменения payload. Дать каждой queue durable DLQ и explicit dead-letter routing key, проверить publisher confirms и unroutable. Переход: inventory old backlog, pause old consumers в согласованное окно, новые bindings, bounded idempotent replay, counts; не удалять старую queue автоматически. Сервисные эффекты erasure проверяют T02/T03/T04. Rabbit retry tests сейчас helper-only, нужен real broker."
+    },
+    {
+      "task_id": "T06",
+      "package": "PROMPT_06_REALTIME.md",
+      "title": "Realtime authorization и durable notifications",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "DIST-004",
+        "DIST-005",
+        "DIST-006"
+      ],
+      "paths": [
+        "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+        "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/RealtimeBroadcaster.cs",
+        "tests/Planora.UnitTests/Services/RealtimeApi/Handlers/NotificationEventHandlerTests.cs"
+      ],
+      "owner_scope": [
+        "Services/RealtimeApi",
+        "tests/Planora.UnitTests/Services/RealtimeApi"
+      ],
+      "dependencies": [
+        "T02",
+        "T03",
+        "T05",
+        "T08"
+      ],
+      "blocked_by": [
+        "T02",
+        "T03",
+        "T05",
+        "T08"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by",
+        "Provider gate: verified disposable PLANORA_TEST_POSTGRES, nonzero provider tests and zero unexpected skips; no current/prod DB"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T02.md",
+        "results/T03.md",
+        "results/T05.md",
+        "results/T08.md"
+      ],
+      "outputs": [
+        "results/T06.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --configuration Release --filter \"FullyQualifiedName~RealtimeDatabaseStartupTests|FullyQualifiedName~TodoDatabaseStartupTests|FullyQualifiedName~Postgres\""
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "5–8 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Security решение: room membership не является permission; определить текущий audience через Todo authority перед broadcast и отправлять в разрешённые personal groups. Typing проверяет access перед payload; revoke/stamp/expiry закрывают доступ действующего connection. CloseOnAuthenticationExpiration не заменяет revoke. Для persist-then-push выбрать retryable stable ID delivery плюс reconnect reconciliation, используя существующую NotificationDelivery только после проверки её модели. Pagination cursor содержит timestamp+ID, legacy before остаётся явно совместимым; SQL UUID ordering проверить в Npgsql. Frontend client принадлежит T10, acceptance совместный."
+    },
+    {
+      "task_id": "T07",
+      "package": "PROMPT_07_GATEWAY_GRPC.md",
+      "title": "Gateway, gRPC и rate-limit",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "DIST-007"
+      ],
+      "paths": [
+        "Planora.ApiGateway/Program.cs"
+      ],
+      "owner_scope": [
+        "Planora.ApiGateway",
+        "GrpcContracts",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc"
+      ],
+      "dependencies": [
+        "T01"
+      ],
+      "blocked_by": [
+        "T01"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md"
+      ],
+      "outputs": [
+        "results/T07.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "3–5 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "До включения forwarded middleware валидировать allowlist целиком: invalid/whitespace/CIDR нельзя молча превращать в empty trust. Сохранить ForwardLimit=1 до проверки topology. Реальный middleware test spoofed XFF, trusted/untrusted proxy, principal partition, Retry-After. Rate limit не повышать ради тестов. Подготовить production route/listener matrix для T14: REST и h2c отдельные effective endpoints; Production не должен брать localhost map. Не заменять shared key на mTLS без отдельной доказанной потребности/плана."
+    },
+    {
+      "task_id": "T08",
+      "package": "PROMPT_08_DATABASE.md",
+      "title": "EF schema integrity и migration baseline",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "BE-007"
+      ],
+      "paths": [
+        ".gitignore",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs",
+        "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDatabaseStartup.cs"
+      ],
+      "owner_scope": [
+        "Services/AuthApi/Planora.Auth.Infrastructure/Persistence",
+        "Services/CategoryApi/Planora.Category.Infrastructure/Persistence",
+        "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence",
+        "tools/Planora.Migrator",
+        ".gitignore",
+        ".dockerignore",
+        "Services/*/Planora.*.Infrastructure/Migrations",
+        "tests/Planora.UnitTests/Services/*/Infrastructure",
+        "tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres"
+      ],
+      "dependencies": [
+        "T01"
+      ],
+      "blocked_by": [
+        "T01"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by",
+        "Provider gate: verified disposable PLANORA_TEST_POSTGRES, nonzero provider tests and zero unexpected skips; no current/prod DB"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md"
+      ],
+      "outputs": [
+        "results/T08.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --configuration Release --filter \"FullyQualifiedName~RealtimeDatabaseStartupTests|FullyQualifiedName~TodoDatabaseStartupTests|FullyQualifiedName~Postgres\""
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "5–9 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Составить таблицу model/migrations/compiled chain/applied history без подключения production. Auth, Category, Collaboration model-created schemas требуют versioned upgrade/adoption, не EnsureCreated как upgrade. Включить Messaging в inventory: отсутствие finding не означает проверенную схему. Todo и Realtime имеют рабочие guarded startup helpers — сохранить проверки, не восстанавливать устаревший missing-initial диагноз. Fresh, compatible unmanaged, prior managed, unknown migration, partial schema и cancellation проверяются на одноразовом Npgsql. Approval исключения ignore только для реально reviewed migration sources; expand/backfill/contract с restore plan, не history stamp без equivalence."
+    },
+    {
+      "task_id": "T09",
+      "package": "PROMPT_09_CACHE.md",
+      "title": "Redis/cache consistency и key durability",
+      "priority": "P3",
+      "severity": "medium",
+      "evidence": [
+        "DIST-008"
+      ],
+      "paths": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs"
+      ],
+      "owner_scope": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching",
+        "tests/Planora.UnitTests/Services/Infrastructure"
+      ],
+      "dependencies": [
+        "T01"
+      ],
+      "blocked_by": [
+        "T01"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md"
+      ],
+      "outputs": [
+        "results/T09.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "dotnet --version",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --filter \"FullyQualifiedName!~Postgres\"",
+        "dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "2–4 дня",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "L1 invalidation выполнить даже при L2 failure; OperationCanceledException не поглощать. Зафиксировать зависимости security stamp/rate limits/DataProtection от Redis. Compose allkeys-lru может вытеснять non-expiring key ring: исследовать same-instance binding Auth DI и подготовить решение dedicated durable storage/non-evicting instance для T02/T14. Нельзя просто включить noeviction для всего cache без capacity/error validation. Не вводить cache в auth predicates и не обещать cross-instance invalidation от одного MemoryCache.Remove."
+    },
+    {
+      "task_id": "T10",
+      "package": "PROMPT_10_FRONTEND_CORE.md",
+      "title": "Client session lifecycle",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "FE-001",
+        "FE-002",
+        "FE-003",
+        "FE-004"
+      ],
+      "paths": [
+        "docs/audits/planora-deep-audit/evidence/frontend-review.md",
+        "frontend/src/app/(app)/profile/page.tsx",
+        "frontend/src/app/auth/verify-email/page.tsx",
+        "frontend/src/components/security-initializer.tsx",
+        "frontend/src/lib/api.ts",
+        "frontend/src/lib/auth-public.ts",
+        "frontend/src/lib/realtime/client.ts",
+        "frontend/src/lib/realtime/hooks.ts",
+        "frontend/src/store/auth.ts",
+        "frontend/src/store/notifications.ts"
+      ],
+      "owner_scope": [
+        "frontend/src/store",
+        "frontend/src/lib",
+        "frontend/src/components/security-initializer.tsx",
+        "frontend/src/test/store",
+        "frontend/src/test/lib",
+        "frontend/src/hooks/use-categories.ts",
+        "frontend/src/app/auth/verify-email/page.tsx (refresh continuation only)",
+        "frontend/src/app/(app)/profile/page.tsx (refresh continuation only)"
+      ],
+      "dependencies": [
+        "T01"
+      ],
+      "blocked_by": [
+        "T01"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T01.md"
+      ],
+      "outputs": [
+        "results/T10.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "npm --prefix frontend run lint",
+        "npm --prefix frontend run type-check -- --incremental false",
+        "npm --prefix frontend run test:coverage"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "3–6 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Session epoch и stale async guards; сохранить нормальную token rotation и UI contracts."
+    },
+    {
+      "task_id": "T11",
+      "package": "PROMPT_11_FRONTEND_UX.md",
+      "title": "Routes, search, notices и visual regression",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "FE-005",
+        "OPS-002"
+      ],
+      "paths": [
+        "docs/audits/planora-deep-audit/evidence/remote-failures.md",
+        "frontend/src/app/(app)/branch/[id]/page.tsx"
+      ],
+      "owner_scope": [
+        "frontend/src/app",
+        "frontend/src/components",
+        "frontend/e2e/ui",
+        "frontend/src/lib/api.ts (T06 cursor integration after T10)",
+        "frontend/src/store/notifications.ts (T06 reconciliation after T10)"
+      ],
+      "dependencies": [
+        "T10",
+        "T06"
+      ],
+      "blocked_by": [
+        "T10",
+        "T06"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T10.md",
+        "results/T06.md"
+      ],
+      "outputs": [
+        "results/T11.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "npm --prefix frontend run lint",
+        "npm --prefix frontend run type-check -- --incremental false",
+        "npm --prefix frontend run test:coverage"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–7 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Сначала воспроизвести branch navigation race и remote E2E failures. Сохранить design, motion timings и pointer/keyboard поведение. Исторические search delay/TTL fixes не считать активными defects без reproduction."
+    },
+    {
+      "task_id": "T12",
+      "package": "PROMPT_12_SECURITY_SUPPLY_CHAIN.md",
+      "title": "Security triage и supply chain",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "OPS-003",
+        "OPS-004",
+        "OPS-010"
+      ],
+      "paths": [
+        ".gitleaks.toml",
+        "docs/audits/planora-deep-audit/evidence/npm-audit.json",
+        "docs/audits/planora-deep-audit/evidence/remote-failures.md"
+      ],
+      "owner_scope": [
+        ".gitleaks.toml",
+        ".gitleaksignore",
+        ".github/security",
+        "Directory.Packages.props",
+        "frontend/package.json",
+        "frontend/package-lock.json",
+        "tools/docs/package.json",
+        "tools/docs/package-lock.json"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv"
+      ],
+      "outputs": [
+        "results/T12.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "npm --prefix frontend audit --omit=dev --audit-level=high",
+        "npm --prefix frontend audit --json",
+        "dotnet list Planora.sln package --vulnerable --include-transitive --format json",
+        "node --test .github/scripts/nuget-vulnerability-report.test.mjs"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "3–5 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "66 scanner matches классифицировать по fingerprints и provenance, не по raw values. Не расширять allowlist на все tests или compose. Обновления зависимостей через совместимый upstream, минимальный lock diff, обе audit команды, tests/build; запрет npm audit fix --force. PR144 сначала inspect final diff и CI SHA, не merge. Проверить NuGet transitive report, SPDX/license metadata: факт лицензии не равен правовому заключению. Новые версии инструментов предложить T14 вместе с source/checksum/update policy. Production secret rotation — отдельное действие владельца."
+    },
+    {
+      "task_id": "T13",
+      "package": "PROMPT_13_TEST_STRATEGY.md",
+      "title": "Test traceability и reliability",
+      "priority": "P2",
+      "severity": "medium",
+      "evidence": [],
+      "paths": [],
+      "owner_scope": [
+        "frontend/src/test/setup.ts",
+        "frontend/playwright.config.ts",
+        "frontend/e2e/run-ci.cjs",
+        "tests/Planora.ErrorHandlingTests"
+      ],
+      "dependencies": [
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T09",
+        "T11",
+        "T12"
+      ],
+      "blocked_by": [
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T09",
+        "T11",
+        "T12"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T02.md",
+        "results/T03.md",
+        "results/T04.md",
+        "results/T05.md",
+        "results/T06.md",
+        "results/T07.md",
+        "results/T09.md",
+        "results/T11.md",
+        "results/T12.md"
+      ],
+      "outputs": [
+        "results/T13.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "npm --prefix frontend run lint",
+        "npm --prefix frontend run type-check -- --incremental false",
+        "npm --prefix frontend run test:coverage"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–7 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Свести regression evidence всех владельцев и обеспечить reusable disposable fixture contract. Не снижать coverage ratchets."
+    },
+    {
+      "task_id": "T14",
+      "package": "PROMPT_14_CI_CD.md",
+      "title": "CI parity и deployment gates",
+      "priority": "P1",
+      "severity": "high",
+      "evidence": [
+        "OPS-001",
+        "OPS-005",
+        "OPS-006",
+        "OPS-007",
+        "OPS-011",
+        "OPS-012"
+      ],
+      "paths": [
+        ".github/workflows/cd.yml",
+        ".github/workflows/e2e.yml",
+        ".github/workflows/security.yml",
+        "Planora.ApiGateway/Program.cs",
+        "docker-compose.yml",
+        "docs/audits/planora-deep-audit/evidence/github-state.json"
+      ],
+      "owner_scope": [
+        ".github/workflows",
+        "docker-compose.yml",
+        "deploy/fly",
+        "scripts",
+        "Start-Planora-Local.ps1",
+        "Start-Planora-Docker.ps1",
+        "tests/Planora.UnitTests/Quality/DeploymentContractTests.cs (proposed new file)"
+      ],
+      "dependencies": [
+        "T07",
+        "T08",
+        "T09",
+        "T12",
+        "T13"
+      ],
+      "blocked_by": [
+        "T07",
+        "T08",
+        "T09",
+        "T12",
+        "T13"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T07.md",
+        "results/T08.md",
+        "results/T09.md",
+        "results/T12.md",
+        "results/T13.md"
+      ],
+      "outputs": [
+        "results/T14.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "node --test .github/scripts/nuget-vulnerability-report.test.mjs",
+        "git diff --check",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --configuration Release --filter \"FullyQualifiedName~RuntimeContractTests\"",
+        "dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --configuration Release --filter \"FullyQualifiedName~DeploymentContractTests\" (after creating the proposed test)"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–7 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Все checks привязать к одному resolved SHA. E2E triggers включают common build inputs; skipped check не равен success. Runtime tools закрепить отдельно от action SHA; OIDC только в job, где нужен. CD explicit needs вместо предположения о matrix order, approved environment, migration rehearsal и readiness. Avatar storage переносить только после backup/restore; production route/listener matrix от T07. Подготовить JSON settings change и rollback для владельца, не менять remote автоматически. Изоляция тестового Compose требует убрать fixed names, проверить порты/volumes; не запускать рабочий стек."
+    },
+    {
+      "task_id": "T15",
+      "package": "PROMPT_15_DOCUMENTATION.md",
+      "title": "Maintained docs и DX",
+      "priority": "P2",
+      "severity": "medium",
+      "evidence": [
+        "DIST-010",
+        "OPS-009"
+      ],
+      "paths": [
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/OutboxRepository.cs",
+        "docs/INVARIANTS.md",
+        "docs/deployment.md"
+      ],
+      "owner_scope": [
+        "docs",
+        "README.md",
+        "TESTING.md",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "deploy/fly/README.md",
+        "perf/README.md"
+      ],
+      "dependencies": [
+        "T14"
+      ],
+      "blocked_by": [
+        "T14"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T14.md"
+      ],
+      "outputs": [
+        "results/T15.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "node tools/docs/check.mjs --include-untracked",
+        "node tools/docs/lint.mjs --include-untracked",
+        "node --test tools/docs/check.test.mjs"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "2–4 дня",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Исправить только подтверждённый drift и внедрённые contracts; actual source первичен. INVARIANTS backoff, deployment Todo initial/Realtime startup, migrator reserved comments, SLO provisional не смешивать с production guarantees. Документировать one-source-per-topic, команды Windows/Linux только поддерживаемые; не создавать новый исторический монолит вместо тематических guides. Existing docs parser и lint использовать, не добавлять второй."
+    },
+    {
+      "task_id": "T16",
+      "package": "PROMPT_16_FINAL_INTEGRATION.md",
+      "title": "E2E, performance и acceptance",
+      "priority": "P2",
+      "severity": "medium",
+      "evidence": [
+        "OPS-008"
+      ],
+      "paths": [
+        "perf/k6/scenarios/todo-list.js"
+      ],
+      "owner_scope": [
+        "perf",
+        "frontend/e2e",
+        "docs/audits/planora-deep-audit/results"
+      ],
+      "dependencies": [
+        "T15"
+      ],
+      "blocked_by": [
+        "T15"
+      ],
+      "preconditions": [
+        "Отдельное разрешение на реализацию пакета",
+        "Baseline revalidation и чистый собственный scope",
+        "PASS results всех blocked_by"
+      ],
+      "inputs": [
+        "EXECUTOR_CONTRACT.md",
+        "03_FINDINGS.json",
+        "02_FILE_AUDIT_INDEX.csv",
+        "results/T15.md"
+      ],
+      "outputs": [
+        "results/T16.md",
+        "Owned code/tests diff и doc delta"
+      ],
+      "commands": [
+        "npm --prefix frontend run e2e",
+        "k6 run -e API_BASE_URL=http://127.0.0.1:5132 perf/k6/scenarios/todo-list.js"
+      ],
+      "command_status": "Future execution; see baseline evidence for already-run subsets",
+      "acceptance": [
+        "Все закреплённые findings имеют reproduction или обоснованное опровержение",
+        "RED→GREEN и nonzero test counts; no lowered gates",
+        "Security/privacy/UX matrix PASS; scoped diff review",
+        "Все residual risks и skips зафиксированы"
+      ],
+      "risks": [
+        "См. linked finding limitations; no production claims",
+        "Shared files требуют serialized ownership"
+      ],
+      "rollback": "Вернуть только собственный code commit после review; данные/схему не откатывать автоматически. Для schema/broker/key migration сначала compatible roll-forward или проверенный restore.",
+      "estimated_size": "4–8 дней",
+      "context_size": "2–4 focused sessions; 15–30 файлов за проход; сохранять checkpoints",
+      "status": "planned",
+      "design": "Выполнить полную owner/friend/stranger/anonymous matrix, revoke while connected, account switch, crash-before/after-commit/ACK, replay и restore в изоляции. Performance baseline: bounded synthetic 1000 tasks,100 categories,20 friends,3 viewers; проверить seed semantics, затем 1/5/10 VU максимум60s. Отдельные limiter и handler experiments; не меняется production policy. Report p50/p95/p99, errors/429, query counts/CPU/RAM, browser interaction и Web Vitals cold/warm с одинаковыми browser/hardware. Временный regression guard <=10% p95/p99 и 0 correctness regression после >=5 повторов — proposed threshold, согласовать по шуму; исходные absolute gates сохраняются. Последний gate review/rollback, никакого автоматического deploy."
+    }
+  ]
+}

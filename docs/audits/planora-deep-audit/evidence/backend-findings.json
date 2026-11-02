@@ -1,0 +1,357 @@
+[
+  {
+    "id": "BE-001",
+    "title": "Удаление категории фиксируется раньше durable CategoryDeleted event",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "package": "T04",
+    "evidence": [
+      {
+        "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs",
+        "lines": "44-66",
+        "symbol": "SaveChangesAsync",
+        "observation": "ClearDomainEvents, base.SaveChanges, затем dispatch"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Events/CategoryDeletedDomainEventHandler.cs",
+        "lines": "25-48",
+        "symbol": "HandleAsync",
+        "observation": "Outbox AddAsync вызывается после commit категории"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/DeleteCategory/DeleteCategoryCommandHandler.cs",
+        "lines": "32-40",
+        "symbol": "Handle",
+        "observation": "Нет внешней транзакции вокруг delete/save"
+      }
+    ],
+    "trigger": "Сбой записи outbox или остановка процесса после category commit и до enqueue integration event.",
+    "impact": "Категория удалена, но Todo не получает durable событие очистки ссылок; повторный delete может вернуть not found и не восстановить событие.",
+    "root_cause": "Domain event dispatch находится после сохранения, а unit of work не охватывает следующий save.",
+    "fix": "T04: stage CategoryDeletedIntegrationEvent до единственного owner SaveChanges с additive StageAsync из T01; исключить повторную публикацию в post-commit domain handler. Сохранить owner checks и soft-delete semantics.",
+    "alternatives": [
+      "Явная транзакция вокруг обоих save возможна, но требует совместимости retry execution strategy и исключения внешних side effects в dispatch; staging проще."
+    ],
+    "tests": [
+      "Npgsql fault injection: outbox insert fails -> category remains live and no event; success -> deleted category plus exactly one event.",
+      "Existing CreateDeleteCategoryCommandHandlerTests и CategoryOutboxRepositoryTests, новая настоящая atomicity regression."
+    ],
+    "acceptance": [
+      "Ошибка enqueue не оставляет category commit.",
+      "Успех сохраняет категорию и ровно одно событие.",
+      "T05 доставляет CategoryDeleted всем нужным потребителям без изменения payload."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "limitations": "Статически доказанный порядок операций; аварийный PostgreSQL сценарий в аудите не запускался."
+  },
+  {
+    "id": "BE-002",
+    "title": "Todo и Collaboration фиксируют mutation и fan-out события несколькими commit",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+        "lines": "14-18",
+        "symbol": "AddAsync",
+        "observation": "Каждое добавление outbox вызывает context.SaveChangesAsync"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs",
+        "lines": "112-133",
+        "symbol": "Handle",
+        "observation": "TaskCreated event записан до realtime event; первый AddAsync уже фиксирует todo"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+        "lines": "72-88,201-244",
+        "symbol": "Handle/PublishNotificationsAsync",
+        "observation": "Comment SaveChanges предшествует sync и каждому recipient event"
+      }
+    ],
+    "trigger": "Ошибка/отмена между первым и последующим enqueue или после сохранения comment.",
+    "impact": "Клиент получает ошибку при уже сохранённом изменении; часть уведомлений/синхронизации отсутствует, повтор запроса может создавать дубли.",
+    "root_cause": "Save-through outbox API ошибочно используется как часть большого атомарного набора.",
+    "fix": "T03: StageAsync в service-specific repos; stage all events и business changes в том же context, затем один SaveChanges. Network authorization/enrichment делать до commit где влияет на обязательные events; необязательные post-commit enrichments не превращать commit в failed operation.",
+    "alternatives": [
+      "Транзакция вокруг existing AddAsync — допустимый промежуточный путь при доказанной retry совместимости, но не глобальное удаление save из AddAsync."
+    ],
+    "tests": [
+      "Fault after Nth staged event; assert zero mutation/events persisted.",
+      "Success asserts complete expected event set and actor exclusion.",
+      "Two-context retry/concurrency tests, no duplicate comment on safe retry policy."
+    ],
+    "acceptance": [
+      "Один атомарный commit для mutation и полного outbox набора.",
+      "Legacy AddAsync callers других сервисов сохраняют прежнюю семантику.",
+      "UI/API statuses и content не меняются."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity."
+  },
+  {
+    "id": "BE-003",
+    "title": "Конкурентное потребление refresh token не защищено CAS/row concurrency",
+    "confidence": "LIKELY",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs",
+        "lines": "45-130",
+        "symbol": "Handle",
+        "observation": "Read active -> generate -> revoke/add -> save; нет атомарного conditional consume"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs",
+        "lines": "37-66",
+        "symbol": "Configure",
+        "observation": "DeviceFingerprint nullable; нет token concurrency property"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "47-59",
+        "symbol": "OnModelCreating",
+        "observation": "xmin добавлен Friendship, не RefreshToken"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Domain/Entities/RefreshToken.cs",
+        "lines": "49-53",
+        "symbol": "legacy constructor",
+        "observation": "Допустимы refresh rows без fingerprint; Register использует legacy path"
+      }
+    ],
+    "trigger": "Два DbContext загружают один active refresh до любого commit; особенно registration/legacy token с DeviceFingerprint=null.",
+    "impact": "Оба запроса могут выпустить действующие successor tokens; sequential replay detection не охватывает одновременный replay.",
+    "root_cause": "Проверка состояния токена выполняется в памяти без сериализации потребления.",
+    "fix": "Сначала two-context Npgsql reproduction. Затем атомарный consume по token hash + nonrevoked + nonexpired с concurrency/CAS, последующая issuance в той же транзакции; losing writer перечитывает состояние и следует явной replay policy.",
+    "alternatives": [
+      "Npgsql xmin concurrency token + целевой DbUpdateConcurrencyException handling; row lock внутри короткой транзакции. Не глобальный процессный lock: несколько реплик остаются уязвимы."
+    ],
+    "tests": [
+      "Barrier-synchronized two-context null/non-null fingerprint refresh; at most one successful consume.",
+      "Sequential replay продолжает revoke chain и stamp.",
+      "No token minted/returned after rollback; cancellation and unique conflict sanitized."
+    ],
+    "acceptance": [
+      "Результат concurrent теста зафиксирован до fix.",
+      "Никогда два успешных consume одного token generation.",
+      "Нет raw token в логах/evidence."
+    ],
+    "dependencies": [],
+    "limitations": "Эксплуатация и PostgreSQL race не запускались; подтверждён отсутствующий механизм, runtime outcome LIKELY."
+  },
+  {
+    "id": "BE-004",
+    "title": "Истёкшая nonrevoked device session блокирует повторный login unique index",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "high",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs",
+        "lines": "54-61",
+        "symbol": "ix_refresh_tokens_user_device_active",
+        "observation": "Unique filter только RevokedAt IS NULL, expiry не исключается"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs",
+        "lines": "42-53",
+        "symbol": "FindActiveByUserAndDeviceAsync",
+        "observation": "Find исключает ExpiresAt <= now"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+        "lines": "140-181",
+        "symbol": "Handle",
+        "observation": "Если active отсутствует, INSERT нового токена с тем же fingerprint"
+      }
+    ],
+    "trigger": "UserAgent/IP прежние, старый device token истёк, не revoked и ещё не purged; модельный unique index существует.",
+    "impact": "Корректный пароль приводит к database unique violation вместо login.",
+    "root_cause": "Определение active в query и predicate unique index различается.",
+    "fix": "В короткой транзакции retire expired nonrevoked rows данного user/device перед созданием нового; реализовать конкурентный re-login с re-read/retry outcome и сохранить запрет восстановления revoked token.",
+    "alternatives": [
+      "Обновить expired но не revoked device row через явно определённый relogin lifecycle. Не добавлять NOW() в partial-index predicate."
+    ],
+    "tests": [
+      "Npgsql expired+unrevoked device row -> login success and exactly one nonrevoked device row.",
+      "Revoked row не оживает; два одновременных login того же device; другой device unaffected."
+    ],
+    "acceptance": [
+      "Реляционная regression красная на baseline и зелёная после.",
+      "Нет 23505 для последовательного expiry→login.",
+      "Сохранены RememberMe и session listing contracts."
+    ],
+    "dependencies": [],
+    "limitations": "Подтверждено чтением model/query/handler. Наличие индекса на фактической deployed DB NOT_VERIFIED; InMemory не выявит дефект."
+  },
+  {
+    "id": "BE-005",
+    "title": "Friendship removal оставляет worker rows и занятую capacity",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "high",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs",
+        "lines": "26-37",
+        "symbol": "HandleAsync",
+        "observation": "Вызывает только RemoveSharesBetweenUsersAsync"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+        "lines": "393-413",
+        "symbol": "RemoveSharesBetweenUsersAsync",
+        "observation": "Удаляет shares, workers не затрагиваются"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+        "lines": "460-486,500-518",
+        "symbol": "AddWorker/CleanupWorkersOnAccessChange",
+        "observation": "Capacity считает workers; cleanup вызывается при изменении domain shares, обходится repository delete"
+      }
+    ],
+    "trigger": "Друг занял последнее место, затем friendship удалена и событие обработано.",
+    "impact": "Пользователь уже не имеет доступа, но worker count/capacity продолжают учитывать его; другие участники не могут занять освободившееся по смыслу место.",
+    "root_cause": "Интеграционная очистка shares обходит aggregate cleanup workers.",
+    "fix": "Удалить worker rows revoked peer на задачах обоих владельцев, включая subtasks, в одной транзакции с shares; сохранить unrelated workers/owner и определить sync event после очистки через staged outbox.",
+    "alternatives": [
+      "Загружать затронутые aggregates tracked и менять shares через domain API; сравнить bounded batching с bulk approach по correctness."
+    ],
+    "tests": [
+      "Owner A, peer B и C; capacity=2; B join, revoke A/B, C join succeeds.",
+      "Both directions/subtasks; no-share-but-worker historical state; duplicate event idempotent."
+    ],
+    "acceptance": [
+      "Отозванный peer отсутствует в shares и workers соответствующих task trees.",
+      "Чужие owners/участники не удалены.",
+      "Live authorization остаётся fail-closed."
+    ],
+    "dependencies": [
+      "T01",
+      "T05"
+    ],
+    "limitations": "Статический consistency defect. Реальный пользовательский сценарий не запускался."
+  },
+  {
+    "id": "BE-006",
+    "title": "Удаление subtask activity определяется заголовком вместо identity",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "medium",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "lines": "76-102",
+        "symbol": "SoftDeleteSubtaskActivityAsync",
+        "observation": "Выборка system comments по EndsWith title suffix"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/SubtaskDeletedEventConsumer.cs",
+        "lines": "29-36",
+        "symbol": "HandleAsync",
+        "observation": "Для activity передаётся Title, SubtaskId используется только replies"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs",
+        "lines": "30-58",
+        "symbol": "HandleAsync",
+        "observation": "System comment сохраняет текст события без subtask identity"
+      }
+    ],
+    "trigger": "Две subtasks в одной branch с одинаковым заголовком; либо subtask переименована после создания.",
+    "impact": "Удаление одной subtask скрывает историю другой с тем же названием; после rename старая activity может остаться.",
+    "root_cause": "Отображаемый текст используется как foreign identity.",
+    "fix": "После contract/schema этапов добавить optional SourceSubtaskId к activity payload и persisted system comment; новые события удалять по ID. Legacy ambiguous title matches не удалять массово; оставить видимую historical запись либо отдельное явно одобренное reconciliation.",
+    "alternatives": [
+      "Не очищать legacy activity вовсе, сохраняя timeline audit; только новые identity-backed entries удаляются точно."
+    ],
+    "tests": [
+      "Duplicate titles, rename, Unicode/suffix collisions, unrelated user comment, out-of-order create/delete.",
+      "Backward payload with отсутствующим optional field остаётся читаемым."
+    ],
+    "acceptance": [
+      "Событие удаления никогда не удаляет activity другой subtask.",
+      "Контракт расширен обратно совместимо.",
+      "Backfill не угадывает identity."
+    ],
+    "dependencies": [
+      "T01",
+      "T08"
+    ],
+    "limitations": "Точные новые поле/миграция — proposed design, сейчас их нет. Нужна isolated schema plan, а не destructive migration."
+  },
+  {
+    "id": "BE-007",
+    "title": "Auth/Category/Collaboration schema upgrades не воспроизводятся tracked EF chain",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "medium",
+    "package": "T08",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs",
+        "lines": "11-26",
+        "symbol": "EnsureReadyAsync",
+        "observation": "При отсутствии migrations EnsureCreated не обновляет существующую schema"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "37-41",
+        "symbol": "OnConfiguring",
+        "observation": "PendingModelChangesWarning подавляется"
+      },
+      {
+        "path": ".gitignore",
+        "lines": "188-189,223-248",
+        "symbol": "Migrations ignore",
+        "observation": "Широкое исключение migration sources; allowlist только Todo/Realtime в конце"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDatabaseStartup.cs",
+        "lines": "22-78",
+        "symbol": "EnsureReadyAsync",
+        "observation": "Положительный контроль reviewed migration chain/adoption"
+      }
+    ],
+    "trigger": "Fresh clone или обновление существующей Auth/Category/Collaboration БД после изменения EF model; локальные ignored migrations не поставляются с commit.",
+    "impact": "Чистый install может создать новую схему, а upgrade existing DB останется со старой; одинаковый SHA не гарантирует одинаковую схему.",
+    "root_cause": "Нет tracked per-service upgrade chain в Git inventory; EnsureCreated предназначен для bootstrap.",
+    "fix": "T08: отдельно инвентаризовать actual applied histories в изоляции, зафиксировать versioned baseline/migrations и guarded adoption для каждого сервиса; проверка schema equivalence до stamp, plan expand/backfill/contract; ignore exceptions только на reviewed sources.",
+    "alternatives": [
+      "Оставить миграции внешним поставляемым артефактом, но его SHA/provenance и проверяемый upgrade contract должны стать частью релиза."
+    ],
+    "tests": [
+      "Fresh clone bootstrap, previous supported schema upgrade with representative rows, drift/unknown history rejection, idempotent rerun.",
+      "Schema/model comparison, index/FK/check constraints, no data loss."
+    ],
+    "acceptance": [
+      "Все поддерживаемые service schema versions имеют воспроизводимый upgrade path.",
+      "Existing data preserved и неизвестный drift останавливает upgrade.",
+      "Production migrations выполняются только отдельным разрешённым этапом."
+    ],
+    "dependencies": [
+      "T01"
+    ],
+    "limitations": "Inventory: git ls-files Services/*/*Infrastructure/Migrations/* содержит Todo/Realtime only. Deployed schema и ignored local migration contents не исследовались; drift конкретной БД не доказан."
+  }
+]

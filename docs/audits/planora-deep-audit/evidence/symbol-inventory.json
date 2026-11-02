@@ -1,0 +1,1040 @@
+[
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/AccountLockedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class AccountLockedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/CategoryDeletedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class CategoryDeletedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/EmailVerifiedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class EmailVerifiedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/FriendshipRemovedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class FriendshipRemovedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/PasswordChangedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class PasswordChangedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/RealtimeSyncIntegrationEvent.cs",
+    "line": 45,
+    "text": "public sealed class RealtimeSyncIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/SubtaskDeletedIntegrationEvent.cs",
+    "line": 14,
+    "text": "public sealed class SubtaskDeletedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskActivityIntegrationEvent.cs",
+    "line": 27,
+    "text": "public sealed class TaskActivityIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskCreatedIntegrationEvent.cs",
+    "line": 8,
+    "text": "public sealed class TaskCreatedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskDeletedIntegrationEvent.cs",
+    "line": 9,
+    "text": "public sealed class TaskDeletedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/UserDeletedIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class UserDeletedIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/UserRegisteredIntegrationEvent.cs",
+    "line": 3,
+    "text": "public sealed class UserRegisteredIntegrationEvent : IntegrationEvent"
+  },
+  {
+    "kind": "event_contract",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IntegrationEvent.cs",
+    "line": 3,
+    "text": "public abstract class IntegrationEvent"
+  },
+  {
+    "kind": "middleware",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+    "line": 203,
+    "text": "return app.UseMiddleware<HttpLoggingMiddleware>();"
+  },
+  {
+    "kind": "middleware",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CorrelationIdMiddleware.cs",
+    "line": 70,
+    "text": "return builder.UseMiddleware<CorrelationIdMiddleware>();"
+  },
+  {
+    "kind": "middleware",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs",
+    "line": 116,
+    "text": "return app.UseMiddleware<CsrfProtectionMiddleware>();"
+  },
+  {
+    "kind": "middleware",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs",
+    "line": 428,
+    "text": "return app.UseMiddleware<EnhancedGlobalExceptionHandlerMiddleware>();"
+  },
+  {
+    "kind": "middleware",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs",
+    "line": 50,
+    "text": "=> app.UseMiddleware<SecurityHeadersMiddleware>();"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs",
+    "line": 6,
+    "text": "public sealed class OutboxProcessor : BackgroundService"
+  },
+  {
+    "kind": "dbset",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+    "line": 27,
+    "text": "protected readonly DbSet<TEntity> DbSet;"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionBackgroundService.cs",
+    "line": 15,
+    "text": "public sealed class RetentionBackgroundService : BackgroundService"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionServiceCollectionExtensions.cs",
+    "line": 18,
+    "text": "services.AddHostedService<RetentionBackgroundService>();"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Services/SystemInfoController.cs",
+    "line": 20,
+    "text": "[HttpGet(\"info\")]"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 10,
+    "text": "rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 11,
+    "text": "rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 12,
+    "text": "rpc RevokeToken (RevokeTokenRequest) returns (RevokeTokenResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 13,
+    "text": "rpc GetFriendIds (GetFriendIdsRequest) returns (GetFriendIdsResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 14,
+    "text": "rpc GetFriendships (GetFriendshipsRequest) returns (GetFriendshipsResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 15,
+    "text": "rpc AreFriends (AreFriendsRequest) returns (AreFriendsResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 16,
+    "text": "rpc GetUserAvatarsBatch (GetUserAvatarsBatchRequest) returns (GetUserAvatarsBatchResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/auth.proto",
+    "line": 19,
+    "text": "rpc GetUserProfilesBatch (GetUserProfilesBatchRequest) returns (GetUserProfilesBatchResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/category.proto",
+    "line": 8,
+    "text": "rpc GetUserCategories (GetUserCategoriesRequest) returns (GetUserCategoriesResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/category.proto",
+    "line": 9,
+    "text": "rpc GetCategoryById (GetCategoryByIdRequest) returns (GetCategoryByIdResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/category.proto",
+    "line": 10,
+    "text": "rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/category.proto",
+    "line": 11,
+    "text": "rpc UpdateCategory (UpdateCategoryRequest) returns (UpdateCategoryResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/category.proto",
+    "line": 12,
+    "text": "rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/messaging.proto",
+    "line": 8,
+    "text": "rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/messaging.proto",
+    "line": 9,
+    "text": "rpc GetMessages (GetMessagesRequest) returns (GetMessagesResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/realtime.proto",
+    "line": 8,
+    "text": "rpc SendNotification (SendNotificationRequest) returns (SendNotificationResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/realtime.proto",
+    "line": 9,
+    "text": "rpc BroadcastNotification (BroadcastNotificationRequest) returns (BroadcastNotificationResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 8,
+    "text": "rpc GetUserTodos (GetUserTodosRequest) returns (GetUserTodosResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 9,
+    "text": "rpc GetTodosByCategory (GetTodosByCategoryRequest) returns (GetTodosByCategoryResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 10,
+    "text": "rpc CreateTodo (CreateTodoRequest) returns (CreateTodoResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 11,
+    "text": "rpc UpdateTodo (UpdateTodoRequest) returns (UpdateTodoResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 12,
+    "text": "rpc DeleteTodo (DeleteTodoRequest) returns (DeleteTodoResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 16,
+    "text": "rpc CheckTaskCommentAccess (CheckTaskCommentAccessRequest) returns (CheckTaskCommentAccessResponse);"
+  },
+  {
+    "kind": "grpc_rpc",
+    "path": "GrpcContracts/Protos/todo.proto",
+    "line": 21,
+    "text": "rpc GetSubtaskBrief (GetSubtaskBriefRequest) returns (GetSubtaskBriefResponse);"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Planora.ApiGateway/Program.cs",
+    "line": 31,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "middleware",
+    "path": "Planora.ApiGateway/Program.cs",
+    "line": 282,
+    "text": "app.UseMiddleware<Middleware.CorrelationIdMiddleware>();"
+  },
+  {
+    "kind": "middleware",
+    "path": "Planora.ApiGateway/Program.cs",
+    "line": 285,
+    "text": "app.UseMiddleware<Middleware.RequestLoggingMiddleware>();"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs",
+    "line": 27,
+    "text": "[HttpPost(\"events\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 42,
+    "text": "[HttpPost(\"register\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 85,
+    "text": "[HttpPost(\"login\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 141,
+    "text": "[HttpPost(\"refresh\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 205,
+    "text": "[HttpPost(\"logout\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 249,
+    "text": "[HttpPost(\"validate-token\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 287,
+    "text": "[HttpPost(\"request-password-reset\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 318,
+    "text": "[HttpGet(\"csrf-token\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs",
+    "line": 347,
+    "text": "[HttpPost(\"reset-password\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/ClientErrorsController.cs",
+    "line": 31,
+    "text": "[HttpPost]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 40,
+    "text": "[HttpPost(\"requests\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 54,
+    "text": "[HttpPost(\"requests/by-email\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 71,
+    "text": "[HttpPost(\"requests/{friendshipId}/accept\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 86,
+    "text": "[HttpPost(\"requests/{friendshipId}/reject\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 101,
+    "text": "[HttpDelete(\"{friendId}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 116,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 131,
+    "text": "[HttpGet(\"requests\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 149,
+    "text": "[HttpGet(\"friend-ids\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs",
+    "line": 185,
+    "text": "[HttpGet(\"are-friends\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 41,
+    "text": "[HttpGet(\"me\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 58,
+    "text": "[HttpPost(\"me/avatar\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 91,
+    "text": "[HttpGet(\"{userId:guid}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 109,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 126,
+    "text": "[HttpPut(\"me\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 142,
+    "text": "[HttpDelete(\"me\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 158,
+    "text": "[HttpPost(\"me/change-password\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 175,
+    "text": "[HttpPost(\"me/change-email\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 192,
+    "text": "[HttpGet(\"verify-email\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 212,
+    "text": "[HttpPost(\"me/verify-email\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 235,
+    "text": "[HttpGet(\"me/security\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 249,
+    "text": "[HttpPost(\"me/2fa/enable\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 263,
+    "text": "[HttpPost(\"me/2fa/confirm\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 283,
+    "text": "[HttpPost(\"me/2fa/disable\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 299,
+    "text": "[HttpGet(\"me/sessions\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 313,
+    "text": "[HttpDelete(\"me/sessions/{tokenId:guid}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 331,
+    "text": "[HttpPost(\"me/sessions/revoke-all\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 347,
+    "text": "[HttpGet(\"me/login-history\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+    "line": 363,
+    "text": "[HttpGet(\"statistics\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/AuthApi/Planora.Auth.Api/Program.cs",
+    "line": 25,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IApplicationDbContext.cs",
+    "line": 7,
+    "text": "DbSet<User> Users { get; }"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IApplicationDbContext.cs",
+    "line": 8,
+    "text": "DbSet<Role> Roles { get; }"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IApplicationDbContext.cs",
+    "line": 9,
+    "text": "DbSet<RefreshToken> RefreshTokens { get; }"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs",
+    "line": 34,
+    "text": "services.AddHostedService<OutboxProcessor>();"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs",
+    "line": 258,
+    "text": "services.AddHostedService<RabbitMqStartupHostedService>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 26,
+    "text": "public DbSet<User> Users => Set<User>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 27,
+    "text": "public DbSet<global::Planora.Auth.Domain.Entities.Role> Roles => Set<global::Planora.Auth.Domain.Entities.Role>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 28,
+    "text": "public DbSet<UserRole> UserRoles => Set<UserRole>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 29,
+    "text": "public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 30,
+    "text": "public DbSet<LoginHistory> LoginHistory => Set<LoginHistory>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 31,
+    "text": "public DbSet<Friendship> Friendships => Set<Friendship>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 32,
+    "text": "public DbSet<AuditLog> AuditLogs => Set<AuditLog>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 33,
+    "text": "public DbSet<PasswordHistory> PasswordHistory => Set<PasswordHistory>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 34,
+    "text": "public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 35,
+    "text": "public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "line": 36,
+    "text": "public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+    "line": 38,
+    "text": "protected DbSet<T> _dbSet => DbSet;"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/RabbitMqStartupHostedService.cs",
+    "line": 6,
+    "text": "public sealed class RabbitMqStartupHostedService : BackgroundService"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs",
+    "line": 25,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs",
+    "line": 35,
+    "text": "[HttpPost]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs",
+    "line": 47,
+    "text": "[HttpPut(\"{id}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs",
+    "line": 61,
+    "text": "[HttpDelete(\"{id}\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+    "line": 32,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/DependencyInjection.cs",
+    "line": 50,
+    "text": "services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs",
+    "line": 16,
+    "text": "public DbSet<Domain.Entities.Category> Categories { get; set; }"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs",
+    "line": 17,
+    "text": "public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+    "line": 30,
+    "text": "[HttpGet(\"{taskId}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+    "line": 45,
+    "text": "[HttpPost(\"{taskId}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+    "line": 62,
+    "text": "[HttpPut(\"{taskId}/{commentId}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+    "line": 79,
+    "text": "[HttpDelete(\"{taskId}/{commentId}\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+    "line": 27,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DependencyInjection.cs",
+    "line": 44,
+    "text": "services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs",
+    "line": 9,
+    "text": "public DbSet<Comment> Comments => Set<Comment>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs",
+    "line": 10,
+    "text": "public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs",
+    "line": 11,
+    "text": "public DbSet<Planora.BuildingBlocks.Infrastructure.Inbox.InboxMessage> InboxMessages"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs",
+    "line": 33,
+    "text": "[HttpPost]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs",
+    "line": 45,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs",
+    "line": 60,
+    "text": "[HttpGet(\"health\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Program.cs",
+    "line": 31,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+    "line": 45,
+    "text": "services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+    "line": 14,
+    "text": "public DbSet<Message> Messages => Set<Message>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+    "line": 15,
+    "text": "public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+    "line": 16,
+    "text": "public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+    "line": 18,
+    "text": "protected DbSet<T> _dbSet => DbSet;"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/ConnectionsController.cs",
+    "line": 25,
+    "text": "[HttpGet(\"active\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/ConnectionsController.cs",
+    "line": 54,
+    "text": "[HttpGet(\"stats\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "line": 48,
+    "text": "[HttpGet(\"summary\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "line": 63,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "line": 82,
+    "text": "[HttpPost(\"read\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "line": 119,
+    "text": "[HttpPost(\"send\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+    "line": 155,
+    "text": "[HttpPost(\"broadcast\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+    "line": 28,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs",
+    "line": 20,
+    "text": "public DbSet<Notification> Notifications => Set<Notification>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs",
+    "line": 21,
+    "text": "public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs",
+    "line": 22,
+    "text": "public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 39,
+    "text": "[HttpGet]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 63,
+    "text": "[HttpGet(\"public\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 82,
+    "text": "[HttpGet(\"category-counts\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 92,
+    "text": "[HttpGet(\"friend-affinity\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 102,
+    "text": "[HttpGet(\"{id}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 122,
+    "text": "[HttpGet(\"{id}/subtasks\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 141,
+    "text": "[HttpPost(\"{id}/subtasks\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 168,
+    "text": "[HttpPost(\"{id}/duplicate\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 187,
+    "text": "[HttpPost]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 206,
+    "text": "[HttpPut(\"{id}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 224,
+    "text": "[HttpDelete(\"{id}\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 238,
+    "text": "[HttpPatch(\"{id}/hidden\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 256,
+    "text": "[HttpPatch(\"{id}/viewer-preferences\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 279,
+    "text": "[HttpPost(\"{id}/join\")]"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+    "line": 293,
+    "text": "[HttpPost(\"{id}/leave\")]"
+  },
+  {
+    "kind": "entrypoint",
+    "path": "Services/TodoApi/Planora.Todo.Api/Program.cs",
+    "line": 34,
+    "text": "var builder = WebApplication.CreateBuilder(args);"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+    "line": 59,
+    "text": "services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+    "line": 92,
+    "text": "services.AddHostedService<Services.AllFriendsSnapshotBackfillService>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+    "line": 7,
+    "text": "public DbSet<TodoItem> TodoItems => Set<TodoItem>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+    "line": 8,
+    "text": "public DbSet<TodoItemShare> TodoItemShares => Set<TodoItemShare>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+    "line": 9,
+    "text": "public DbSet<UserTodoViewPreference> UserTodoViewPreferences => Set<UserTodoViewPreference>();"
+  },
+  {
+    "kind": "dbset",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+    "line": 10,
+    "text": "public DbSet<Planora.BuildingBlocks.Application.Outbox.OutboxMessage> OutboxMessages =>"
+  },
+  {
+    "kind": "hosted_service",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/AllFriendsSnapshotBackfillService.cs",
+    "line": 8,
+    "text": "public sealed class AllFriendsSnapshotBackfillService : BackgroundService"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "line": 152,
+    "text": "expect(todos).toMatch(/\\[HttpGet\\]\\s*(?:\\[[^\\]]+\\]\\s*)*public async Task<ActionResult<PagedResult<TodoItemDto>>> GetTodos\\(/)"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "line": 153,
+    "text": "expect(todos).toMatch(/\\[HttpGet\\(\"\\{id\\}\"\\)\\]\\s*(?:\\[[^\\]]+\\]\\s*)*public async Task<ActionResult<TodoItemDto>> GetTodoById\\(/)"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "line": 156,
+    "text": "expect(users).toMatch(/\\[HttpGet\\(\"me\"\\)\\]\\s*\\[ProducesResponseType\\(typeof\\(UserDto\\), StatusCodes\\.Status200OK\\)\\]/)"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "line": 159,
+    "text": "expect(friends).toMatch(/\\[HttpGet\\]\\s*(?:\\[[^\\]]+\\]\\s*)*public async Task<ActionResult<PagedResult<FriendDto>>> GetFriends\\(/)"
+  },
+  {
+    "kind": "http_attribute",
+    "path": "frontend/src/test/quality/api-contract.contract.test.ts",
+    "line": 162,
+    "text": "expect(categories).toMatch(/\\[HttpGet\\]\\s*(?:\\[[^\\]]+\\]\\s*)*public async Task<ActionResult<IReadOnlyList<CategoryDto>>> GetCategories\\(/)"
+  },
+  {
+    "kind": "dbset",
+    "path": "tests/Planora.UnitTests/BuildingBlocks/PaginationExtensionsTests.cs",
+    "line": 90,
+    "text": "public DbSet<PaginationItem> Items => Set<PaginationItem>();"
+  }
+]

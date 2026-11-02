@@ -1,0 +1,410 @@
+[
+  {
+    "id": "OPS-001",
+    "title": "main допускает обход обязательных проверок",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/github-state.json",
+        "lines": "protection/rulesets",
+        "symbol": "main допускает обход обязательных проверок",
+        "observation": "required_status_checks и review gate отсутствуют; force push разрешён, admin enforcement false; rulesets пусты."
+      }
+    ],
+    "trigger": "Push непроверенного commit уполномоченным пользователем.",
+    "impact": "Красный E2E не блокирует изменение main.",
+    "root_cause": "required_status_checks и review gate отсутствуют; force push разрешён, admin enforcement false; rulesets пусты.",
+    "fix": "Подготовить конкретный набор required checks, запрет force push и policy bypass; применить GitHub settings только после отдельного разрешения. Проверить GET после изменения, не считать YAML настройкой branch protection.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-002",
+    "title": "E2E baseline красный: шесть тестов shard 6",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T11",
+    "evidence": [
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/remote-failures.md",
+        "lines": "E2E shard 6",
+        "symbol": "E2E baseline красный: шесть тестов shard 6",
+        "observation": "Run 41368376503/job125033430746: 6 failed,3 passed,48.2m; geometry/timeouts/session restore limiter; другие 5 shards success."
+      }
+    ],
+    "trigger": "Запуск существующего E2E на baseline.",
+    "impact": "Visual и session regressions нельзя считать исключёнными.",
+    "root_cause": "Run 41368376503/job125033430746: 6 failed,3 passed,48.2m; geometry/timeouts/session restore limiter; другие 5 shards success.",
+    "fix": "Воспроизвести каждый уникальный failing test на изолированном стеке с тем же SHA/browser; разделить auth setup, timeout и geometry. Исправлять root cause после red evidence; не повышать timeout/threshold без измерения.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-003",
+    "title": "Scheduled gitleaks сообщил 66 совпадений",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T12",
+    "evidence": [
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/remote-failures.md",
+        "lines": "Gitleaks",
+        "symbol": "Scheduled gitleaks сообщил 66 совпадений",
+        "observation": "Run41416485392/job125181481709 содержит leaks found:66; сохранены только rule/path/commit метаданные."
+      }
+    ],
+    "trigger": "Scheduled full-history scan.",
+    "impact": "Существующий security gate красный; реальные секреты и fixture matches ещё не классифицированы.",
+    "root_cause": "Run41416485392/job125181481709 содержит leaks found:66; сохранены только rule/path/commit метаданные.",
+    "fix": "Для каждого fingerprint установить происхождение без публикации значения; реальные credentials отозвать отдельным согласованным действием, fixtures разрешать точечно с доказательством. Не переписывать историю и не выключать scanner.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-004",
+    "title": "Полный npm audit содержит moderate minimatch advisory",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T12",
+    "evidence": [
+      {
+        "path": "docs/audits/planora-deep-audit/evidence/npm-audit.json",
+        "lines": "metadata/vulnerabilities",
+        "symbol": "Полный npm audit содержит moderate minimatch advisory",
+        "observation": "16 affected package entries, одна исходная GHSA-g3hv-75wg-m249; production audit=0."
+      }
+    ],
+    "trigger": "Обработка недоверенного glob в dev tooling; достижимость конкретного DoS не проверялась.",
+    "impact": "Риск supply chain/dev availability, не доказанная production exploitability.",
+    "root_cause": "16 affected package entries, одна исходная GHSA-g3hv-75wg-m249; production audit=0.",
+    "fix": "Проследить npm explain minimatch; обновить совместимый upstream/lock. Не применять предложенный npm major downgrade/force. Проверить clean install, lint, tests и обе audit команды.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-005",
+    "title": "CI инструменты разрешаются по плавающим версиям",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": ".github/workflows/security.yml",
+        "lines": "190,208",
+        "symbol": "CI инструменты разрешаются по плавающим версиям",
+        "observation": "CycloneDX .NET без версии; npx cyclonedx-npm без pin; openapi.yml:188 spectral-cli@latest."
+      }
+    ],
+    "trigger": "Повтор pipeline с тем же application SHA в другой день.",
+    "impact": "Невоспроизводимое сканирование и исполнение непроверенного нового tooling.",
+    "root_cause": "CycloneDX .NET без версии; npx cyclonedx-npm без pin; openapi.yml:188 spectral-cli@latest.",
+    "fix": "Закрепить совместимые версии и lockfile/checksum где применимо; scoped job permissions для OIDC/attestations только SBOM. Проверить update policy; не вводить новые scanners без пользы.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-006",
+    "title": "CD не связывает deploy с проверенным immutable SHA",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": ".github/workflows/cd.yml",
+        "lines": "70-203",
+        "symbol": "CD не связывает deploy с проверенным immutable SHA",
+        "observation": "Каждый job checkout inputs.ref||github.ref; нет quality gate/environments; API вернул environments=0."
+      }
+    ],
+    "trigger": "Manual deploy движущейся ветки или tag без успешных checks.",
+    "impact": "Разные jobs могут развернуть разные revisions; release может обойти E2E/security.",
+    "root_cause": "Каждый job checkout inputs.ref||github.ref; нет quality gate/environments; API вернул environments=0.",
+    "fix": "Resolve ref один раз в SHA, передать jobs output; проверить полный набор successful checks этого SHA; явные needs для порядка, staging migration/health gates. Production environment и approvals подготовить отдельно; деплой сейчас запрещён.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-007",
+    "title": "Compose не сохраняет Auth avatars при пересоздании контейнера",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "docker-compose.yml",
+        "lines": "188-228",
+        "symbol": "Compose не сохраняет Auth avatars при пересоздании контейнера",
+        "observation": "У auth-api отсутствует volumes; writable webroot не персистентен. docs/backup-recovery.md подтверждает operational caveat."
+      }
+    ],
+    "trigger": "Пересоздание Auth container с уже загруженными аватарами.",
+    "impact": "Потеря пользовательских файлов.",
+    "root_cause": "У auth-api отсутствует volumes; writable webroot не персистентен. docs/backup-recovery.md подтверждает operational caveat.",
+    "fix": "Сначала безопасный backup текущего writable layer с SHA256 manifest; выбрать persistent mount, permissions для nonroot, перенести и проверить restore. Только затем recreate по отдельному разрешению; не монтировать пустой volume поверх единственной копии.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-008",
+    "title": "Performance scripts не дают baseline реального списка",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T16",
+    "evidence": [
+      {
+        "path": "perf/k6/scenarios/todo-list.js",
+        "lines": "35-39",
+        "symbol": "Performance scripts не дают baseline реального списка",
+        "observation": "setup создаёт пустого reader, нет seed tasks/shares; login.js переиспользует один account, бюджеты лимитера документированы."
+      }
+    ],
+    "trigger": "Запуск текущих k6 scripts и вывод об app throughput.",
+    "impact": "Пустой список и 429 искажают выводы; численного before/after нет.",
+    "root_cause": "setup создаёт пустого reader, нет seed tasks/shares; login.js переиспользует один account, бюджеты лимитера документированы.",
+    "fix": "Создать bounded synthetic dataset и раздельно измерять limiter и handler throughput; 1/5/10 VU, 60s cap, warm/cold, p50/p95/p99,error/429,query counts. Сохранять SHA/версии/данные; не ослаблять production limits.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-009",
+    "title": "Maintained deployment guide расходится с startup кодом",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T15",
+    "evidence": [
+      {
+        "path": "docs/deployment.md",
+        "lines": "80-104",
+        "symbol": "Maintained deployment guide расходится с startup кодом",
+        "observation": "Todo описан как missing initial; Realtime no startup initialization, но реальные helpers и Program уже изменились."
+      }
+    ],
+    "trigger": "Следование руководству для bootstrap/release.",
+    "impact": "Ненужные опасные workaround и неверные блокеры.",
+    "root_cause": "Todo описан как missing initial; Realtime no startup initialization, но реальные helpers и Program уже изменились.",
+    "fix": "Сверить Todo first migration CreateTable и RealtimeDatabaseStartup invocation; заменить stale statements ссылками на существующие тесты, сохранить реальные rollout blockers.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-010",
+    "title": "Secret scanner allowlist исключает целые runtime config файлы",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T12",
+    "evidence": [
+      {
+        "path": ".gitleaks.toml",
+        "lines": "75-96",
+        "symbol": "Secret scanner allowlist исключает целые runtime config файлы",
+        "observation": "docker-compose.yml целиком allowlisted; общий regex test/dummy допускает substring."
+      }
+    ],
+    "trigger": "Настоящий секрет добавлен в исключённый файл или совпадает с широким allowlist.",
+    "impact": "Ложный clean security scan.",
+    "root_cause": "docker-compose.yml целиком allowlisted; общий regex test/dummy допускает substring.",
+    "fix": "Заменить blanket path allowlist проверяемыми placeholder patterns/fingerprints; positive/negative synthetic fixtures, включая real-looking value в compose. Не печатать matched values и не добавлять общий tests/ allowlist.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-011",
+    "title": "E2E path filters пропускают общие build inputs",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": ".github/workflows/e2e.yml",
+        "lines": "7-27",
+        "symbol": "E2E path filters пропускают общие build inputs",
+        "observation": "Нет Directory.Packages.props, Directory.Build.props, global.json, tests/tooling в фильтрах."
+      }
+    ],
+    "trigger": "Изменён общий .NET dependency graph без Services/** diff.",
+    "impact": "E2E не запустится для потенциально несовместимого графа.",
+    "root_cause": "Нет Directory.Packages.props, Directory.Build.props, global.json, tests/tooling в фильтрах.",
+    "fix": "Добавить реальные build/config inputs или reusable path classifier; проверить changed-files fixtures и required-check поведение при skip, не считать skipped run green.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "OPS-012",
+    "title": "Production route selection остаётся локальной",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "Planora.ApiGateway/Program.cs",
+        "lines": "37-39",
+        "symbol": "Production route selection остаётся локальной",
+        "observation": "Production выбирает ocelot.json, содержащий loopback targets; deploy manifests требуют отдельных Fly apps."
+      }
+    ],
+    "trigger": "Запуск committed Production deployment без дополнительного route override.",
+    "impact": "Gateway не маршрутизирует к нужным сервисам.",
+    "root_cause": "Production выбирает ocelot.json, содержащий loopback targets; deploy manifests требуют отдельных Fly apps.",
+    "fix": "T07 фиксирует route/listener contract; T14 добавляет отдельную проверенную production конфигурацию, checks против loopback, REST/HTTP2 портов и приватной topology. Без live Fly доступа статус deployment NOT_VERIFIED.",
+    "alternatives": [
+      "Сохранить текущую реализацию можно только с явно принятым остаточным риском; не скрывать красный gate."
+    ],
+    "tests": [
+      "Детерминированная regression проверка указанного trigger; сохранить current controls и отрицательный сценарий.",
+      "Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts."
+    ],
+    "acceptance": [
+      "Trigger больше не приводит к описанному impact при оговорённой конфигурации.",
+      "Все связанные gates проходят, остаточные ограничения явно перечислены."
+    ],
+    "dependencies": [],
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  }
+]

@@ -1,0 +1,104 @@
+  Planora.BuildingBlocks.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.BuildingBlocks.Domain.dll
+  GrpcContracts -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\GrpcContracts.dll
+  Planora.Messaging.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Messaging.Domain.dll
+  Planora.Realtime.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Realtime.Domain.dll
+  Planora.Collaboration.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Collaboration.Domain.dll
+  Planora.BuildingBlocks.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.BuildingBlocks.Application.dll
+  Planora.Todo.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Todo.Domain.dll
+  Planora.BuildingBlocks.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.BuildingBlocks.Infrastructure.dll
+  Planora.Category.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Category.Domain.dll
+  Planora.Realtime.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Realtime.Application.dll
+  Planora.Messaging.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Messaging.Application.dll
+  Planora.Auth.Domain -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Auth.Domain.dll
+  Planora.Category.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Category.Application.dll
+  Planora.Messaging.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Messaging.Infrastructure.dll
+  Planora.Collaboration.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Collaboration.Application.dll
+  Planora.Realtime.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Realtime.Infrastructure.dll
+  Planora.Category.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Category.Infrastructure.dll
+  Planora.Auth.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Auth.Application.dll
+  Planora.Messaging.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Messaging.Api.dll
+  Planora.Collaboration.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Collaboration.Infrastructure.dll
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\FriendshipRepository.cs(5,48): warning CS0618: "BaseRepository<Friendship>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\LoginHistoryRepository.cs(3,50): warning CS0618: "BaseRepository<LoginHistory>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\PasswordHistoryRepository.cs(3,53): warning CS0618: "BaseRepository<PasswordHistory>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\RefreshTokenRepository.cs(5,50): warning CS0618: "BaseRepository<RefreshToken>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\UserRecoveryCodeRepository.cs(7,54): warning CS0618: "BaseRepository<UserRecoveryCode>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Persistence\Repositories\UserRepository.cs(10,42): warning CS0618: "BaseRepository<User>" является устаревшим: 'Derive from Planora.BuildingBlocks.Infrastructure.Persistence.BaseRepository<T, Guid, AuthDbContext> directly. This adapter will be removed in the release after Phase 2 T2.3 lands.' [F:\Projects\Planora\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj]
+  Planora.Auth.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Auth.Infrastructure.dll
+  Planora.Collaboration.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Collaboration.Api.dll
+  Planora.Category.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Category.Api.dll
+  Planora.Todo.Application -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Todo.Application.dll
+  Planora.Todo.Infrastructure -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Todo.Infrastructure.dll
+  Planora.Auth.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Auth.Api.dll
+  Planora.Todo.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Todo.Api.dll
+  Planora.Realtime.Api -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.Realtime.Api.dll
+F:\Projects\Planora\tests\Planora.UnitTests\Services\CategoryApi\Infrastructure\CategoryOutboxRepositoryTests.cs(19,30): warning CS0618: "OutboxRepository" является устаревшим: 'Register Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<CategoryDbContext> instead. Will be removed.' [F:\Projects\Planora\tests\Planora.UnitTests\Planora.UnitTests.csproj]
+F:\Projects\Planora\tests\Planora.UnitTests\Services\Infrastructure\EfModelConfigurationTests.cs(43,24): warning CS0618: "IReadOnlyEntityType.GetQueryFilter()" является устаревшим: 'Use GetDeclaredQueryFilters() instead.' [F:\Projects\Planora\tests\Planora.UnitTests\Planora.UnitTests.csproj]
+F:\Projects\Planora\tests\Planora.UnitTests\Services\AuthApi\Infrastructure\AuthRepositoryPersistenceTests.cs(306,30): warning CS0618: "OutboxRepository" является устаревшим: 'Register Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext> instead. Will be removed.' [F:\Projects\Planora\tests\Planora.UnitTests\Planora.UnitTests.csproj]
+  Planora.UnitTests -> F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.UnitTests.dll
+Тестовый запуск для F:\Projects\Planora\.buildcheck\forensic-audit\unit\Planora.UnitTests.dll (.NETCoreApp,Version=v10.0)
+Общее количество тестовых файлов (1), соответствующих указанному шаблону.
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.IncompatibleColumn_RejectsWithoutAdoptingHistory [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnmanagedComments_RejectsBeforeFalselyStampingTheirRemoval [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ModelCreatedSchema_AdoptsOnlyReviewedHistoricalEquivalenceAndPreservesRows [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ConcurrentModelCreatedStartup_AdoptsHistoryOnceAndPreservesRows [SKIP]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.IncompatibleColumn_RejectsWithoutAdoptingHistory [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnmanagedComments_RejectsBeforeFalselyStampingTheirRemoval [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ModelCreatedSchema_AdoptsOnlyReviewedHistoricalEquivalenceAndPreservesRows [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ConcurrentModelCreatedStartup_AdoptsHistoryOnceAndPreservesRows [1 ms]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.GappedManagedHistory_RejectsWithoutRepairingIds [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ConflictingAdditiveIndexName_RejectsBeforeAdoptingHistory [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnsafePublicDefault_RejectsBeforeAdoptingHistory [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnknownManagedHistory_StopsBeforeSchemaOrHistoryWrites [SKIP]
+[xUnit.net 00:00:05.36]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.NonemptyLegacyComments_StopsBeforeDestructivePendingMigration [SKIP]
+[xUnit.net 00:00:05.37]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.PartialUnmanagedSchema_RejectsBeforeCreatingHistoryOrOtherTables [SKIP]
+[xUnit.net 00:00:05.37]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.CleanDatabase_AppliesTheFullChainAndCurrentModel_AndRestarts [SKIP]
+[xUnit.net 00:00:05.37]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.MissingHistoricalIndex_RejectsBeforeAdoptingHistory [SKIP]
+[xUnit.net 00:00:05.37]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.CompatibleCurrentUnmanagedSchema_PreservesAFrozenAudience [SKIP]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.GappedManagedHistory_RejectsWithoutRepairingIds [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.ConflictingAdditiveIndexName_RejectsBeforeAdoptingHistory [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnsafePublicDefault_RejectsBeforeAdoptingHistory [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.UnknownManagedHistory_StopsBeforeSchemaOrHistoryWrites [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.NonemptyLegacyComments_StopsBeforeDestructivePendingMigration [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.PartialUnmanagedSchema_RejectsBeforeCreatingHistoryOrOtherTables [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.CleanDatabase_AppliesTheFullChainAndCurrentModel_AndRestarts [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.MissingHistoricalIndex_RejectsBeforeAdoptingHistory [1 ms]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.CompatibleCurrentUnmanagedSchema_PreservesAFrozenAudience [1 ms]
+[xUnit.net 00:00:05.37]     Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.MissingForeignKey_RejectsWithoutAdoptingHistory [SKIP]
+  Пропущен Planora.UnitTests.Services.TodoApi.Infrastructure.TodoDatabaseStartupTests.MissingForeignKey_RejectsWithoutAdoptingHistory [1 ms]
+[xUnit.net 00:00:05.48]     Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.DeletionAndCleanupEvent_CommitTogether_AndSurviveSecurityStampFailure [SKIP]
+  Пропущен Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.DeletionAndCleanupEvent_CommitTogether_AndSurviveSecurityStampFailure [1 ms]
+[xUnit.net 00:00:05.48]     Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.BrokerFailure_DoesNotFailDeletion_AndProcessorRetriesPersistedCleanupEvent [SKIP]
+  Пропущен Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.BrokerFailure_DoesNotFailDeletion_AndProcessorRetriesPersistedCleanupEvent [1 ms]
+[xUnit.net 00:00:06.12]     Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.RejectedOutboxInsert_RollsBackDeletion_WithoutExternalSideEffects [SKIP]
+  Пропущен Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.RejectedOutboxInsert_RollsBackDeletion_WithoutExternalSideEffects [1 ms]
+[xUnit.net 00:00:06.46]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.BuildWithoutMigrations_CreatesAllRequiredTablesFromTheModel [SKIP]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.BuildWithoutMigrations_CreatesAllRequiredTablesFromTheModel [1 ms]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedOptionalOrGeneratedExtraColumns_RemainCompatible [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.PartialUnmanagedSchema_FailsClosedWithoutRecreatingTheMissingTable [SKIP]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedOptionalOrGeneratedExtraColumns_RemainCompatible [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.PartialUnmanagedSchema_FailsClosedWithoutRecreatingTheMissingTable [1 ms]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.Cancellation_DoesNotCreateTheSchema [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedNullabilityDrift_FailsClosed [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingIdempotencyKey_FailsClosed [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedColumnTypeDrift_FailsClosedAndKeepsExistingRows [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingColumn_FailsClosedWithoutRepairingTheSchema [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingPrimaryKey_FailsClosed [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.ManagedSchema_RestartIsIdempotentAndPreservesData [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnknownManagedMigration_FailsClosedAndPreservesDataAndHistory [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.MissingDatabase_IsCreatedAndMigratedBeforeTheFirstNotification [SKIP]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.Cancellation_DoesNotCreateTheSchema [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedNullabilityDrift_FailsClosed [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingIdempotencyKey_FailsClosed [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedColumnTypeDrift_FailsClosedAndKeepsExistingRows [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingColumn_FailsClosedWithoutRepairingTheSchema [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedMissingPrimaryKey_FailsClosed [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.ManagedSchema_RestartIsIdempotentAndPreservesData [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnknownManagedMigration_FailsClosedAndPreservesDataAndHistory [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.MissingDatabase_IsCreatedAndMigratedBeforeTheFirstNotification [1 ms]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedRequiredExtraColumn_FailsClosedBeforeWriting [SKIP]
+[xUnit.net 00:00:06.47]     Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.CompatibleModelCreatedSchema_PreservesDataWithoutAdoptingMigrationHistory [SKIP]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.UnmanagedRequiredExtraColumn_FailsClosedBeforeWriting [1 ms]
+  Пропущен Planora.UnitTests.Services.RealtimeApi.Infrastructure.RealtimeDatabaseStartupTests.CompatibleModelCreatedSchema_PreservesDataWithoutAdoptingMigrationHistory [1 ms]
+
+Пройден!   : не пройдено     0, пройдено  1207, пропущено    31, всего  1238, длительность 21 s. - Planora.UnitTests.dll (net10.0)

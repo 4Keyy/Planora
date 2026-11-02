@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: deduplicates each route, strips route groups, and totals JS/CSS separately from maps
+ok 1 - deduplicates each route, strips route groups, and totals JS/CSS separately from maps
+  ---
+  duration_ms: 89.1718
+  type: 'test'
+  ...
+# Subtest: merges multiple manifests for the same public route without counting shared chunks twice
+ok 2 - merges multiple manifests for the same public route without counting shared chunks twice
+  ---
+  duration_ms: 39.7056
+  type: 'test'
+  ...
+# Subtest: fails on absent manifests, missing chunks and path traversal
+ok 3 - fails on absent manifests, missing chunks and path traversal
+  ---
+  duration_ms: 35.5833
+  type: 'test'
+  ...
+# Subtest: budgets check exact gzip bytes, every route, and the unique static total
+ok 4 - budgets check exact gzip bytes, every route, and the unique static total
+  ---
+  duration_ms: 37.3971
+  type: 'test'
+  ...
+# Subtest: CLI uses NEXT_DIST_DIR, emits parseable JSON, and fails an exceeded budget
+ok 5 - CLI uses NEXT_DIST_DIR, emits parseable JSON, and fails an exceeded budget
+  ---
+  duration_ms: 487.1747
+  type: 'test'
+  ...
+# Subtest: prints each redacted line while the child is still running
+ok 6 - prints each redacted line while the child is still running
+  ---
+  duration_ms: 770.696
+  type: 'test'
+  ...
+# Subtest: keeps the last line without a newline and passes the exit status on
+ok 7 - keeps the last line without a newline and passes the exit status on
+  ---
+  duration_ms: 96.746
+  type: 'test'
+  ...
+# Subtest: reports a child killed by a signal as a failure
+ok 8 - reports a child killed by a signal as a failure
+  ---
+  duration_ms: 66.5291
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1052.2322

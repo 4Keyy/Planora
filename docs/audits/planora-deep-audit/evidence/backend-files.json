@@ -1,0 +1,499 @@
+[
+  {
+    "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/DeleteUser/DeleteUserCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Domain/Entities/RefreshToken.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/DeleteCategory/DeleteCategoryCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/UpdateCategory/UpdateCategoryCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/CategoryConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Api/Grpc/CategoryGrpcService.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Queries/GetCategoryById/GetCategoryByIdQueryHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Queries/GetUserCategories/GetUserCategoriesQueryHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Common/OutboxExtensions.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Events/CategoryDeletedDomainEventHandler.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Common/TodoAccessPolicy.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/DeleteComment/DeleteCommentCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CollaborationUnitOfWork.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/UserDeletedEventConsumer.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Application/Features/IntegrationEvents/UserDeletedEventConsumer.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/UserDeletedEventConsumer.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemShareConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemWorkerConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetTodoById/GetTodoByIdQueryHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetPublicTodos/GetPublicTodosQueryHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetSubtasks/GetSubtasksQueryHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/JoinTodo/JoinTodoCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDatabaseStartup.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserConfiguration.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Repositories/CategoryRepository.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+    "status": "REVIEWED",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Register/RegisterCommandHandler.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/SubtaskDeletedEventConsumer.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/CategoryApi/Infrastructure/CategoryOutboxRepositoryTests.cs",
+    "status": "READ",
+    "pass": "backend-static-2026-11-02",
+    "lines": "full",
+    "note": "Полное чтение; проверены семантика и связанный путь. Runtime не проверен."
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "393-447",
+    "note": "RemoveSharesBetweenUsersAsync, RemoveUserFromOthersTodosAsync; symbol search остальных методов"
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "406-519",
+    "note": "SetSharedWith/SetRequiredWorkers/AddWorker/RemoveWorker/CleanupWorkersOnAccessChange"
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "231-288",
+    "note": "окончание update, SendTodoWriteAsync, delete; полный gRPC review остаётся"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "349-488",
+    "note": "rotation и sequential replay mock tests"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/AllFriendsSnapshotPostgresTests.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1-95",
+    "note": "реальные PostgreSQL two-context fixtures и translation check"
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "35-59",
+    "note": "DbContext/UoW/outbox registrations"
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Application/DependencyInjection.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "22-28",
+    "note": "MediatR pipeline registration"
+  },
+  {
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/DependencyInjection.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "22-59",
+    "note": "DbContext/UoW/canonical outbox registrations"
+  },
+  {
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DependencyInjection.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "22-83",
+    "note": "DbContext/UoW/outbox/inbox registration search"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "198-239",
+    "note": "поиск delete scenarios; полный набор assertions не прочитан"
+  },
+  {
+    "path": "docs/INVARIANTS.md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "106-139,197,332",
+    "note": "targeted auth/concurrency/migration comparisons"
+  },
+  {
+    "path": "docs/features.md",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1283-1292,1223-1225,1840-1841",
+    "note": "targeted collaboration access/friendship removal/erasure documentation"
+  },
+  {
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres/PostgresRetention.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1-100",
+    "note": "PostgresFact env gate, TemporaryDatabase creation/disposal; test fixture safety"
+  },
+  {
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthDeletionOutboxTests.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1-130",
+    "note": "DI and PostgreSQL atomic deletion/broker retry tests read; not executed"
+  },
+  {
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1-100",
+    "note": "Initial migration creates TodoItems; confirms docs drift, remainder unreviewed"
+  },
+  {
+    "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs",
+    "status": "NEEDS_DEEP_REVIEW",
+    "pass": "backend-static-2026-11-02",
+    "lines": "1-95",
+    "note": "Startup integration confirmed; deeper ownership distributed agent"
+  }
+]
