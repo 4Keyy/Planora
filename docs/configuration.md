@@ -2,6 +2,29 @@
 
 Planora configuration comes from environment variables, `appsettings*.json`, Docker Compose, Ocelot route files, Next.js config, and launch scripts.
 
+<!-- contents:start -->
+## Contents
+
+- [Configuration Sources](#configuration-sources)
+- [Required Docker Compose Variables](#required-docker-compose-variables)
+- [OpenTelemetry (Observability)](#opentelemetry-observability)
+- [Centralized Logs (Grafana Loki)](#centralized-logs-grafana-loki)
+- [Environment Variables In .env.example](#environment-variables-in-envexample)
+- [Rate Limiting](#rate-limiting)
+- [Service Ports](#service-ports)
+- [JWT Configuration](#jwt-configuration)
+- [CORS And CSRF](#cors-and-csrf)
+- [Email Delivery](#email-delivery)
+- [Frontend build directory (NEXT_DIST_DIR)](#frontend-build-directory-next_dist_dir)
+- [Frontend build configuration](#frontend-build-configuration)
+- [Frontend API URL](#frontend-api-url)
+- [Gateway Route Files](#gateway-route-files)
+- [Database Connection Strings](#database-connection-strings)
+- [Known Configuration Inconsistencies To Keep Visible](#known-configuration-inconsistencies-to-keep-visible)
+- [Data Retention (automatic cleanup)](#data-retention-automatic-cleanup)
+- [Deployment configuration that templates do not supply](#deployment-configuration-that-templates-do-not-supply)
+<!-- contents:end -->
+
 ## Configuration Sources
 
 | Source | Purpose |
@@ -259,7 +282,7 @@ Code:
 ## Frontend build directory (`NEXT_DIST_DIR`)
 
 `frontend/next.config.js` sets Next's `distDir` from `NEXT_DIST_DIR`, defaulting to `.next`, and
-`docs/ui-audit/tools/class-audit.mjs` reads the same variable. It exists for one job: building and
+`tools/ui-audit/class-audit.mjs` reads the same variable. It exists for one job: building and
 verifying in a side directory (e.g. `.next-verify`) while another `next start` is serving `.next`,
 which a rebuild in place would tear. It is deliberately **not** in `.env.example` — set it in a single
 shell for a single build, never in an `.env` file. See [`development.md`](development.md) §
@@ -397,7 +420,7 @@ Both route files expose canonical friendship routes under `/auth/api/v1/friendsh
 
 Startup code waits for PostgreSQL and initializes schemas for Auth, Todo, Category, Collaboration and Messaging. The tracked Todo migration chain is incomplete; a clean database requires a corrected baseline. If user-owned EF migrations exist, startup applies pending migrations. If no migrations exist in the assembly, startup creates the schema from the current EF model through `DatabaseStartup.EnsureReadyAsync`.
 
-The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDatabase` is set it persists notifications (mapped `Notifications` / `NotificationDeliveries` / `OutboxMessages` tables; delivery rows are currently scaffolding, not an active delivery audit) and serves the read API; when it is absent the service falls back to ephemeral SignalR pushes only. Realtime's schema is **not** created at startup — apply its EF migration explicitly with `Planora.Migrator --service realtime` (the runner creates `planora_realtime` if it does not yet exist) before first boot.
+The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDatabase` is set it persists notifications (mapped `Notifications` / `NotificationDeliveries` / `OutboxMessages` tables; delivery rows are currently scaffolding, not an active delivery audit) and serves the read API; when it is absent the service falls back to ephemeral SignalR pushes only. Realtime prepares its configured durable store at startup through `RealtimeDatabaseStartup`, before subscriptions consume events. Validate schema compatibility and migration history before upgrading existing data; see [Database](database.md).
 
 ## Known Configuration Inconsistencies To Keep Visible
 
@@ -480,7 +503,7 @@ defaults, not a compliance certification.
 | `ForwardedHeaders__KnownProxies__0` (numbered array) | Gateway enables forwarded headers when its configured proxy list is non-empty and accepts literal IP addresses only; CIDR is not parsed. |
 | `Kestrel__Endpoints__<name>__Url`, `Protocols` | Explicit endpoint configuration can override `ASPNETCORE_URLS`; verify each REST/HTTP2 listener against the manifest port. |
 | Ocelot production targets | Gateway selects Docker route file only for environment `Docker`; Production selects the local loopback-target file unless configuration is corrected. |
-| `ConnectionStrings__RealtimeDatabase` on Fly | Needed on Realtime and migrator for persistence; omitted by current `set-secrets.ps1`. |
+| `ConnectionStrings__RealtimeDatabase` on Fly | Selected for both Realtime and migrator by `set-secrets.ps1`; supply the actual connection string. |
 | `GrpcServices__TodoApi` | Collaboration requires Todo gRPC; Fly staging script has no fallback for this key. |
 | `Grpc__EnableDetailedErrors` | Auth gRPC defaults to false; only enable intentionally in a non-public diagnostic environment. |
 | `IsDevelopment` | Read by selected shared/Auth helpers; this configuration flag is separate from the host environment name. |

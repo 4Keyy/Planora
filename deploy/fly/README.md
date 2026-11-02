@@ -5,6 +5,18 @@ no real secrets. The [deployment guide](../../docs/deployment.md) records
 confirmed rollout blockers; a valid TOML file or green prerequisite checker
 does not mean this checkout can be promoted successfully.
 
+<!-- contents:start -->
+## Contents
+
+- [Layout](#layout)
+- [Bootstrap scripts](#bootstrap-scripts)
+- [Actual secret selection](#actual-secret-selection)
+- [Delivery workflow and blockers](#delivery-workflow-and-blockers)
+- [Persistent avatars](#persistent-avatars)
+- [PostgreSQL and observability](#postgresql-and-observability)
+- [Related references](#related-references)
+<!-- contents:end -->
+
 ## Layout
 
 | Manifest | App | Role |
@@ -16,7 +28,7 @@ does not mean this checkout can be promoted successfully.
 | `collaboration.fly.toml` | `planora-collaboration` | Comments/replies and timeline |
 | `messaging.fly.toml` | `planora-messaging` | Direct messages |
 | `realtime.fly.toml` | `planora-realtime` | SignalR and optional persistent notifications |
-| `migrator.fly.toml` | `planora-migrator` | Implemented one-shot CLI; Docker build graph currently incomplete |
+| `migrator.fly.toml` | `planora-migrator` | Implemented one-shot CLI; includes all referenced service projects and the required ASP.NET runtime |
 | `outbox-worker.fly.toml` | `planora-outbox-worker` | Reserved only; referenced worker project/Dockerfile is absent |
 
 The migrator manifest's old reserved comment is stale: the CLI is now in the
@@ -61,13 +73,12 @@ migrator needs database configuration rather than those shared API secrets.
 | Todo | `ConnectionStrings__TodoDatabase`, `GrpcServices__AuthApi`, `GrpcServices__CategoryApi` |
 | Messaging | `ConnectionStrings__MessagingDatabase`, `GrpcServices__AuthApi` |
 | Collaboration | `ConnectionStrings__CollaborationDatabase`, `GrpcServices__AuthApi`, `GrpcServices__TodoApi` |
-| Realtime | Shared set only; **RealtimeDatabase is missing from the script** |
+| Realtime | Shared set, `ConnectionStrings__RealtimeDatabase`, `GrpcServices__TodoApi` |
 | Gateway | Shared set plus `Frontend__BaseUrl` |
-| Migrator | Auth, Category, Todo, Messaging, Collaboration database strings; **RealtimeDatabase is missing** |
+| Migrator | Auth, Category, Todo, Messaging, Collaboration and Realtime database strings |
 
 For durable notifications, both Realtime and the migrator require
-`ConnectionStrings__RealtimeDatabase`; the current script must be corrected
-or the key supplied separately. `GrpcServices__TodoApi` has no injected default
+`ConnectionStrings__RealtimeDatabase`; the staging matrix selects it for both apps. `GrpcServices__TodoApi` has no injected default
 in the script. Default Auth/Category URLs use `https://<app>.internal:443`:
 these are configured strings, not evidence of working TLS, HTTP/2 or Flycast.
 A `.internal` hostname does not itself prove application-layer mTLS. Verify
@@ -87,10 +98,10 @@ health. No frontend deploy step exists.
 
 Before activation, resolve:
 
-- incomplete Todo migration baseline and migrator Docker COPY graph;
+- validate the reviewed Todo migration chain and build the migrator image on the target platform;
 - local Ocelot targets selected by `ASPNETCORE_ENVIRONMENT=Production`;
 - effective listener ports/protocols versus manifest port `8080`;
-- missing Realtime DB secret selection and explicit schema initialization;
+- supply the selected database secrets and verify startup schema initialization;
 - reserved worker manifest included in blanket validation;
 - actual app exposure and Auth avatar volume/write-path alignment.
 
@@ -136,4 +147,4 @@ Prometheus scrape endpoint is registered in gateway startup.
 - [Deployment](../../docs/deployment.md)
 - [Production baseline](../../docs/production.md)
 - [Operations](../../docs/OPERATIONS.md)
-- [Audit](../../docs/audits/2026-10-06.md)
+- [known limitations](../../docs/known-limitations.md)

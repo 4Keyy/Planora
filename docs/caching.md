@@ -4,6 +4,18 @@ This reference records the caches that are actually wired in Planora. PostgreSQL
 source of truth; a registered cache abstraction does not imply that every query uses it.
 For deployment variables, see [configuration.md](configuration.md).
 
+<!-- contents:start -->
+## Contents
+
+- [Cache Layers](#cache-layers)
+- [Naming Convention](#naming-convention)
+- [Shared Cache TTL And Failure Behavior](#shared-cache-ttl-and-failure-behavior)
+- [Invalidation Rules](#invalidation-rules)
+- [Authorization And Freshness](#authorization-and-freshness)
+- [Observability](#observability)
+- [References](#references)
+<!-- contents:end -->
+
 ## Cache Layers
 
 | Layer | Implementation | Scope and behavior |

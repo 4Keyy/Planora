@@ -1,172 +1,66 @@
 # Planora Documentation
 
-The project knowledge base for users, developers, operators, and
-contributors. Maintained reference pages describe current code and configuration; plans, ADRs and research retain their historical context. A declared policy is not automatically an implemented guarantee.
+Start with the task you need to complete. These guides describe implemented behaviour;
+architectural policies and release requirements are identified separately.
 
-> If a behaviour is not confirmed by project files, the docs mark it as
-> "not confirmed by code" or "requires owner clarification" instead of
-> inventing a contract.
+## Find your guide
 
-## Current audit and verification
-
-The [2026-10-06 repository audit](audits/2026-10-06.md) records source coverage, documentation corrections, measured checks and unresolved findings. Read it before treating fresh-install, deployment, authorization or messaging guarantees as established.
-
-The [2026-10-06 Dependabot integration review](audits/dependabot-2026-10-06.md)
-records the six merged requests, preserved source, dependency versions and
-remaining audit/E2E limits.
-
-The [2026-10-20 frontend audit](audits/frontend-2026-10-20/README.md) (in Russian) rates the
-frontend by area, lists 35 verified findings with fixes, and sets a phased remediation plan and
-measurable target-state criteria; the user experience is treated as frozen. The
-[2026-10-20 Dependabot integration review](audits/dependabot-2026-10-20.md) records the eight
-requests applied to `main`, the Node 22 CI switch and every check that ran.
-
-## Pick your reading path
-
-| Reader | Start here | Then read |
+| Task | Read first | Next step |
 |---|---|---|
-| First-time user | [`getting-started.md`](getting-started.md) | [`features.md`](features.md), [`troubleshooting.md`](troubleshooting.md), [`faq.md`](faq.md) |
-| Frontend developer | [`frontend.md`](frontend.md) | [`design-system.md`](design-system.md), [`features.md`](features.md), [`API.md`](API.md), [`testing.md`](testing.md) |
-| Designer | [`design-system.md`](design-system.md) | [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md), [`ui-audit/TARGET.md`](ui-audit/TARGET.md), [`frontend.md`](frontend.md) |
-| Backend developer | [`architecture.md`](architecture.md) | [`API.md`](API.md), [`database.md`](database.md), [`auth-security.md`](auth-security.md), [`INVARIANTS.md`](INVARIANTS.md) |
-| Operator / on-call | [`OPERATIONS.md`](OPERATIONS.md) | [`configuration.md`](configuration.md), [`deployment.md`](deployment.md), [`production.md`](production.md), [`secrets-management.md`](secrets-management.md), [`observability.md`](observability.md), [`slo.md`](slo.md) |
-| Security reviewer | [`auth-security.md`](auth-security.md) | [`security-idor-coverage.md`](security-idor-coverage.md), [`secrets-management.md`](secrets-management.md), [`INVARIANTS.md`](INVARIANTS.md) |
-| Contributor | [`codebase-map.md`](codebase-map.md) | [`development.md`](development.md), [`testing.md`](testing.md), [`../CONTRIBUTING.md`](../CONTRIBUTING.md), [`INVARIANTS.md`](INVARIANTS.md) |
-| Architect | [`architecture.md`](architecture.md) | [`INVARIANTS.md`](INVARIANTS.md), [`DECISIONS/`](DECISIONS/), [`caching.md`](caching.md) |
+| Run Planora locally | [Getting started](getting-started.md) | [Troubleshooting](troubleshooting.md) |
+| Understand the product | [Overview](overview.md) | [Features](features.md), [glossary](glossary.md) |
+| Change backend behaviour | [Architecture](architecture.md) | [API](API.md), [database](database.md), [invariants](INVARIANTS.md) |
+| Change the frontend | [Frontend](frontend.md) | [Design system](design-system.md), [testing](testing.md) |
+| Find source code | [Codebase map](codebase-map.md) | [Development](development.md) |
+| Diagnose access or sessions | [Authentication and security](auth-security.md) | [Authorization coverage](security-idor-coverage.md) |
+| Operate the stack | [Operations](OPERATIONS.md) | [Configuration](configuration.md), [observability](observability.md) |
+| Protect or restore data | [Backup and recovery](backup-recovery.md) | [Database](database.md), [secrets management](secrets-management.md) |
+| Prepare a release | [Deployment](deployment.md) | [Production requirements](production.md), [known limitations](known-limitations.md) |
+| Contribute a change | [Contributing](../CONTRIBUTING.md) | [Development](development.md), [testing](testing.md) |
 
-## Documentation map
+## Product and application
 
-### Product
+- [Overview](overview.md): purpose, domain model and supported scenarios.
+- [Features](features.md): behaviour, permissions and route-specific differences.
+- [Getting started](getting-started.md): prerequisites, launch modes and first-user flow.
+- [FAQ](faq.md) and [troubleshooting](troubleshooting.md): common questions and failures.
+- [Glossary](glossary.md): shared product and engineering vocabulary.
+- [Frontend](frontend.md): rendering, data access, state, keyboard behaviour and composition.
+- [Design system](design-system.md): tokens, components, motion and accessibility rules.
 
-| File | Purpose |
-|---|---|
-| [`overview.md`](overview.md) | Product, domain model, scenarios, boundaries |
-| [`features.md`](features.md) | Feature behaviour with code references |
-| [`getting-started.md`](getting-started.md) | Local setup, first successful path |
-| [`faq.md`](faq.md) | Common user / developer questions |
-| [`troubleshooting.md`](troubleshooting.md) | Known startup and runtime failures, fixes |
-| [`glossary.md`](glossary.md) | Project terms with file references |
+## Architecture and contracts
 
-### Architecture & code
+- [Architecture](architecture.md): service boundaries, communication and delivery semantics.
+- [Codebase map](codebase-map.md): source and tooling by responsibility.
+- [API reference](API.md): HTTP routes, request/response shapes and errors.
+- [Database](database.md): data ownership, models and schema initialization.
+- [Caching](caching.md): keys, TTLs, invalidation and isolation.
+- [Invariants](INVARIANTS.md): engineering rules and implementation gaps.
+- [Architecture decisions](DECISIONS/): retained decisions and their historical context.
 
-| File | Purpose |
-|---|---|
-| [`architecture.md`](architecture.md) | Service boundaries, data flow, patterns, diagrams |
-| [`codebase-map.md`](codebase-map.md) | Directory and critical-file map |
-| [`frontend.md`](frontend.md) | Next.js architecture, rendering model, data access, state, realtime, component conventions, the pre-commit checklist |
-| [`design-system.md`](design-system.md) | Every design token with its measured contrast, the five enforced rules, primitives, and the failure modes the system is built against |
-| [`INVARIANTS.md`](INVARIANTS.md) | Declared rules with implementation status and known gaps |
-| [`API.md`](API.md) | Gateway route map and endpoint reference |
-| [`database.md`](database.md) | EF Core contexts, tables, schema bootstrap |
-| [`caching.md`](caching.md) | Cache layers, naming, TTL, invalidation |
-| [`DECISIONS/`](DECISIONS/) | Architecture Decision Records (ADRs) |
+## Security and operations
 
-### Interface audit
+- [Authentication and security](auth-security.md), [authorization coverage](security-idor-coverage.md).
+- [Security reporting](../SECURITY.md) and [secret management](secrets-management.md).
+- [Operations](OPERATIONS.md), [configuration](configuration.md), [backup and recovery](backup-recovery.md).
+- [Deployment](deployment.md), [Fly setup](../deploy/fly/README.md), [production requirements](production.md).
+- [Observability](observability.md), [service objectives](slo.md), [known limitations](known-limitations.md).
 
-| File | Purpose |
-|---|---|
-| [`ui-audit/RESEARCH.md`](ui-audit/RESEARCH.md) | The full interface audit: 19 blocks covering design system, typography, colour, space, components, interaction, motion, phone and desktop, WCAG 2.2 AA, performance, edge cases, information architecture, copy, consistency, and comparison with reference products. Every claim carries a confidence marker |
-| [`ui-audit/DEFECTS.md`](ui-audit/DEFECTS.md) | The defect register — evidence, the rule broken, the target state, and how to verify the fix |
-| [`ui-audit/TARGET.md`](ui-audit/TARGET.md) | Target state as rule → number → automated check |
-| [`ui-audit/INVENTORY.md`](ui-audit/INVENTORY.md) | Routes × states, the `ui/` components, overlays, icons |
-| [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) | The design blueprint: product thesis, the two-device behavioural model, tokens, primitives, the task card, presence and redaction, the motion system, and twelve signature moments |
-| [`ui-audit/EXECUTION.md`](ui-audit/EXECUTION.md) | The execution plan, phase by phase, with verification commands |
-| [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md) | What was actually changed, measured before and after — including the audit's own errors, where the implementation departs from the blueprint and why, and what is still not built. Written in Russian |
-| [`ui-audit/tools/`](ui-audit/tools/) | The measurement harness. Every one exits non-zero on a finding, so any of them can gate a commit: `static-scan` (scales, colour literals, rule violations), `contrast-scan` (WCAG ratios from the tokens), `live-scan` (the browser matrix — routes x viewports x modes), `focus-scan` (every focus stop and contrast/geometry measurements; WCAG criteria interpreted in the design guide), `class-audit` (Tailwind classes that emit no CSS), `a11y-static` (unnamed controls, div-with-onClick), `link-check` (every relative markdown link and anchor in the repo), `mock-api` (deterministic fixtures, so the authenticated routes are measurable without the backend) |
+## Development and verification
 
-### Research (pre-implementation)
+- [Contributing](../CONTRIBUTING.md) and [development workflow](development.md).
+- [Test guide](testing.md), [test summary](../TESTING.md), [E2E setup](../frontend/e2e/README.md).
+- [Performance scenarios](../perf/README.md).
+- [Documentation checks](../tools/docs/README.md) and [interface checks](../tools/ui-audit/README.md).
+- [Changelog](../CHANGELOG.md) and [license](../LICENSE).
 
-| File | Purpose |
-|---|---|
-| [`eco/RESEARCH.md`](eco/RESEARCH.md) | Personal-finance domain research for the planned Eco / Ledger service: industry landscape, abandonment causes, money & ledger modelling, metrics, interface language, storage, Planora integration, naming. Research only — no implementation plan |
-| [`eco/UX-BLUEPRINT.md`](eco/UX-BLUEPRINT.md) | Layout and interaction specification for the same service on desktop and phone web: grid and breakpoints, screen inventory, per-screen wireframes with pixel sizes, component inventory, frame-by-frame interaction choreography, chart specs, performance budgets, accessibility, design-token additions |
+## Maintaining these guides
 
-### Security
+Update the relevant guide alongside changes to its contract, commands or configuration.
+Use one maintained source for each topic and link to it from summaries. Keep measurements
+with their commit, environment and command; a historical result is not a current guarantee.
+Personal working notes and generated test results belong outside published documentation.
 
-| File | Purpose |
-|---|---|
-| [`auth-security.md`](auth-security.md) | Auth model, CSRF, JWT, sessions, security stamp |
-| [`security-idor-coverage.md`](security-idor-coverage.md) | Authorization coverage, per-endpoint evidence and open access-check gaps |
-| [`secrets-management.md`](secrets-management.md) | Secret inventory, storage, rotation |
-| [`../SECURITY.md`](../SECURITY.md) | Vulnerability disclosure policy |
-
-### Operations
-
-| File | Purpose |
-|---|---|
-| [`OPERATIONS.md`](OPERATIONS.md) | Runbook entry point |
-| [`configuration.md`](configuration.md) | Environment variables, appsettings, ports |
-| [`deployment.md`](deployment.md) | Docker Compose, CI/CD, Fly deployment |
-| [`production.md`](production.md) | Production baseline, readiness checklist |
-| [`observability.md`](observability.md) | OpenTelemetry, Loki, Grafana, custom metrics |
-| [`slo.md`](slo.md) | Service-level objectives and error budgets |
-
-### Engineering workflow
-
-| File | Purpose |
-|---|---|
-| [`development.md`](development.md) | Local workflows for adding features, endpoints, components |
-| [`codex-protocol.md`](codex-protocol.md) | Standing Codex engineering rules, parallel ownership and local instruction loading |
-| [`testing.md`](testing.md) | Suites, commands, coverage, OpenAPI lint |
-| [`plans/`](plans/) | Working plans and research prompts for upcoming work |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | contributor checks, documentation rules and repository hygiene |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Released changes, conventional-commit log |
-
-## Key code references
-
-| Topic | Files |
-|---|---|
-| Gateway routes | `Planora.ApiGateway/ocelot.json`, `Planora.ApiGateway/ocelot.Docker.json` |
-| Frontend API client | `frontend/src/lib/api.ts`, `frontend/src/lib/auth-public.ts`, `frontend/src/lib/csrf.ts`, `frontend/src/store/auth.ts` |
-| Design tokens | `frontend/src/lib/design-tokens.ts`, `frontend/tailwind.config.ts`, `frontend/src/app/globals.css`, `frontend/src/lib/animations.ts` |
-| UI primitives | `frontend/src/components/ui/` — `button`, `field`, `status-panel`, `overlay`, `priority-meter`, `confirm-dialog`, `toast`, `card`, `avatar` |
-| Motion primitives | `frontend/src/components/ui/number-roll.tsx`, `ink-check.tsx`, `week-bars.tsx`, `undo-bar.tsx` |
-| Collaboration primitives | `frontend/src/components/ui/presence-row.tsx` (who is in a task, and arrival as an event), `redaction-badge.tsx` (audience as an arc that opens and closes) |
-| Realtime display policy | `frontend/src/components/ui/update-pill.tsx` — `UpdatePill` and `useDeferredUpdates`: apply live only at the top of the list with nothing open, queue everywhere else |
-| Keyboard model | `frontend/src/hooks/use-list-navigation.ts` (cursor, multi-select), `frontend/src/components/ui/shortcuts-overlay.tsx` (`SHORTCUT_GROUPS` drives the `?` overlay), `frontend/src/components/command-palette/` (local action labels); update handlers, overlay, palette labels and docs together |
-| Selection and New task | `frontend/src/components/ui/selection-bar.tsx`; `frontend/src/hooks/use-new-task-shortcut.ts` and `frontend/src/lib/create-task-request.ts` open `CreateTodoPanel` on Dashboard or Tasks; the palette can navigate to Tasks with a pending title request |
-| Card → dialog transition | `frontend/src/lib/shared-origin.ts`, consumed in `frontend/src/components/todos/edit-todo-modal/modal.tsx` |
-| Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-exit-presence`, `use-autosave`, `use-collapse-scroll`, `use-friends` |
-| Design-system enforcement | `frontend/src/test/quality/design-tokens.contract.test.ts`, `docs/ui-audit/tools/class-audit.mjs`, `docs/ui-audit/tools/a11y-static.mjs`, `docs/ui-audit/tools/focus-scan.mjs` |
-| Documentation enforcement | `docs/ui-audit/tools/link-check.mjs` — relative file/anchor checker; counts depend on the checkout, and its traversal includes ignored local Markdown |
-| Auth endpoints | `Services/AuthApi/Planora.Auth.Api/Controllers` |
-| Todo endpoints & sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
-| Category endpoints | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
-| Messaging endpoints | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
-| Collaboration (comment timeline) endpoints | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
-| Realtime endpoints & hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs` |
-| Database models | `*/Infrastructure/Persistence/*DbContext.cs`, `*/Infrastructure/Persistence/Configurations` |
-| Backend tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests` |
-| Frontend tests | `frontend/src/test`, `frontend/playwright.config.ts`, `frontend/e2e` |
-| Observability wiring | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` |
-| Health probes | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` |
-| Migration runner | `tools/Planora.Migrator/`, `.github/workflows/migrations.yml` |
-| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md` |
-| Continuous delivery | `.github/workflows/cd.yml` |
-| Loki Serilog sink | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs` (`TryAddLokiSink`) |
-| Frontend trace propagation | `frontend/src/lib/trace.ts`, axios interceptor in `frontend/src/lib/api.ts` |
-| Performance baseline | `perf/k6/`, `perf/README.md`, `.github/workflows/perf-smoke.yml` |
-
-## Maintenance checklist
-
-Update docs when changing:
-
-- gateway routes or controller actions;
-- DTOs, validators, response wrappers, or error behaviour;
-- environment variables, ports, scripts, Docker Compose, or appsettings;
-- database entities, EF configurations, schema bootstrap, indices, or seed data;
-- frontend routes, auth-token handling, API-client behaviour, hidden-task behaviour;
-- design tokens, UI primitives, motion, or anything else in [`design-system.md`](design-system.md);
-- keyboard shortcuts — any change to `SHORTCUT_GROUPS` or to the keys `use-list-navigation.ts`
-  answers to, including a key that moves from one owner to another. The `?` overlay prints that
-  array, so a binding the code no longer serves becomes a printed promise the product breaks;
-- what realtime does to a list on arrival, or what counts as "busy" for `useDeferredUpdates` —
-  the rule decides whether someone else's change moves rows under a click already committed to;
-- whether a destructive action is guarded by confirmation or by the undo window, on any screen.
-  The two must not disagree about the same object: [`features.md`](features.md) records which
-  screen uses which and why;
-- a signature moment from [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) being built, changed,
-  or deliberately built differently from its spec — the deviation and its reason belong in
-  [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md), not only in a code comment;
-- tests, CI jobs, security checks, or launch scripts;
-- production deployment assumptions, secret names, license terms, or vulnerability disclosure policy.
+Run the [documentation checks](../tools/docs/README.md) before committing. They inspect
+Git-listed documents, including local links, anchors, images and path case. Operational
+commands also need an isolated execution check; syntax and links alone do not prove safety.

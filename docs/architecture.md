@@ -2,6 +2,27 @@
 
 Planora is a microservice-oriented .NET 10 backend with a Next.js 16 frontend. The system uses database-per-service ownership, Ocelot for browser ingress, gRPC for synchronous service-to-service checks, RabbitMQ for asynchronous integration events, Redis for cache/backplane concerns, and PostgreSQL for persistent data.
 
+<!-- contents:start -->
+## Contents
+
+- [System Diagram](#system-diagram)
+- [Runtime Entry Points](#runtime-entry-points)
+- [Service Boundaries](#service-boundaries)
+- [Backend Layering](#backend-layering)
+- [Browser Ingress](#browser-ingress)
+- [Request Flow: Authenticated Todo List](#request-flow-authenticated-todo-list)
+- [Request Flow: Login And Refresh](#request-flow-login-and-refresh)
+- [Data Ownership And Integration](#data-ownership-and-integration)
+- [API Response Model](#api-response-model)
+- [Error Handling](#error-handling)
+- [Security Architecture](#security-architecture)
+- [Observability Architecture](#observability-architecture)
+- [Health Probe Architecture](#health-probe-architecture)
+- [Architecture Decisions](#architecture-decisions)
+- [Known Architectural Risks](#known-architectural-risks)
+- [Data Retention subsystem](#data-retention-subsystem)
+<!-- contents:end -->
+
 ## System Diagram
 
 ```mermaid
@@ -554,7 +575,7 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 |---|---|---|
 | Multiple response shapes | Frontend consumers must handle raw DTOs, `Result<T>`, and paged wrappers. | `parseApiResponse` handles common wrappers. |
 | Configuration drift between launch profiles and Compose | Port/connection examples can become stale. | Prefer Compose/appsettings/Ocelot as source of truth; see `configuration.md`. |
-| Realtime's Todo gRPC address is unset under Compose | `docker-compose.yml` sets `GrpcServices__TodoApi` for Collaboration but not for Realtime, so Realtime falls back to the `http://localhost:5101` default — which inside the container is the container itself. `JoinTask` then fails closed and branch rooms are never joined under Compose. | Not yet fixed. Set `GrpcServices__TodoApi: "http://todo-api:81"` on the `realtime-api` service, mirroring `collaboration-api`. |
+| Task-room authorization depends on Todo gRPC | Realtime checks task access through Todo before allowing a branch-room subscription. | Compose explicitly points both Collaboration and Realtime at `http://todo-api:81`; verify HTTP/2 connectivity when changing deployment addresses. |
 | ADR-0005 no longer matches the code | The ADR says CSRF middleware is registered only on Auth API; five services register it today. A reader trusting the ADR will mis-model the middleware pipeline. | The ADR now records the divergence. Scope must be explicitly reconciled as an architecture change; wider middleware coverage alone does not prove a stronger overall policy. |
 | Compose service ports are local-development bindings | Compose is a local topology, not a production edge design. | Keep databases, broker, cache, gRPC, and backend service ports private in production. |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * focus-scan.mjs — every focus stop, and whether its indicator clears WCAG 2.4.11.
+ * focus-scan.mjs — reached focus stops and the project's 3:1 indicator contrast floor.
  *
  * "Has a focus indicator" and "has a focus indicator you can see" are different
  * questions, and only the second one matters. Two idioms in this codebase produced
@@ -13,26 +13,34 @@
  *
  * Both shipped. The auth inputs across all six auth routes, seven text controls in
  * the branch editor, and every Button variant's ring (1.12:1 to 2.10:1 against
- * white, where 2.4.11 asks for 3:1) were all invisible or near-invisible while the
+ * white, below the project's 3:1 floor) were all invisible or near-invisible while the
  * live matrix reported them as passing, because it recorded the outline STRING.
  *
  * So this measures contrast: the indicator colour composited over paper, against
  * paper, by the WCAG relative-luminance formula. Anything under 3:1 is reported.
  *
- *   node docs/ui-audit/tools/focus-scan.mjs
+ *   node tools/ui-audit/focus-scan.mjs
  *
  * Exits non-zero when any focus stop lacks a qualifying indicator.
  */
 import { createRequire } from 'node:module'
-import path from 'node:path'
 
-const require = createRequire(path.resolve('frontend/package.json'))
+const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
+const option = (flag, fallback) => {
+  const index = process.argv.indexOf(flag)
+  if (index < 0) return fallback
+  const value = process.argv[index + 1]
+  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${flag}`)
+  return value
+}
+const base = new URL(option('--base', process.env.E2E_FRONTEND_URL || 'http://127.0.0.1:3200'))
+if (!['http:', 'https:'].includes(base.protocol)) throw new Error('The frontend base must use HTTP or HTTPS')
 const { installMockApi } = await import(
-  new URL('file:///F:/Projects/Planora/docs/ui-audit/tools/mock-api.mjs').href
+  new URL('./mock-api.mjs', import.meta.url).href
 )
 
-const browser = await chromium.launch()
+const browser = await chromium.launch({ channel: option('--channel', undefined) })
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
 await installMockApi(context, { dataset: 'rich' })
 const page = await context.newPage()
@@ -50,7 +58,7 @@ const probe = () => {
     return parts.length > 3 ? parts[3] : 1
   }
 
-  // WCAG 2.4.11 asks for 3:1, so measure the contrast rather than the alpha.
+  // Measure the project's contrast floor; this is not a full WCAG conformance check.
   const rgb = (c) => {
     const open = (c || '').indexOf('(')
     if (open === -1) return [255, 255, 255]
@@ -119,7 +127,7 @@ const probe = () => {
 
 let grandTotal = 0
 for (const route of ['/branch/todo-0', '/dashboard', '/tasks', '/categories', '/profile']) {
-  await page.goto('http://127.0.0.1:3200' + route, { waitUntil: 'domcontentloaded' })
+  await page.goto(new URL(route, base).href, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
 
   const invisible = []

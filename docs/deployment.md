@@ -6,7 +6,20 @@ artifacts describe an intended deployment path; the audited checkout has concret
 rollout blockers and has not been certified by a production deployment.
 
 Read [Production readiness](production.md) before a release, [Operations](OPERATIONS.md)
-for routine commands, and the [2026-10-06 audit](audits/2026-10-06.md) for verification results.
+for routine commands, and the [known limitations](known-limitations.md) for verification results.
+
+<!-- contents:start -->
+## Contents
+
+- [Deployment artifacts](#deployment-artifacts)
+- [Docker Compose topology](#docker-compose-topology)
+- [Local startup](#local-startup)
+- [Schema initialization and migration runner](#schema-initialization-and-migration-runner)
+- [CI/CD workflow inventory](#cicd-workflow-inventory)
+- [Confirmed rollout blockers](#confirmed-rollout-blockers)
+- [Health endpoints and their limits](#health-endpoints-and-their-limits)
+- [Related references](#related-references)
+<!-- contents:end -->
 
 ## Deployment artifacts
 
@@ -142,12 +155,9 @@ not trigger CD.
 
 | Blocker | Evidence | Required correction before release |
 |---|---|---|
-| Incomplete Todo migration history | Earliest tracked migration alters `todo.user_todo_view_preferences` | Restore/baseline complete schema history and validate against an empty PostgreSQL DB |
-| Migrator container omits project dependencies | Dockerfile copies four service trees; csproj also references Realtime/Collaboration | Align Docker build context with the actual project-reference graph |
-| Migration artifacts do not prove database bootstrap | The workflow now restores/builds with EF CLI 10.0.8 and includes Realtime, but scripts describe the tracked migration chain | Verify the initial schema and empty-database application separately; artifact generation alone does not repair missing migration history |
+| Migration artifacts do not prove database bootstrap | The workflow now restores/builds with EF CLI 10.0.8 and includes Realtime, but scripts describe the tracked migration chain | Verify the initial schema and empty-database application separately; artifact generation alone does not establish upgrade safety |
 | Production gateway uses local targets | `Program.cs` selects `ocelot.Docker.json` only for Docker; Production selects tracked `ocelot.json` with loopback targets | Supply verified production routes and service addresses |
 | Listener/proxy port alignment unverified | Fly `internal_port=8080`; committed Kestrel endpoints use local ports | Configure/test effective Kestrel REST and HTTP/2 endpoints, not just `ASPNETCORE_URLS` |
-| Realtime DB secret omitted | `set-secrets.ps1` lacks RealtimeDatabase in Realtime and migrator matrices | Stage the correct connection on both; apply Realtime migrations |
 | Reserved worker included in manifest validation | Outbox worker manifest refers to absent `tools/Planora.Outbox.Worker/Dockerfile` | Separate reserved topology from runnable deployment inputs |
 | Production frontend target absent | No frontend Dockerfile/Fly app/CD step | Choose and document a concrete Next.js hosting/build path |
 

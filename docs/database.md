@@ -8,6 +8,24 @@ Infrastructure:
 - host binding is `127.0.0.1:5433:5432`.
 - services wait for PostgreSQL and initialize schema during startup.
 
+<!-- contents:start -->
+## Contents
+
+- [Database Ownership](#database-ownership)
+- [Startup And Schema Initialization](#startup-and-schema-initialization)
+- [Migration Governance](#migration-governance)
+- [Auth Database](#auth-database)
+- [Todo Database](#todo-database)
+- [Category Database](#category-database)
+- [Messaging Database](#messaging-database)
+- [Collaboration Database](#collaboration-database)
+- [Realtime Persistence](#realtime-persistence)
+- [Outbox / Inbox Pattern](#outbox--inbox-pattern)
+- [Safe Database Operations](#safe-database-operations)
+- [Example Inspection Commands](#example-inspection-commands)
+- [Data Retention Policies](#data-retention-policies)
+<!-- contents:end -->
+
 ## Database Ownership
 
 | Service | DbContext | Connection string key | Database name |
@@ -57,7 +75,7 @@ explicit Collaboration migration; nonempty comments are never dropped by startup
 Production schema evolution requires a reviewed, service-owned migration chain. Startup
 schema mutation is currently enabled in Production too; no environment gate disables it.
 
-Do not mix both paths on the same persistent database without planning. If a database was created by `EnsureCreatedAsync` and you later decide to use EF migrations for that same database, recreate the local database/volume or create a proper baseline migration strategy first.
+Do not mix both paths on the same persistent database without planning. If a database was created by `EnsureCreatedAsync` and you later decide to use EF migrations for that same database, use a reviewed baseline migration strategy and verify it on a restored copy first. Preserve the original database and volumes.
 
 Code:
 
@@ -76,7 +94,7 @@ treating this as a working deployment path; see [production.md](production.md).
 | Concern | How it is handled |
 |---|---|
 | Pre-deploy migration | `dotnet Planora.Migrator.dll --all` (or `--service <name>` for a single service). On Fly.io: `flyctl machine run --rm planora-migrator -- --all`. |
-| Review-time visibility | `.github/workflows/migrations.yml` defines SQL-script artifacts for Auth, Category, Todo, Messaging and Collaboration; Realtime is omitted. Its current EF tool/build setup requires correction before the job can be relied on. |
+| Review-time visibility | `.github/workflows/migrations.yml` restores/builds and generates per-service SQL artifacts for all six stores using EF CLI 10.0.8. Inspect the SQL and verify it on a disposable database. |
 | Idempotence | The generated scripts wrap every statement in a `__EFMigrationsHistory` lookup so re-running them on an up-to-date schema is a no-op. |
 | Connection-string priority | The CLI reads `ConnectionStrings__<Name>` from env vars / `appsettings.json` first; `--connection-string` overrides everything. |
 | Failure semantics | The CLI returns `0` on success, `64` on bad args, `70` if any one service migration failed. |

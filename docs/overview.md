@@ -11,6 +11,19 @@ The core workflow is:
 5. A shared todo can be hidden per viewer; hidden shared/public todos are redacted by the backend.
 6. Friends can exchange messages and receive realtime notifications.
 
+<!-- contents:start -->
+## Contents
+
+- [Product Scope Confirmed By Code](#product-scope-confirmed-by-code)
+- [Audiences](#audiences)
+- [Domain Model](#domain-model)
+- [The Two Devices](#the-two-devices)
+- [Main User Scenarios](#main-user-scenarios)
+- [Current Boundaries](#current-boundaries)
+- [What Planora Deliberately Does Not Do](#what-planora-deliberately-does-not-do)
+- [Confirmed Limitations](#confirmed-limitations)
+<!-- contents:end -->
+
 ## Product Scope Confirmed By Code
 
 | Capability | Status | Evidence |

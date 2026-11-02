@@ -2,7 +2,7 @@
 /**
  * live-scan.mjs — browser-side measurement harness for the Planora UI audit.
  *
- * Screenshots the full route × viewport matrix to docs/ui-audit/shots/ AND, on the
+ * Screenshots the full route × viewport matrix to test-results/ui-audit/shots/ AND, on the
  * same visit, measures what a screenshot cannot show:
  *   • every interactive element's rendered box (WCAG 2.5.8 target size, 44×44 guidance)
  *   • the real source of horizontal overflow (element-level scrollWidth analysis)
@@ -14,11 +14,11 @@
  *
  * Screenshots go to disk, never into an agent's context window.
  *
- *   node docs/ui-audit/tools/live-scan.mjs --base http://127.0.0.1:3000 --set public
- *   node docs/ui-audit/tools/live-scan.mjs --set all --email x@y.z --password ...
+ *   node tools/ui-audit/live-scan.mjs --base http://127.0.0.1:3000 --set public
+ *   node tools/ui-audit/live-scan.mjs --set all --email x@y.z --password ...
  *
  * Read-only against the application: it clicks nothing destructive and edits no file
- * outside docs/ui-audit/.
+ * outside the ignored test-results/ui-audit/ directory.
  */
 
 import fs from 'node:fs'
@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 // Playwright lives in frontend/node_modules; ESM resolves from THIS file's
 // directory, which never reaches it. Resolve against the frontend package.
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const FRONTEND_PKG = path.resolve(HERE, '../../../frontend/package.json')
+const FRONTEND_PKG = path.resolve(HERE, '../../frontend/package.json')
 const { chromium } = createRequire(FRONTEND_PKG)('playwright')
 const { installMockApi } = await import(new URL('./mock-api.mjs', import.meta.url))
 
@@ -44,8 +44,8 @@ const has = (name) => argv.includes(`--${name}`)
 
 const BASE = arg('base', 'http://127.0.0.1:3000')
 const SET = arg('set', 'public')
-const OUT_SHOTS = arg('shots', 'docs/ui-audit/shots')
-const OUT_JSON = arg('json', 'docs/ui-audit/tools/scan-live.json')
+const OUT_SHOTS = arg('shots', 'test-results/ui-audit/shots')
+const OUT_JSON = arg('json', 'tools/ui-audit/scan-live.json')
 const EMAIL = arg('email', null)
 const PASSWORD = arg('password', null)
 const ONLY = arg('only', null) // comma-separated route filter
@@ -626,7 +626,7 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
       results.routes[`${route.name}@${vp.w}${suffix}`] = {
         route: route.path, viewport: `${vp.w}x${vp.h}`, viewportLabel: vp.label, mode,
         httpStatus: status, finalUrl, redirected: !finalUrl.endsWith(route.path), loadMs, settled,
-        screenshot: path.relative('docs/ui-audit', file).replace(/\\/g, '/'),
+        screenshot: path.relative('test-results/ui-audit', file).replace(/\\/g, '/'),
         vitals, consoleErrors: consoleErrors.slice(0, 8), tabOrder, ...probe,
       }
 

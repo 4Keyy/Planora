@@ -2,6 +2,16 @@
 
 This root file is the short test summary. The full guide is [`docs/testing.md`](docs/testing.md).
 
+<!-- contents:start -->
+## Contents
+
+- [Backend](#backend)
+- [Frontend](#frontend)
+- [E2E](#e2e)
+- [Load / Performance (k6)](#load--performance-k6)
+- [CI](#ci)
+<!-- contents:end -->
+
 ## Backend
 
 ```powershell
@@ -45,16 +55,6 @@ The V8 gates are ≥85% statements, branches, functions and lines outside the ro
 pages and the task editor. Those are in the report too and are held at their measured
 level per directory, so their coverage can only rise (`docs/testing.md`, Coverage
 Configuration).
-
-The final 2026-10-06 frontend run at `b2e9c70` passed 100 files / 1,231 tests,
-with 86.46% branch coverage and all four configured thresholds above 85%.
-Lint, type check and the isolated production build also passed. The publication
-follow-up corrected two stale password-reset URL expectations to
-`/auth/reset-password` and patched the XML cryptography dependency. A forced
-restore, Release build with `-warnaserror` and all 972 backend tests passed.
-The [dated report](docs/audits/2026-10-06.md) records the initial failures,
-subsequent corrections and practical limits. Four motion/geometry browser tests
-were discovered but skipped because the local frontend was unreachable.
 
 ## E2E
 

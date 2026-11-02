@@ -1,0 +1,20 @@
+{
+  "name": "planora-docs",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check": "node check.mjs && node lint.mjs",
+    "test": "node --test check.test.mjs"
+  },
+  "devDependencies": {
+    "github-slugger": "2.0.0",
+    "markdown-it": "15.0.3",
+    "markdownlint-cli2": "0.24.0",
+    "parse5": "8.1.0"
+  },
+  "overrides": {
+    "re2js": "2.8.8",
+    "katex": "0.19.1"
+  }
+}

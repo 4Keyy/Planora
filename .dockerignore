@@ -25,10 +25,10 @@
 **/*.jfm
 **/*.log
 **/*.md
-!AGENTS.md
 **/azds.yaml
 **/bin
 **/.build-out
+**/.buildcheck
 **/charts
 ## Keep docker-compose and Dockerfile in build context
 **/coverage
@@ -52,12 +52,21 @@ LICENSE
 README.md
 **/logs
 **/.next
+**/.next-*
+**/.env.*
+**/*.dump
+**/*.backup
+**/local-data
+**/wwwroot/avatars
+**/wwwroot/uploads
 **/build_output.txt
 **/*.tsbuildinfo
 docs
 frontend/e2e
 frontend/src/test
 tests
+tools/docs
+tools/ui-audit
 
 # Admit only the reviewed Todo migration chain; keep every other migration ignored.
 !Services/TodoApi/Planora.Todo.Infrastructure/Migrations

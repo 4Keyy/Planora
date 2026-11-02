@@ -1,5 +1,16 @@
 # FAQ
 
+<!-- contents:start -->
+## Contents
+
+- [General](#general)
+- [Setup](#setup)
+- [Auth And Security](#auth-and-security)
+- [Todos](#todos)
+- [Development](#development)
+- [Documentation](#documentation)
+<!-- contents:end -->
+
 ## General
 
 ### What is Planora?
@@ -96,13 +107,13 @@ Inside the owning service. Add Application command/query/handler/validator, Doma
 
 Use `frontend/src/lib/api.ts` for authenticated API behavior and `frontend/src/lib/auth-public.ts` for auth bootstrap/refresh calls that must avoid interceptor recursion.
 
-### Should AI assistant settings be committed?
+### Should personal development settings be committed?
 
-No. Repository policy ignores Claude/Codex/Cursor/Gemini/MCP and similar local assistant state. `AGENTS.md` is also ignored and untracked in this checkout; tracked contributor rules are in `CONTRIBUTING.md` and `docs/development.md`.
+No. Keep machine-specific tooling, credentials, caches and private working notes local. Shared engineering rules are in `CONTRIBUTING.md` and `docs/development.md`.
 
 ### Are EF migrations committed?
 
-Todo and Realtime have tracked migrations; generated migration paths are nevertheless ignored for new untracked files. Auth, Category, Collaboration and Messaging currently use model bootstrap when no local migrations are compiled. The tracked Todo chain is missing its initial baseline, and Realtime needs explicit schema initialization. See [Database](database.md).
+Todo and Realtime have tracked migrations; generated migration paths are nevertheless ignored for new untracked files. Auth, Category, Collaboration and Messaging currently use model bootstrap when no local migrations are compiled. Todo validates its reviewed chain and adopts only equivalent legacy baselines. Realtime initializes its configured durable store at startup. See [Database](database.md).
 
 ### Is there e2e browser testing?
 

@@ -8,8 +8,8 @@ For every visual value — colour, type, space, motion, elevation — see
 
 | | |
 |---|---|
-| Framework | Next.js 16.4.2 (App Router; lockfile version) |
-| React | React / React DOM 18.3.1 |
+| Framework | Next.js 16 App Router (exact version in the lockfile) |
+| React | React / React DOM 19 |
 | Language | TypeScript 5.9.3, `strict`, `@/*` → `src/*` |
 | Styling | Tailwind 3.4.19; semantic scales derived from `lib/design-tokens.ts` |
 | Motion | framer-motion 11.18.2 |
@@ -23,6 +23,25 @@ Versions above are from `frontend/package-lock.json`, verified on 2026-10-06.
 the locked dependency graph; read both files when upgrading.
 
 ---
+
+<!-- contents:start -->
+## Contents
+
+- [1. Directory map](#1-directory-map)
+- [2. Rendering model](#2-rendering-model)
+- [3. Authentication and the invariants](#3-authentication-and-the-invariants)
+- [4. Data access](#4-data-access)
+- [5. State](#5-state)
+- [6. Realtime](#6-realtime)
+- [6b. Short route aliases](#6b-short-route-aliases)
+- [7. The keyboard](#7-the-keyboard)
+- [8. Component conventions](#8-component-conventions)
+- [9. Testing](#9-testing)
+- [10. Performance](#10-performance)
+- [11. Local development](#11-local-development)
+- [12. The checklist before a frontend commit](#12-the-checklist-before-a-frontend-commit)
+- [See also](#see-also)
+<!-- contents:end -->
 
 ## 1. Directory map
 
@@ -296,20 +315,19 @@ wording, and `test/quality/api-contract.contract.test.ts` fails when app code im
 Task lists and open forms mostly use component state. There is no query-cache
 framework. `use-categories.ts` keeps the viewer's category list in memory per account,
 read once when the session is restored, shared by every screen and dropped on sign-out
-(see `docs/features.md` § Categories). `use-friends.ts` has a module-global friend cache with a 60-second TTL
-and a shared in-flight request. It pages at 200 entries, bounded to 50 pages, and
-`invalidateFriends()` is called after relevant profile friend mutations. That cache
-is currently not keyed by user id or cleared by `clearAuth()`; do not treat it as a
-session-isolated cache. Category-filter preferences in `localStorage` are separately
+(see `docs/features.md` § Categories). `use-friends.ts` shares a 60-second cache and in-flight read within the current viewer.
+It pages at 100 entries, bounded to 50 pages. A viewer change hides the old list immediately;
+responses from an old viewer or an invalidated generation are discarded before caching or
+paging further. `invalidateFriends()` is called after relevant profile mutations. Category-filter preferences in `localStorage` are separately
 keyed by user id. Lightweight warning preferences use `planora:pref:*`.
 
 `useFriendAffinity` shares a separate module-level 60-second cache and one in-flight
 request across audience maps. `invalidateFriendAffinity()` clears its cached result
 and request reference; it does not cancel an ongoing request or update already mounted
 hooks. TTL is checked on reads rather than by background polling. With no cached
-affinity, a failed read leaves the map ordering friends by name. Like the friend cache,
-this cache is not keyed by user id or cleared by `clearAuth()`; neither cache is a
-query-cache framework.
+affinity, a failed read leaves the map ordering friends by name. The cache is scoped to the current viewer; late responses from an old viewer or
+invalidated generation cannot populate it or clear a newer in-flight request. Disabled
+hooks and hooks belonging to a different viewer expose no cached affinity.
 
 `useAutosave` debounces by 600 ms by default, serializes writes, compares against
 the last saved baseline and sends a newer value after the current save succeeds.
@@ -555,10 +573,10 @@ a test double and the markup rules do not.
 | Lint | `npm --prefix frontend run lint` | ESLint with jsx-a11y on `src/**` and the light test profile; no warning allowed |
 | Design-system contract | `src/test/quality/design-tokens.contract.test.ts` | The five rules, read from source |
 | Usability contract | `src/test/quality/usability-contract.test.tsx` | Copy and affordances that must not regress |
-| Dead-CSS scan | `node docs/ui-audit/tools/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
-| Static a11y | `node docs/ui-audit/tools/a11y-static.mjs` | Names, keyboard paths, tab order |
-| Focus indicators | `node docs/ui-audit/tools/focus-scan.mjs` | Reached focus stops and contrast. **Needs a running production server**; this does not establish complete WCAG conformance |
-| Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | Fixture-backed routes/viewports/modes configured in the script. Web vitals are read before the full-page screenshot; preserve the report's actual reached cells and date |
+| Dead-CSS scan | `node tools/ui-audit/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
+| Static a11y | `node tools/ui-audit/a11y-static.mjs` | Names, keyboard paths, tab order |
+| Focus indicators | `node tools/ui-audit/focus-scan.mjs` | Reached focus stops and contrast. **Needs a running production server**; this does not establish complete WCAG conformance |
+| Live matrix | `node tools/ui-audit/live-scan.mjs` | Fixture-backed routes/viewports/modes configured in the script. Web vitals are read before the full-page screenshot; preserve the report's actual reached cells and date |
 | E2E | `npx playwright test` | Real flows against a live stack |
 
 The final 2026-10-06 coverage run at `b2e9c70` passed **100 test files / 1,231 tests**: statements
@@ -604,21 +622,8 @@ the product actually ships**, not the unit in isolation.
 
 ## 10. Performance
 
-The table below is a **historical UI-audit measurement**, retained for comparison.
-It is not a fresh measurement of the 2026-10-06 tree. The fixture-backed audit,
-environment and measurement history are recorded in
-[`ui-audit/RESULTS.md`](ui-audit/RESULTS.md); repeat the scripts before using
-these values as release evidence.
-
-| | |
-|---|---|
-| JS chunks | 1833.0 KB across 46 files (was 2229.4 KB) |
-| Fonts | 8 files, 232 KB (was 24 files, 492 KB) |
-| Max CLS across the matrix | 0.115 |
-| Max LCP across the matrix | 2384 ms |
-
-The earlier audit recorded an 18 KB increase from its low point after the
-palette, counters and undo window. Do not infer the current bundle size from it.
+Measure the current production build with the [bundle report](testing.md#bundle-size-report-and-budgets).
+Record the commit, environment and command alongside measurements; old counts do not establish release performance.
 
 Build configuration keeps import optimization scoped to installed Framer Motion,
 Lucide and Radix Dropdown Menu/Popover packages. It disables `X-Powered-By` and has no
@@ -639,7 +644,7 @@ Decisions worth knowing:
 - **The render loop stops when the tab is hidden**, and a lost WebGL context parks it
   rather than freezing on the last frame.
 
-The tasks page fetches active pages of 200 up to a 100-page safety bound and
+The tasks page fetches active pages of 100 up to a 100-page safety bound and
 progressively mounts 24 more cards as its sentinel enters view. Mounted cards
 are not evicted, so this is incremental rendering, not a fixed-size virtualization
 window. Category filtering and smart sorting run over the fetched data; the
@@ -714,9 +719,9 @@ Two traps this machine has hit before, recorded in
 1. `npx tsc --noEmit` and `npm run lint` — clean, with no warning.
 2. `npm run build` — clean.
 3. `npm run test:coverage` — green across every configured threshold; raise a page's or the editor's numbers when your tests raise its coverage.
-4. `node ../docs/ui-audit/tools/class-audit.mjs` — every class emits a rule.
-5. `node ../docs/ui-audit/tools/a11y-static.mjs` — no unnamed control, no unreachable one.
-6. If you touched anything focusable, `node ../docs/ui-audit/tools/focus-scan.mjs` against a
+4. `node ../tools/ui-audit/class-audit.mjs` — every class emits a rule.
+5. `node ../tools/ui-audit/a11y-static.mjs` — no unnamed control, no unreachable one.
+6. If you touched anything focusable, `node ../tools/ui-audit/focus-scan.mjs` against a
    running production server — every focus stop still clears 3:1.
 7. If the change is visible, look at it in a real browser at 390px and at 1440px,
    including keyboard, reduced-motion and relevant error states.
@@ -728,7 +733,7 @@ Two traps this machine has hit before, recorded in
 ## See also
 
 - [`design-system.md`](design-system.md) — every token, rule and primitive
-- [`ui-audit/`](ui-audit/) — the audit: research, defects, target state, blueprint, results
+- [Interface checks](../tools/ui-audit/README.md) — source, CSS and browser measurement tools
 - [`architecture.md`](architecture.md) — the services behind the API
 - [`API.md`](API.md) — endpoint reference
 - [`INVARIANTS.md`](INVARIANTS.md) — the rules that outrank convenience

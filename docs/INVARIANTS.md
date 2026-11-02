@@ -10,6 +10,24 @@ runtime wiring, persistence boundaries and executable checks.
 
 ---
 
+<!-- contents:start -->
+## Contents
+
+- [Service Ownership](#service-ownership)
+- [Cross-service Communication](#cross-service-communication)
+- [Authentication & Sessions](#authentication--sessions)
+- [Authorization & Privacy](#authorization--privacy)
+- [Data Integrity](#data-integrity)
+- [Configuration & Secrets](#configuration--secrets)
+- [API Surface](#api-surface)
+- [Observability](#observability)
+- [API Contract](#api-contract)
+- [CI Quality Gates](#ci-quality-gates)
+- [Performance](#performance)
+- [Workflow & Commit Hygiene](#workflow--commit-hygiene)
+- [What this file is not](#what-this-file-is-not)
+<!-- contents:end -->
+
 ## Service Ownership
 
 **INV-OWN-1.** Each domain owns its own PostgreSQL database. No service reads or writes another service's tables.
@@ -293,22 +311,22 @@ string, the null store performs ephemeral push and no persistence/deduplication.
 
 **INV-FLOW-1 (schema-change policy).** Ship reviewed migration history with schema changes.
 New generated migration files are ignored and must not be force-added without explicit
-authorization. Current Todo history lacks its initial migration; some additive columns and
-indexes are applied through non-fatal startup DDL instead. These are enforcement gaps,
-documented in [database.md](database.md), not a complete auditable migration chain.
+authorization. Todo startup validates its reviewed migration chain and accepts an existing model-created
+schema only after proving baseline equivalence. Other services without migration chains
+remain subject to the schema-governance gaps documented in [database.md](database.md).
 
 **INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute. The same workflow asserts every non-empty generated script carries `IF [NOT] EXISTS` markers — guarding against a future EF-tooling regression where `--idempotent` silently produces non-idempotent SQL.
 
 - **Current-code gap:** CD defines a pre-deploy migrator step, while every service still calls
-  `DatabaseStartup.EnsureReadyAsync` in Production. The migrator container inputs, CI EF tool/
-  build setup, missing Todo baseline and Realtime deployment connection strings require
-  reconciliation; see [production.md](production.md). The policy has not yet eliminated startup
-  migration races. The SQL-artifact service matrix currently omits Realtime.
+  a schema startup helper in Production. The reviewed Todo chain, six-context SQL matrix and
+  complete migrator build graph are present; actual deployment connections, listeners and
+  upgrade coordination still require verification. See [production.md](production.md).
+  A pre-deploy migration step does not disable later service startup DDL.
 
 - Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
-- Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
+- Rationale: startup schema changes couple application availability to DDL and upgrade coordination. Reviewed SQL and a one-shot migration step provide controlled release timing; retaining service startup initialization means the policy is not fully enforced.
 
-**INV-FLOW-5.** `Planora.Migrator` rejects schema drift. Before applying pending migrations for any service, the migrator enumerates the database's `__EFMigrationsHistory` (`GetAppliedMigrationsAsync`) and compares it to the migrations present in the compiled assembly (`Database.GetMigrations()`). Any applied migration that is not in the code set is treated as drift; the migrator logs an error, returns a non-zero exit code, and refuses to apply anything for that service. Operators must reconcile (restore the missing migration files in code, or reset the target environment) before re-running.
+**INV-FLOW-5.** `Planora.Migrator` rejects schema drift. Before applying pending migrations for any service, the migrator enumerates the database's `__EFMigrationsHistory` (`GetAppliedMigrationsAsync`) and compares it to the migrations present in the compiled assembly (`Database.GetMigrations()`). Any applied migration that is not in the code set is treated as drift; the migrator logs an error, returns a non-zero exit code, and refuses to apply anything for that service. Operators must reconcile (restore the missing migration files in code and validate a reviewed reconciliation on a restored copy; reset only explicitly disposable test data) before re-running.
 
 - Evidence: `tools/Planora.Migrator/Program.cs::RunForServiceAsync`.
 - Rationale: a developer who deletes a migration file locally, or a deploy that targets a database advanced past the current code's known migration set, leaves `__EFMigrationsHistory` in an unrecognisable state. Partially applying additional migrations on top of that history corrupts the chain. Failing fast with a clear message is the only safe path.

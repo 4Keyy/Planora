@@ -1,13 +1,25 @@
 # Getting Started
 
-This guide explains the supported local launch commands and first-user flow. The audited checkout has an incomplete Todo migration baseline: a fresh database needs that corrected before this can be a successful clean-install walkthrough. See [the audit](audits/2026-10-06.md) and [database initialization](database.md#startup-and-schema-initialization).
+This guide explains the supported local launch commands and first-user flow. Startup prepares configured databases; an existing database must satisfy its service's schema and migration-history checks. See [known limitations](known-limitations.md) and [database initialization](database.md#startup-and-schema-initialization).
+
+<!-- contents:start -->
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [1. Create .env](#1-create-env)
+- [2. Choose A Launch Mode](#2-choose-a-launch-mode)
+- [3. Verify The System](#3-verify-the-system)
+- [4. First Successful User Flow](#4-first-successful-user-flow)
+- [Manual Commands](#manual-commands)
+- [Known Startup Caveats](#known-startup-caveats)
+<!-- contents:end -->
 
 ## Prerequisites
 
 | Requirement | Recommended version | Used by |
 |---|---:|---|
 | .NET SDK | 10.x | backend services and xUnit tests |
-| Node.js | 22.12+ for development and CI (Vitest 5 and jest-dom 7 require Node 22); the Next.js 16 runtime itself supports 20.9+; CI requests 22 | frontend |
+| Node.js | 22.22.2+ for development and CI (Vitest 5 and jest-dom 7 require Node 22); the Next.js 16 runtime itself supports 20.9+; CI requests 22 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
 | PowerShell | 7.x recommended; Windows PowerShell can run the scripts when launcher/helper files remain ASCII-compatible | launch scripts |
@@ -15,7 +27,7 @@ This guide explains the supported local launch commands and first-user flow. The
 Evidence:
 
 - `Directory.Build.props` sets `TargetFramework` to `net10.0`.
-- `frontend/package.json` uses `next` `^16.4.2`, React `^18.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 22.
+- `frontend/package.json` uses `next` `^16.4.3`, React `^19.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 22.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.
 
@@ -113,7 +125,7 @@ front door. The first production frontend build adds about a minute to startup.
 
 ### Schema Bootstrap On First Start
 
-Auth, Category, Todo, Collaboration and Messaging call the startup schema helper. Realtime does not; its optional persistent schema needs an explicit migration step. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
+All six services prepare their configured stores during startup. Todo uses guarded migration-history/schema validation; Realtime prepares its optional durable log before subscriptions start. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
 carries EF migrations it applies the pending ones with `MigrateAsync`, and if it carries none it
 creates the schema from the current EF model with `EnsureCreatedAsync` and logs a warning saying so.
 
@@ -121,8 +133,8 @@ Which path each service takes today:
 
 | Service | Migrations in the repository | Startup path |
 |---|---|---|
-| Todo | tracked alteration migrations, missing initial baseline | `MigrateAsync`; fails to bootstrap a fresh database until the baseline is reconciled |
-| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | No startup helper; apply explicitly with `Planora.Migrator --service realtime` |
+| Todo | reviewed historical chain and snapshot migration | `TodoDatabaseStartup`; validates history/schema before migration or compatible baseline adoption |
+| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | `RealtimeDatabaseStartup`; initializes the configured durable log |
 | Auth, Category, Messaging, Collaboration | no | `EnsureCreatedAsync` |
 
 `.gitignore` carries `**/Migrations/**`, so a migration you generate locally stays yours by default;

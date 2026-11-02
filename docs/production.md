@@ -2,8 +2,19 @@
 
 This is a release specification and acceptance checklist based on repository
 artifacts. It does not assert that the current checkout has been deployed or
-that its configured infrastructure accounts exist. The [2026-10-06 audit](audits/2026-10-06.md)
+that its configured infrastructure accounts exist. The [known limitations](known-limitations.md)
 records concrete code, migration and workflow gaps that must be resolved first.
+
+<!-- contents:start -->
+## Contents
+
+- [Committed target and missing pieces](#committed-target-and-missing-pieces)
+- [Required runtime configuration](#required-runtime-configuration)
+- [Database rollout acceptance](#database-rollout-acceptance)
+- [Release verification](#release-verification)
+- [Rollback and incident handling](#rollback-and-incident-handling)
+- [Outstanding production decisions](#outstanding-production-decisions)
+<!-- contents:end -->
 
 ## Committed target and missing pieces
 
@@ -66,22 +77,23 @@ secure-cookie enforcement for plain HTTP; it is not a production deployment reci
 
 ## Database rollout acceptance
 
-1. Resolve the missing initial Todo migration and validate a clean database.
+1. Validate Todo's reviewed migration chain on a clean database and a restored legacy copy.
 2. Establish a tracked migration history for services currently bootstrapped by
    `EnsureCreatedAsync`; an existing model-created database needs a deliberate
    baseline strategy. Do not equate model creation with schema upgrades.
-3. Repair and build the migrator Docker image with all six project dependencies.
+3. Build the migrator image and verify its six-service dependency graph and startup.
 4. Provide every selected connection string, including Realtime, to the runner.
 5. Run `--all --list-pending` against the intended environment, inspect migration
    IDs and SQL artifacts, then apply the reviewed release.
 6. Verify application/schema compatibility before admitting traffic. Startup
-   migrations remain active in five service hosts; CD has not disabled them.
+   schema initialization remains active in all six service hosts; CD has not disabled them.
 7. Keep backup/restore evidence and a tested forward-fix or compatible image
    rollback path. The runner's missing-history guard is not a model drift audit.
 
 See [Deployment blockers](deployment.md#confirmed-rollout-blockers) and
-[Database governance](database.md). The migration artifact job itself currently
-needs tool/build/matrix corrections; its existence is not proof of valid SQL.
+[Database governance](database.md). The migration artifact job restores/builds and generates
+SQL for all six contexts. Inspect those artifacts and apply them to a disposable database;
+artifact generation alone does not establish a safe upgrade.
 
 ## Release verification
 
@@ -101,9 +113,9 @@ health-check registrations.
 - Confirm actual trace/log/metric arrival and inspect collector label names.
 - Confirm database backup restoration in an isolated environment.
 
-The audit identified access-check gaps and two failing backend password-reset
-tests. Those remain application/test work; documentation changes do not close
-them or establish release readiness.
+Review the maintained [authorization coverage map](security-idor-coverage.md) for remaining
+access-control constraints. Re-run the release tests and restore drill against the chosen
+revision and environment; documentation updates alone do not establish readiness.
 
 ## Rollback and incident handling
 

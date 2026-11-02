@@ -2,12 +2,30 @@
 
 This map is organized by ownership boundary. It intentionally avoids generated artifacts such as `bin/`, `obj/`, `.next/`, `node_modules/`, logs, caches, and test results.
 
+<!-- contents:start -->
+## Contents
+
+- [Root](#root)
+- [Shared Backend Building Blocks](#shared-backend-building-blocks)
+- [API Gateway](#api-gateway)
+- [Auth Service](#auth-service)
+- [Todo Service](#todo-service)
+- [Collaboration Service](#collaboration-service)
+- [Category Service](#category-service)
+- [Messaging Service](#messaging-service)
+- [Realtime Service](#realtime-service)
+- [gRPC Contracts](#grpc-contracts)
+- [Trace A Backend Feature](#trace-a-backend-feature)
+- [Frontend](#frontend)
+- [Tests](#tests)
+- [Documentation](#documentation)
+<!-- contents:end -->
+
 ## Root
 
 | Path | Purpose | Key files |
 |---|---|---|
 | `README.md` | project entry point | links to docs and quick start |
-| `AGENTS.md` | agent/AI-assistant rules for this repository | routing, per-project tie-breakers |
 | `.env.example` | local environment template | required Docker secrets and local defaults |
 | `.env.production.example` | production key template | secret/config checklist for deployment platforms |
 | `docker-compose.yml` | local infrastructure and backend containers | service ports, env injection, health checks |
@@ -22,7 +40,7 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `.editorconfig` | unified charset / EOL / indentation / C# analyzer severity hints | applies to every file in the repo |
 | `.gitleaks.toml`, `.gitleaksignore` | gitleaks ruleset extension and allowlist | Planora-specific secret detectors + env-var-interpolation allowlist |
 | `.spectral.yaml` | OpenAPI lint ruleset | consumed by `openapi.yml` |
-| `.markdownlint-cli2.jsonc`, `.lychee.toml` | docs lint and link-check configuration | keeps cross-links in this tree resolvable |
+| `.markdownlint-cli2.jsonc`, `tools/docs/` | Git-listed documentation lint and link/anchor checks | parser, tests and pinned dependencies |
 | `.githooks/pre-commit` | repo-local git hook | installed by `scripts/install-hooks.sh` |
 | `.github/workflows` | CI/security/e2e/SBOM/migrations/perf/CD/OpenAPI automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml`, `cd.yml`, `openapi.yml`, `nuget-vuln-pr.yml` |
 | `scripts` | local PowerShell helpers (launcher + Phase-1 verification) | `HealthChecker.psm1`, `PidManager.psm1`, `PortChecker.psm1`, `Verify-Phase1-Prereqs.ps1`, `install-hooks.sh` |
@@ -51,7 +69,7 @@ Important files:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` (`MapPlanoraHealthEndpoints`, `/health/live` + `/health/ready` + aggregate `/health`)
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — migration-or-EnsureCreated startup branch; the tracked Todo chain lacks its initial migration (see database.md)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — migration-or-EnsureCreated startup branch; Todo adds guarded history/schema validation through its service-owned startup helper (see database.md)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs` — rejects weak JWT secrets and missing gRPC keys before the host binds a port
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs` (`AddPlanoraTelemetry` — single OpenTelemetry surface for every service)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` (shared `Meter("Planora.BuildingBlocks")` exposing `planora.csrf.rejections`, `planora.grpc.unauthenticated`, `planora.outbox.*`)
@@ -435,7 +453,5 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `docs/deployment.md`, `docs/production.md`, `docs/secrets-management.md` | deployment and secret-management baseline |
 | `docs/getting-started.md`, `docs/development.md`, `docs/troubleshooting.md`, `docs/faq.md` | onboarding and day-to-day |
 | `docs/DECISIONS` | architecture decision records (`0001`–`0006`) |
-| `docs/ui-audit` | the interface audit: `RESEARCH.md`, `DEFECTS.md`, `TARGET.md`, `BLUEPRINT.md`, `EXECUTION.md`, `RESULTS.md`, `INVENTORY.md`, plus `tools/` (the scanners) and `shots/` |
-| `docs/eco`, `docs/plans` | product research and dated plans |
-| `ARCHITECTURE.md`, `SECURITY.md`, `TESTING.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `AGENTS.md` | root-level summaries and contributor-facing docs |
+| `ARCHITECTURE.md`, `SECURITY.md`, `TESTING.md`, `CONTRIBUTING.md`, `CHANGELOG.md` | root-level summaries and contributor-facing docs |
 | `LICENSE` | MIT license |

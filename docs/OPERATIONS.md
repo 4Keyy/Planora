@@ -2,6 +2,7 @@
 
 The operator-facing entry point. For the full background read:
 
+- [`backup-recovery.md`](backup-recovery.md)
 - [`configuration.md`](configuration.md)
 - [`deployment.md`](deployment.md)
 - [`production.md`](production.md)
@@ -11,6 +12,20 @@ The operator-facing entry point. For the full background read:
 - [`observability.md`](observability.md)
 - [`slo.md`](slo.md)
 - [`caching.md`](caching.md)
+
+<!-- contents:start -->
+## Contents
+
+- [Local Operations](#local-operations)
+- [Health Checks](#health-checks)
+- [Logs](#logs)
+- [Required Secrets](#required-secrets)
+- [Deployment](#deployment)
+- [Migration Operations](#migration-operations)
+- [Observability Operations](#observability-operations)
+- [Incident Pointers](#incident-pointers)
+- [Read also](#read-also)
+<!-- contents:end -->
 
 ## Local Operations
 
@@ -31,7 +46,7 @@ Next.js frontend as host processes (health-gated; Ctrl+C for graceful shutdown):
 .\Start-Planora-Local.ps1 -Help          # all flags (Get-Help … -Full for annotated docs)
 ```
 
-Auth/Category/Todo/Collaboration/Messaging call schema initialization at startup. The tracked Todo chain lacks its initial baseline, while Realtime needs an explicit migration. See [Database](database.md) before starting a clean database. Both scripts preserve data volumes by default.
+All six services initialize their configured stores at startup. Todo validates its migration history and legacy schema before proceeding; Realtime prepares its optional durable log. See [Database](database.md) before starting a clean database. Both scripts preserve data volumes by default.
 
 ## Health Checks
 

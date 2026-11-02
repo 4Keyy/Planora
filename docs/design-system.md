@@ -19,9 +19,34 @@ that every statement in this guide or every rendered state is correct.
 > Contrast ratios against `paper` (`#ffffff`) are palette calculations. Browser
 > counts, bundle sizes, CLS/LCP values and defect totals quoted below belong to the
 > earlier fixture-based UI audit; this documentation pass did not repeat that matrix.
-> Keep the date and environment with a measurement; see [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md).
+> Keep the commit, date, command and environment with every measurement; rerun the
+> [interface checks](../tools/ui-audit/README.md) before relying on old figures.
 
 ---
+
+<!-- contents:start -->
+## Contents
+
+- [1. The five rules](#1-the-five-rules)
+- [2. Colour](#2-colour)
+- [3. Type](#3-type)
+- [4. Space](#4-space)
+- [5. Shape](#5-shape)
+- [6. Elevation](#6-elevation)
+- [7. Layers](#7-layers)
+- [8. Motion](#8-motion)
+- [9. Choreography](#9-choreography)
+- [10. Control sizing](#10-control-sizing)
+- [11. Accessibility floor](#11-accessibility-floor)
+- [12. Primitives](#12-primitives)
+- [13. The two devices](#13-the-two-devices)
+- [14. Words](#14-words)
+- [15. Showing data](#15-showing-data)
+- [16. Anatomy: the task card](#16-anatomy-the-task-card)
+- [17. Failure modes this system is built against](#17-failure-modes-this-system-is-built-against)
+- [18. Extending the system](#18-extending-the-system)
+- [See also](#see-also)
+<!-- contents:end -->
 
 ## 1. The five rules
 
@@ -766,7 +791,7 @@ the page; fixed controls must remain anchored to the viewport.
 The public pages keep the fade, over `base` 220ms. **Opacity only** — and that is a
 measured decision rather than an argued one.
 
-BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform on
+A page-level 8px rise is deliberately excluded from the entrance contract. A transform on
 `app/template.tsx` creates a containing block, and a `position: fixed` descendant
 anchors to that block instead of the viewport; this page tree has fixed descendants
 (the selection bar and the undo bar). That objection had been stated for
@@ -1018,8 +1043,8 @@ overlap and steal each other's taps. Those need real spacing.
 ## 11. Accessibility floor
 
 Every one of these is measured across the matrix of routes × viewports × modes
-by `docs/ui-audit/tools/live-scan.mjs` (88 cells on the last run), and statically by
-`docs/ui-audit/tools/a11y-static.mjs`.
+by `tools/ui-audit/live-scan.mjs` (88 cells on the last run), and statically by
+`tools/ui-audit/a11y-static.mjs`.
 
 | Criterion | The rule here |
 |---|---|
@@ -1086,7 +1111,7 @@ decoration. The current fields use native `:focus-visible`/`:focus-within`, CSS
 classes and React refs rather than a focus-ring library. Check browser and
 forced-colors behavior when changing these rules.
 
-`docs/ui-audit/tools/focus-scan.mjs` tabs through every focus stop on the
+`tools/ui-audit/focus-scan.mjs` tabs through every focus stop on the
 authenticated routes and measures the indicator's contrast — the colour composited
 over paper, against paper — rather than asking whether one is present. The earlier
 audit recorded 174 reached stops, all clearing 3:1. For a text field it reads the shape that carries the indicator (the
@@ -1749,7 +1774,7 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 
 | Failure | How it hides | The guard now |
 |---|---|---|
-| A Tailwind class that names nothing (`bg-primary-600`, `text-orange-700`) emits no CSS and no error | The element just loses a style. The segment error page's Retry button was white-on-transparent — invisible — on every error page | `docs/ui-audit/tools/class-audit.mjs`, run after a build |
+| A Tailwind class that names nothing (`bg-primary-600`, `text-orange-700`) emits no CSS and no error | The element just loses a style. The segment error page's Retry button was white-on-transparent — invisible — on every error page | `tools/ui-audit/class-audit.mjs`, run after a build |
 | `tailwind-merge` treats an unrecognised `text-*` as a colour and drops the size | `cn("text-body-sm", "text-ink-subtle")` silently loses `text-body-sm` | `lib/utils.ts` teaches `extendTailwindMerge` every custom scale, read from the token object |
 | A `useRef` focus trap on a portalled dialog never engages | The portal mounts a tick late, the effect finds `null` and never re-runs. Every modal shipped with a dead trap while the hook's own tests passed | The hook uses a callback ref backed by state; the portal case is a test |
 | `pointer-events` inheritance kills a pseudo-element hit area | The target looks 44×44 to a measuring script and accepts no taps | Explicit `pointer-events: auto`, documented in the utility |
@@ -1799,7 +1824,7 @@ a list held elsewhere — a list goes stale the first time a file moves:
    a value to `tailwind.config.ts` directly re-creates the drift the derivation exists to
    prevent.
 3. **Measure the contrast before committing to a colour.** Run
-   `node docs/ui-audit/tools/contrast-scan.mjs` and put the figure in the token's comment,
+   `node tools/ui-audit/contrast-scan.mjs` and put the figure in the token's comment,
    as every existing colour has.
 4. **If it is a colour that is data, mark it `@colour-data`** with the reason, in the file
    that holds it.
@@ -1808,15 +1833,15 @@ a list held elsewhere — a list goes stale the first time a file moves:
 ```powershell
 npm --prefix frontend run build
 npm --prefix frontend run test:coverage
-node docs/ui-audit/tools/class-audit.mjs
-node docs/ui-audit/tools/a11y-static.mjs
+node tools/ui-audit/class-audit.mjs
+node tools/ui-audit/a11y-static.mjs
 ```
 
 `focus-scan.mjs` and `live-scan.mjs` need a running production server; start one,
 then:
 
 ```powershell
-node docs/ui-audit/tools/focus-scan.mjs
+node tools/ui-audit/focus-scan.mjs
 ```
 
 ---
@@ -1824,8 +1849,5 @@ node docs/ui-audit/tools/focus-scan.mjs
 ## See also
 
 - [`frontend.md`](frontend.md) — architecture, patterns and conventions of the frontend
-- [`ui-audit/RESEARCH.md`](ui-audit/RESEARCH.md) — the audit these rules came from
-- [`ui-audit/DEFECTS.md`](ui-audit/DEFECTS.md) — the defect register, with evidence
-- [`ui-audit/TARGET.md`](ui-audit/TARGET.md) — target state, rule by rule
-- [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) — the design blueprint for the whole product
+- [Interface checks](../tools/ui-audit/README.md) — source, CSS and browser measurements
 - [`testing.md`](testing.md) — suites, commands, coverage gate

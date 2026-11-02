@@ -2,11 +2,11 @@
 /**
  * static-scan.mjs — reproducible measurement of Planora's frontend visual system.
  *
- * Produces the numeric baseline for the UI audit (docs/ui-audit/RESEARCH.md).
+ * Produces the numeric baseline for the UI audit (docs/design-system.md).
  * Read-only: never modifies a single file of the application.
  *
- *   node docs/ui-audit/tools/static-scan.mjs            # human summary
- *   node docs/ui-audit/tools/static-scan.mjs --json out.json
+ *   node tools/ui-audit/static-scan.mjs            # human summary
+ *   node tools/ui-audit/static-scan.mjs --json out.json
  *
  * Re-run after fixes to compare against the recorded baseline (BLOCK 18.1).
  */
@@ -496,7 +496,7 @@ const report = {
 // ─── output ─────────────────────────────────────────────────────────────────
 
 const jsonFlag = process.argv.indexOf('--json')
-const DEFAULT_JSON = path.join('docs', 'ui-audit', 'tools', 'scan-static.json')
+const DEFAULT_JSON = path.join('test-results', 'ui-audit', 'scan-static.json')
 if (jsonFlag !== -1) {
   const out = process.argv[jsonFlag + 1] ?? 'scan-static.json'
   fs.writeFileSync(out, JSON.stringify(report, null, 2))

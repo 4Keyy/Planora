@@ -1,5 +1,5 @@
 # Planora.Migrator — one-shot EF Core migration runner.
-# Built as a minimal .NET runtime image; no ASP.NET, no curl, no shell.
+# Uses ASP.NET runtime libraries referenced by the service infrastructure projects.
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -23,6 +23,12 @@ COPY ["Services/TodoApi/Planora.Todo.Infrastructure/Planora.Todo.Infrastructure.
 COPY ["Services/MessagingApi/Planora.Messaging.Domain/Planora.Messaging.Domain.csproj", "Services/MessagingApi/Planora.Messaging.Domain/"]
 COPY ["Services/MessagingApi/Planora.Messaging.Application/Planora.Messaging.Application.csproj", "Services/MessagingApi/Planora.Messaging.Application/"]
 COPY ["Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj", "Services/MessagingApi/Planora.Messaging.Infrastructure/"]
+COPY ["Services/RealtimeApi/Planora.Realtime.Domain/Planora.Realtime.Domain.csproj", "Services/RealtimeApi/Planora.Realtime.Domain/"]
+COPY ["Services/RealtimeApi/Planora.Realtime.Application/Planora.Realtime.Application.csproj", "Services/RealtimeApi/Planora.Realtime.Application/"]
+COPY ["Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj", "Services/RealtimeApi/Planora.Realtime.Infrastructure/"]
+COPY ["Services/CollaborationApi/Planora.Collaboration.Domain/Planora.Collaboration.Domain.csproj", "Services/CollaborationApi/Planora.Collaboration.Domain/"]
+COPY ["Services/CollaborationApi/Planora.Collaboration.Application/Planora.Collaboration.Application.csproj", "Services/CollaborationApi/Planora.Collaboration.Application/"]
+COPY ["Services/CollaborationApi/Planora.Collaboration.Infrastructure/Planora.Collaboration.Infrastructure.csproj", "Services/CollaborationApi/Planora.Collaboration.Infrastructure/"]
 COPY ["tools/Planora.Migrator/Planora.Migrator.csproj", "tools/Planora.Migrator/"]
 
 RUN dotnet restore "tools/Planora.Migrator/Planora.Migrator.csproj"
@@ -33,13 +39,16 @@ COPY Services/AuthApi/ Services/AuthApi/
 COPY Services/CategoryApi/ Services/CategoryApi/
 COPY Services/TodoApi/ Services/TodoApi/
 COPY Services/MessagingApi/ Services/MessagingApi/
+COPY Services/RealtimeApi/ Services/RealtimeApi/
+COPY Services/CollaborationApi/ Services/CollaborationApi/
 COPY tools/Planora.Migrator/ tools/Planora.Migrator/
 
 WORKDIR /src/tools/Planora.Migrator
 RUN dotnet publish "Planora.Migrator.csproj" -c Release -o /app/publish --no-restore
 
-# Minimal runtime — pure .NET runtime, no ASP.NET; this CLI never serves HTTP.
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+# The CLI does not serve HTTP, but its generated runtimeconfig requires
+# Microsoft.AspNetCore.App through its infrastructure project references.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 

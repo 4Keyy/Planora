@@ -2,6 +2,20 @@
 
 This file is the public security policy for Planora. The full implementation reference is [`docs/auth-security.md`](docs/auth-security.md), and production secret handling is documented in [`docs/secrets-management.md`](docs/secrets-management.md).
 
+<!-- contents:start -->
+## Contents
+
+- [Supported Versions](#supported-versions)
+- [Reporting A Vulnerability](#reporting-a-vulnerability)
+- [Response Expectations](#response-expectations)
+- [Confirmed Security Model](#confirmed-security-model)
+- [Required Secret Hygiene](#required-secret-hygiene)
+- [Secret Scanning](#secret-scanning)
+- [Software Bill Of Materials (SBOM)](#software-bill-of-materials-sbom)
+- [Production Security Notes](#production-security-notes)
+- [Audit Findings And Scope](#audit-findings-and-scope)
+<!-- contents:end -->
+
 ## Supported Versions
 
 | Version / branch | Supported |
@@ -110,7 +124,7 @@ References:
 
 ## Audit Findings And Scope
 
-The [2026-10-06 repository audit](docs/audits/2026-10-06.md) and
+The [known limitations](docs/known-limitations.md) and
 [authorization coverage map](docs/security-idor-coverage.md#known-findings-and-missing-regressions)
 record concrete implementation gaps. In particular, public-task join bypasses the normal
 friend gate/redaction, revoked subtask creators retain mutation paths, and comment deletion

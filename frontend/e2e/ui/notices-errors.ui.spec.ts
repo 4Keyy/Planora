@@ -753,7 +753,7 @@ test.describe('notices and error scenes: real-service signed-in flows', () => {
     if (!container || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]+$/.test(container)) throw new Error('Invalid explicitly selected disposable container');
     const project = process.env.E2E_DISPOSABLE_PROJECT;
     if (!project) throw new Error('E2E_DISPOSABLE_PROJECT is required when E2E_DISPOSABLE_TODO_CONTAINER is set');
-    if (!/^planora-(?:e2e[a-z0-9_-]*|codex-[a-z0-9][a-z0-9_-]*)$/.test(project)) throw new Error('E2E_DISPOSABLE_PROJECT must name a planora-e2e* or planora-codex-* disposable project');
+    if (!/^planora-e2e[a-z0-9_-]*$/.test(project)) throw new Error('E2E_DISPOSABLE_PROJECT must name a planora-e2e* disposable project');
     // Inspect only ownership and running state; never read or log Config.Env.
     const inspected = await runFile('docker', ['inspect', '--type', 'container', '--format', '{"Id":{{json .Id}},"Running":{{json .State.Running}},"Project":{{json (index .Config.Labels "com.docker.compose.project")}},"Service":{{json (index .Config.Labels "com.docker.compose.service")}}}', container], { timeout: 15_000 });
     const metadata = JSON.parse(inspected.stdout.trim()) as { Id?: unknown; Running?: unknown; Project?: unknown; Service?: unknown };

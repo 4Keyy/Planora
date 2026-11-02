@@ -16,6 +16,24 @@ Route evidence:
 - `Planora.ApiGateway/ocelot.Docker.json`
 - service controllers under `Services/*/Planora.*.Api/Controllers`
 
+<!-- contents:start -->
+## Contents
+
+- [Conventions](#conventions)
+- [Gateway Route Map](#gateway-route-map)
+- [Authentication](#authentication)
+- [Users](#users)
+- [Friendships](#friendships)
+- [Analytics Events](#analytics-events)
+- [Categories](#categories)
+- [Todos](#todos)
+- [Collaboration](#collaboration)
+- [Messaging](#messaging)
+- [Realtime](#realtime)
+- [Health Endpoints](#health-endpoints)
+- [Public API Not Found](#public-api-not-found)
+<!-- contents:end -->
+
 ## Conventions
 
 ### Auth

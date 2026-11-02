@@ -13,7 +13,7 @@
  *   • the largest scripts and when they finished;
  *   • every layout shift with its sources — which element moved, from where to where.
  *
- *   node docs/ui-audit/tools/lcp-probe.mjs --base http://127.0.0.1:3200 --path / --width 1440 --runs 3
+ *   node tools/ui-audit/lcp-probe.mjs --base http://127.0.0.1:3200 --path / --width 1440 --runs 3
  *
  * It uses the same signed-out mock as live-scan (`--anon`), so the numbers are comparable.
  * Read-only; writes nothing.
@@ -23,7 +23,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const { chromium } = createRequire(path.resolve(HERE, '../../../frontend/package.json'))('playwright')
+const { chromium } = createRequire(path.resolve(HERE, '../../frontend/package.json'))('playwright')
 const { installMockApi } = await import(new URL('./mock-api.mjs', import.meta.url))
 
 const argv = process.argv.slice(2)

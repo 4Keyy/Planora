@@ -5,6 +5,18 @@ full key reference, [deployment](deployment.md) for rollout requirements, and
 [authentication/security](auth-security.md) for credential behavior. Values below are
 names and placeholders; no local credential files were read for this audit.
 
+<!-- contents:start -->
+## Contents
+
+- [Secret Inventory](#secret-inventory)
+- [Storage Rules](#storage-rules)
+- [Generation Guidance](#generation-guidance)
+- [Rotation Guidance](#rotation-guidance)
+- [GitHub Actions And Fly Secrets](#github-actions-and-fly-secrets)
+- [Scanner Interpretation Of Configuration References](#scanner-interpretation-of-configuration-references)
+- [Leak Response](#leak-response)
+<!-- contents:end -->
+
 ## Secret Inventory
 
 | Secret / configuration key | Consumers | Purpose and minimum |
@@ -118,8 +130,8 @@ were not inspected.
 
 [deploy/fly/set-secrets.ps1](../deploy/fly/set-secrets.ps1) is a convenience helper,
 not a least-privilege inventory. Its shared bundle sends some unnecessary credentials
-to apps. The inspected script omits `RealtimeDatabase` for Realtime and the migrator,
-and does not fully configure all production gRPC URLs. Check the per-app matrix and
+to apps. The matrix includes `RealtimeDatabase` for Realtime and the migrator, and
+`GrpcServices__TodoApi` for Realtime/Collaboration. Supply and verify all production gRPC URLs. Check the per-app matrix and
 route/listener limitations in [the Fly guide](../deploy/fly/README.md) before running it.
 Do not infer mTLS or private transport authorization from a `.internal` hostname alone.
 

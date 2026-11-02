@@ -4,6 +4,23 @@ This guide is for contributors working inside the Planora codebase.
 
 > **Read [`INVARIANTS.md`](INVARIANTS.md) before opening a PR.** It records the closed-form architectural rules every reviewer enforces (service ownership, gRPC trust, outbox/inbox correctness, auth storage, observability conventions, migration governance). Code style itself is governed by [`.editorconfig`](../.editorconfig); the build runs under `-warnaserror` via [`Directory.Build.props`](../Directory.Build.props).
 
+<!-- contents:start -->
+## Contents
+
+- [Local Workflow](#local-workflow)
+- [Backend Patterns](#backend-patterns)
+- [Adding A Backend Endpoint](#adding-a-backend-endpoint)
+- [Adding A Todo Feature](#adding-a-todo-feature)
+- [Adding A Frontend Feature](#adding-a-frontend-feature)
+- [Adding A UI Primitive](#adding-a-ui-primitive)
+- [Database Changes](#database-changes)
+- [gRPC Contract Changes](#grpc-contract-changes)
+- [Coding Conventions Confirmed By Repo](#coding-conventions-confirmed-by-repo)
+- [Documentation Rules](#documentation-rules)
+- [Repository Hygiene](#repository-hygiene)
+- [Pull Request Checklist](#pull-request-checklist)
+<!-- contents:end -->
+
 ## Local Workflow
 
 Recommended loop:
@@ -59,8 +76,11 @@ k6 run perf/k6/scenarios/todo-list.js -e API_BASE_URL=http://127.0.0.1:5132
 For documentation-only changes:
 
 ```powershell
-npx markdownlint-cli2 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING.md ARCHITECTURE.md "docs/**/*.md"
-# CI also runs lychee in offline mode for local Markdown links.
+Push-Location tools/docs
+npm ci --ignore-scripts
+npm test
+npm run check
+Pop-Location
 ```
 
 ## Backend Patterns
@@ -234,8 +254,8 @@ npm --prefix frontend run type-check
 npm --prefix frontend run test
 npm --prefix frontend run build      # class-audit reads frontend/.next/static
 
-node docs/ui-audit/tools/class-audit.mjs
-node docs/ui-audit/tools/a11y-static.mjs
+node tools/ui-audit/class-audit.mjs
+node tools/ui-audit/a11y-static.mjs
 ```
 
 `class-audit.mjs` catches the failure a compiler cannot: a utility class that the Tailwind config
@@ -261,7 +281,7 @@ running, but a server must be listening on `127.0.0.1:3200`:
 Push-Location frontend; npx next start -p 3200; Pop-Location
 
 # terminal 2 — from the repository root
-node docs/ui-audit/tools/focus-scan.mjs
+node tools/ui-audit/focus-scan.mjs
 ```
 
 All three exit non-zero on a finding, so any of them can gate a build. Why each one exists, and
@@ -281,7 +301,7 @@ $env:NEXT_DIST_DIR = ".next-verify"
 npm run build
 npx next start -p 3200          # serves .next-verify, leaves .next alone
 Pop-Location
-$env:NEXT_DIST_DIR = ".next-verify"; node docs/ui-audit/tools/class-audit.mjs
+$env:NEXT_DIST_DIR = ".next-verify"; node tools/ui-audit/class-audit.mjs
 ```
 
 `frontend/next.config.js` sets `distDir` from the variable and `class-audit.mjs` reads the same one.
@@ -300,7 +320,7 @@ not configuration.
 Do not create cross-service foreign keys. IDs may reference another service's concept, but the owning service must validate through service contracts.
 
 `.gitignore` still lists `**/Migrations/**`, but that pattern no longer describes the policy:
-schema evolution needs a reviewed migration policy, and Todo and Realtime already have tracked migration folders despite the ignore. The tracked Todo chain is currently missing its initial baseline. **Never delete a `Migrations/`
+schema evolution needs a reviewed migration policy, and Todo and Realtime already have tracked migration folders despite the ignore. Todo validates its reviewed chain and verifies legacy baseline equivalence before adoption. **Never delete a `Migrations/`
 folder during a cleanup** — `Planora.Migrator` treats an applied migration that is missing from the
 compiled assembly as drift and refuses to apply anything for that service (`INV-FLOW-5`).
 
@@ -309,10 +329,10 @@ What happens at boot differs per service, and it matters when you add the first 
 | Service | At startup | Consequence |
 |---|---|---|
 | Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no tracked migrations and calls `EnsureCreatedAsync` | Adding the first migration changes the startup path; reconcile a deliberate baseline for existing model-created databases. Recreate only explicitly disposable development data. |
-| Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Complete the missing initial baseline and verify the chain before relying on a fresh install |
+| Todo | `TodoDatabaseStartup` validates history/schema, then applies the reviewed chain | Verify empty databases, equivalent baselines and rejected incompatible schemas |
 | Realtime | Configured non-`Testing` hosts prepare PostgreSQL before event subscriptions; fresh/managed schemas use `DatabaseStartup`, compatible model-created schemas are verified without adopting history | Unknown history or incompatible existing schemas fail closed. Model-created databases still require an explicit migration plan before a schema upgrade; see `database.md` |
 
-The CD workflow includes a pre-deploy `Planora.Migrator` step, but service startup still applies migrations in five hosts and the runner image/workflow have unresolved build/configuration gaps. Production migration serialization is therefore a target policy, not an established guarantee; see [Deployment](deployment.md#confirmed-rollout-blockers). Full ownership and table-by-table
+The CD workflow includes a pre-deploy `Planora.Migrator` step, but service startup still initializes schemas in all six hosts and production configuration needs verification. Production migration serialization is therefore a target policy, not an established guarantee; see [Deployment](deployment.md#confirmed-rollout-blockers). Full ownership and table-by-table
 detail: [`database.md`](database.md).
 
 ## gRPC Contract Changes
@@ -338,7 +358,7 @@ detail: [`database.md`](database.md).
 | Frontend validation/forms | zod 4 through `zod/mini`; React Hook Form with `@hookform/resolvers` 5 where used |
 | Frontend tests | Vitest + Testing Library |
 | E2E tests | Playwright API through the gateway, Chromium UI and disposable Mailpit SMTP delivery; see [setup](../frontend/e2e/README.md) |
-| Docs checks | markdownlint-cli2 and lychee in CI |
+| Docs checks | Git-listed Markdown/anchor/path checks and markdownlint in CI |
 
 Run E2E only on a disposable stack with fresh fixture credentials. Fixed Compose
 container names and ports require a dedicated machine/runner or coordinated
@@ -368,15 +388,13 @@ The repository ignores generated and machine-local state:
 - `bin/`, `obj/`, `.next/`, coverage, test results, Playwright reports;
 - `*.tsbuildinfo`;
 - `build_output.txt` and other generated command output captures;
-- `**/Migrations/**` — but see [Database Changes](#database-changes): the folders that exist are deliberately tracked, and `git add -f` is the only way a new one enters. Ask before force-adding;
-- local AI/agent/editor state such as `.claude/`, `.codex/`, `.agents/`, `.cursor/`, `.gemini/`, `.mcp/`, `.roo/`, `.kiro/`, and local Claude/Codex/Gemini/OpenCode/Qwen JSON files;
+- `**/Migrations/**` — but see [Database Changes](#database-changes): the folders that exist are deliberately tracked, and new migration files require a reviewed exception; do not bypass ignore rules;
+- machine-local editor and development-tool settings;
 - local knowledge-base/editor workspace state such as `.obsidian/`.
 
-`AGENTS.md` is ignored and untracked in this checkout, together with assistant-local state. Shared contributor/documentation rules live in tracked `CONTRIBUTING.md` and this guide. Keep personal instructions in ignored assistant-local files.
+Shared contributor rules live in tracked `CONTRIBUTING.md` and this guide. Keep personal instructions and workspace configuration local.
 
-The owner-approved [Codex engineering protocol](codex-protocol.md) records the standing rules for parallel work with Claude Code, scoped changes, verification, documentation and commits. Its local loading instructions keep assistant settings out of Git while the protocol itself remains versioned. Reconnect the protocol when cloning the repository or moving the Codex profile.
-
-Do not commit local agent settings, generated build outputs, secrets, database files, or Docker override files.
+Do not commit personal development settings, generated build outputs, secrets, database files, or Docker override files.
 
 Label unverified behavior and planned policy explicitly. Cite the implementation or verification that establishes a contract; an architectural rule can have an open implementation gap.
 

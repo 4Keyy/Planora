@@ -10,6 +10,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Changed
 
+- Reorganize maintained guides around setup, development and operations, add safe backup/recovery checkpoints, and check published Markdown files for broken local links and anchors in CI. Move reusable interface-check scripts to `tools/ui-audit` and keep generated reports and local working notes outside the published tree.
+- Complete the migrator container's project/runtime dependencies, configure Realtime-to-Todo access, and include Realtime settings in the Fly secret matrix. Disposable E2E stacks disable retention and external password-breach lookup; outage tests verify ownership before stopping their selected test container.
 - Resolve `follow-redirects` to 1.16.2 for [GHSA-mrwp-f3q8-3g9p](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p), retaining the existing Axios dependency.
 - Friend, audience-affinity and author-name caches isolate data and pending reads by viewer. Account switches, logout and disabled pickers cannot display another viewer's warm data; settled reads and late enrichment cannot refill another viewer's names or overwrite a newer read.
 - Tasks and Dashboard use urgent, priority, shared and regular bands, with open tasks before hidden tasks inside each band. Working tasks lead their own group, newer tasks win otherwise equal smart keys, and completed tasks stay last by completion time. Hidden urgent tasks precede open High-priority tasks even when nothing open is urgent. Dashboard's six-task server pages apply the same bands and viewer-hidden groups before pagination; a card opened from hidden keeps its position within its band. `utils/sort-tasks.ts`, `GET /todos`.
@@ -5072,7 +5074,7 @@ Nine commits ship together as a single coordinated audit batch, deliberately add
 
 First public release of Planora — a .NET 9 microservice backend with a Next.js 15 frontend for personal productivity management.
 
-## [0.1.0] — 2026-04-24
+## 0.1.0 — 2026-04-24
 
 ### Frontend — Visual Design
 
@@ -5120,4 +5122,3 @@ First public release of Planora — a .NET 9 microservice backend with a Next.js
 - Added MIT license.
 
 [1.0.0]: https://github.com/4Keyy/Planora/releases/tag/v1.0.0
-[0.1.0]: https://github.com/4Keyy/Planora/releases/tag/v0.1.0

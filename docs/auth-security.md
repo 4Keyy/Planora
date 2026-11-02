@@ -6,8 +6,36 @@ their limits; it does not certify a deployed environment.
 The rate-limiting section was updated on **2026-10-28** against server commit `eae74a7`.
 
 Use the [API contract](API.md), [authorization coverage map](security-idor-coverage.md),
-[secret operations](secrets-management.md), and [repository audit](audits/2026-10-06.md)
+[secret operations](secrets-management.md), and [known limitations](known-limitations.md)
 for endpoint details, known findings, configuration, and validation evidence.
+
+<!-- contents:start -->
+## Contents
+
+- [Authentication Model](#authentication-model)
+- [Login / Register Cookie Contract](#login--register-cookie-contract)
+- [CSRF Protection](#csrf-protection)
+- [Email Verification Delivery](#email-verification-delivery)
+- [JWT Validation](#jwt-validation)
+- [gRPC Inter-Service Authentication](#grpc-inter-service-authentication)
+- [Authorization And Roles](#authorization-and-roles)
+- [Password Security](#password-security)
+- [Two-Factor Authentication](#two-factor-authentication)
+- [Access Token Invalidation (Security Stamp)](#access-token-invalidation-security-stamp)
+- [Rate Limiting](#rate-limiting)
+- [SignalR Topic Subscription](#signalr-topic-subscription)
+- [Security Headers](#security-headers)
+- [CORS](#cors)
+- [Hidden Shared Todo Privacy](#hidden-shared-todo-privacy)
+- [Avatar File Pipeline](#avatar-file-pipeline)
+- [Logging And Sensitive Data](#logging-and-sensitive-data)
+- [Security-Sensitive Configuration](#security-sensitive-configuration)
+- [Vulnerability Disclosure](#vulnerability-disclosure)
+- [Known Security Gaps / Clarifications](#known-security-gaps--clarifications)
+- [XML cryptography dependency correction](#xml-cryptography-dependency-correction)
+- [Frontend dependency review](#frontend-dependency-review)
+- [Frozen All friends Authorization](#frozen-all-friends-authorization)
+<!-- contents:end -->
 
 ## Authentication Model
 
@@ -573,13 +601,13 @@ mutation shortcuts and the cached Todo list authorization path.
 | Avatar decode | dimensions checked after decode | retain decoder updates and resource limits; re-encoding is not a universal payload guarantee |
 | Email logs | default `Log` provider prints one-time bearer links | restrict log access; configure SMTP for actual production delivery |
 | Deployment | [CD workflow](../.github/workflows/cd.yml) exists, but route/listener/secret limitations remain | follow [deployment audit](deployment.md) before rollout; manifests alone do not prove a working deployment |
-| Dependencies | the initial npm/NuGet scans reported vulnerable package versions; the XML cryptography dependency is now pinned to patched 10.0.12 | scanner severity is an inventory result, not proof of reachability; see [repository audit](audits/2026-10-06.md) |
+| Dependencies | the initial npm/NuGet scans reported vulnerable package versions; the XML cryptography dependency is explicitly pinned in `Directory.Packages.props` | scanner severity is an inventory result, not proof of reachability; see [known limitations](known-limitations.md) |
 | Reporting | GitHub private reporting is policy; settings were not inspected | maintainers must enable the channel or publish a real owned contact |
 
 ## XML cryptography dependency correction
 
 Auth Infrastructure explicitly references `System.Security.Cryptography.Xml`
-10.0.12 through central package management. This overrides Data Protection's
+through central package management; the version is declared in `Directory.Packages.props`. This overrides Data Protection's
 vulnerable transitive version without suppressing NuGet auditing. Remove the
 override only after the upstream dependency graph resolves a patched version
 throughout the solution. See the [dated security note](../.github/security/cryptography-xml-2026-10.md)

@@ -10,8 +10,8 @@
 **.NET 10 services** behind an **Ocelot API gateway** and a **Next.js 16** frontend.
 
 The repository implements database-per-service, CQRS, gRPC contracts, event
-dispatch, JWT authentication and optional telemetry. The audit records where
-the implementation still falls short of its architectural policies.
+dispatch, JWT authentication and optional telemetry. The [architecture reference](docs/architecture.md) distinguishes implemented behaviour
+from architectural policies.
 
 [![CI](https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/security.yml)
@@ -30,7 +30,7 @@ the implementation still falls short of its architectural policies.
 
 ---
 
-> **Current verification:** the [2026-10-06 repository audit](docs/audits/2026-10-06.md) records tested source coverage, corrected contracts, deployment/schema blockers and open authorization/reliability findings. Read it before treating clean-install or production-readiness claims as established.
+> **Before deployment:** review [known limitations](docs/known-limitations.md) and [backup and recovery](docs/backup-recovery.md). Release readiness requires verified infrastructure and a successful restore drill.
 
 ## ✨ Why Planora
 
@@ -56,7 +56,7 @@ and a keyboard-oriented frontend.
   prerequisite check does not establish that a fresh stack can boot.
 - **Configured quality checks.** Backend unit/architecture/error-handling tests,
   frontend coverage gates, Playwright API/UI suites and security workflows.
-  The [dated audit](docs/audits/2026-10-06.md) records actual results and open gaps.
+  The [known limitations](docs/known-limitations.md) records actual results and open gaps.
 
 ## 🚀 Feature tour
 
@@ -125,7 +125,7 @@ the most important being:
   gRPC or events. Enforced by [NetArchTest](https://www.nuget.org/packages/NetArchTest.Rules) tests.
 - **Identity owned by Auth only** — every service validates the shared JWT locally and honours
   security-stamp revocation.
-- **Event delivery** — a shared Outbox dispatcher combines signaling with polling. Transaction boundaries and Inbox registration vary by service; the [audit](docs/audits/2026-10-06.md) records duplicate-delivery and partial-write gaps. These patterns do not establish an exactly-once guarantee.
+- **Event delivery** — a shared Outbox dispatcher combines signaling with polling. Transaction boundaries and Inbox registration vary by service; the [known limitations](docs/known-limitations.md) records duplicate-delivery and partial-write gaps. These patterns do not establish an exactly-once guarantee.
 - **Defense in depth** — gateway JWT *plus* per-service JWT, an `x-service-key` header on every
   gRPC hop, CSRF double-submit, access tokens held in memory only, refresh tokens in httpOnly cookies.
 
@@ -151,7 +151,7 @@ Backend package versions are managed centrally in
 | **Resilience** | [Polly `8.6.6`](https://www.nuget.org/packages/Polly) · [Microsoft.Extensions.Http.Resilience `10.5.0`](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience) |
 | **Auth / crypto** | [Microsoft.AspNetCore.Authentication.JwtBearer `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.JwtBearer) · [System.IdentityModel.Tokens.Jwt `8.18.0`](https://www.nuget.org/packages/System.IdentityModel.Tokens.Jwt) · PBKDF2 via `System.Security.Cryptography.Rfc2898DeriveBytes` (BCL) · [Otp.NET `1.4.1`](https://www.nuget.org/packages/Otp.NET) · [QRCoder `1.8.0`](https://www.nuget.org/packages/QRCoder) · [DataProtection `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection) |
 | **Real-time** | [SignalR.StackExchangeRedis `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR.StackExchangeRedis) |
-| **Images** | [SixLabors.ImageSharp `3.1.11`](https://www.nuget.org/packages/SixLabors.ImageSharp) |
+| **Images** | [SkiaSharp](https://www.nuget.org/packages/SkiaSharp) (version pinned centrally) |
 | **Observability** | [OpenTelemetry `1.15.3`](https://www.nuget.org/packages/OpenTelemetry) (+ ASP.NET Core / HTTP / EF Core / Runtime instrumentation & OTLP exporter) · [Serilog `4.3.1`](https://www.nuget.org/packages/Serilog) (+ [Console](https://www.nuget.org/packages/Serilog.Sinks.Console), [File](https://www.nuget.org/packages/Serilog.Sinks.File), [Seq](https://www.nuget.org/packages/Serilog.Sinks.Seq), [Grafana Loki](https://www.nuget.org/packages/Serilog.Sinks.Grafana.Loki) sinks) |
 | **Health checks** | [AspNetCore.HealthChecks](https://www.nuget.org/packages?q=AspNetCore.HealthChecks) for [NpgSql](https://www.nuget.org/packages/AspNetCore.HealthChecks.NpgSql) · [Redis](https://www.nuget.org/packages/AspNetCore.HealthChecks.Redis) · [RabbitMQ](https://www.nuget.org/packages/AspNetCore.HealthChecks.RabbitMQ) `9.0.0` |
 | **Testing** | [xUnit `2.9.3`](https://www.nuget.org/packages/xunit) · [Moq `4.20.72`](https://www.nuget.org/packages/Moq) · [FluentAssertions `6.12.2`](https://www.nuget.org/packages/FluentAssertions) · [NetArchTest.Rules `1.3.2`](https://www.nuget.org/packages/NetArchTest.Rules) · [Mvc.Testing `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.Mvc.Testing) · [coverlet `6.0.4`](https://www.nuget.org/packages/coverlet.collector) |
@@ -184,7 +184,7 @@ Backend package versions are managed centrally in
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/) (the Windows launcher auto-installs a local copy if missing)
-- [Node.js 22.12+](https://nodejs.org/) & npm (Vitest 5 and the test toolchain require Node 22)
+- [Node.js 22.22.2+](https://nodejs.org/) & npm (Vitest 5 and the test toolchain require Node 22)
 - [Docker & Docker Compose](https://docs.docker.com/)
 
 ### 1. Configure secrets
@@ -218,7 +218,7 @@ try { $rng.GetBytes($b) } finally { $rng.Dispose() }
 docker compose up --build
 ```
 
-This brings up PostgreSQL, Redis, RabbitMQ, every service, and the gateway. Five services invoke schema initialization, but the tracked Todo migration chain lacks its initial baseline and Realtime needs a separate migration. Resolve the [fresh-install caveat](docs/deployment.md#schema-initialization-and-migration-runner) before expecting a clean database to boot.
+This brings up PostgreSQL, Redis, RabbitMQ, every service, and the gateway. All six services initialize their configured stores. Todo validates its reviewed migration history and rejects incompatible legacy schemas. Read [database initialization](docs/database.md#startup-and-schema-initialization) before starting or upgrading a persistent database.
 
 ### 3. Run the frontend
 
@@ -237,7 +237,7 @@ npm run dev
 On Windows, **`Start-Planora-Local.ps1`** orchestrates the whole stack for fast iteration: it runs a
 preflight (auto-resolving a .NET 10 SDK and starting Docker if needed), brings up the infrastructure
 containers, builds the solution, then launches every backend service + the gateway and the Next.js
-frontend as host processes — with health gating and a graceful Ctrl+C shutdown. Auth/Category/Todo/Collaboration/Messaging invoke schema initialization; Realtime needs its explicit migration and Todo needs a complete baseline, and the Docker data volumes are preserved
+frontend as host processes — with health gating and a graceful Ctrl+C shutdown. All six services initialize their configured stores; existing data volumes are preserved
 across every run, including `-Clean`.
 
 ```powershell
@@ -349,8 +349,8 @@ CI is split across workflows. The main CI still builds/tests backend and fronten
 |---|---|---|
 | [`ci.yml`](.github/workflows/ci.yml) | configured push branches and PRs to main/develop | markdown lint + offline link check, the backend build (`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, coverage artefacts |
 | [`security.yml`](.github/workflows/security.yml) | push, pull request, and weekly | **gitleaks**, **CodeQL**, **Trivy** IaC scanning, `dotnet list package --vulnerable`, `npm audit`, and CycloneDX SBOM artifacts; the frontend SBOM is attested on push |
-| [`e2e.yml`](.github/workflows/e2e.yml) | pull requests touching services, gateway, frontend, or compose | Playwright API and UI flows against the Docker stack plus disposable SMTP sink; see [isolated setup](frontend/e2e/README.md). CI publishes redacted output and failure PNGs only |
-| [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | Swagger/Spectral artifacts for a five-service matrix; Collaboration is currently omitted |
+| [`e2e.yml`](.github/workflows/e2e.yml) | pushes to main and pull requests touching services, gateway, frontend, or Compose | Playwright API and UI flows against the Docker stack plus disposable SMTP sink; see [isolated setup](frontend/e2e/README.md). CI publishes redacted output and failure PNGs only |
+| [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | Swagger/Spectral artifacts for all six HTTP services, including Collaboration |
 | [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | SQL artifacts for all six services, including Realtime |
 | [`perf-smoke.yml`](.github/workflows/perf-smoke.yml) | manual dispatch only | k6 absolute-threshold scenarios against Docker |
 | [`cd.yml`](.github/workflows/cd.yml) | `v*` tags or manual ref | Fly blue/green deployment path with unresolved rollout blockers |

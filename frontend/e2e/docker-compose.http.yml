@@ -1,4 +1,8 @@
 # Disposable loopback HTTP + SMTP test stack; never use this overlay for deployment.
+x-test-retention: &test-retention
+  Retention__Enabled: "false"
+  Retention__RunOnStartup: "false"
+
 services:
   mailpit:
     image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
@@ -20,7 +24,9 @@ services:
       mailpit:
         condition: service_healthy
     environment:
+      <<: *test-retention
       Security__RequireHttps: "false"
+      Password__CheckCompromised: "false"
       Frontend__BaseUrl: "http://127.0.0.1:3000"
       Email__Provider: "Smtp"
       Email__SmtpHost: "mailpit"
@@ -29,6 +35,16 @@ services:
       Email__Username: "planora_e2e"
       Email__Password: "${E2E_SMTP_PASSWORD:?Set a disposable E2E_SMTP_PASSWORD}"
       Email__FromEmail: "planora@example.test"
+  category-api:
+    environment: *test-retention
+  todo-api:
+    environment: *test-retention
+  collaboration-api:
+    environment: *test-retention
+  realtime-api:
+    environment: *test-retention
+  messaging-api:
+    environment: *test-retention
   api-gateway:
     environment:
       Cors__AllowedOrigins__0: "http://127.0.0.1:3000"

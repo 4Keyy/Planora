@@ -185,7 +185,7 @@ separate temporary configuration; do not interpret default UI-project discovery
 as Firefox/WebKit execution. Dated results and remaining limitations are recorded
 in `docs/testing.md`.
 
-The separate [`docs/ui-audit`](../../docs/ui-audit/) scripts use fixture-backed
+The separate [design reference](../../docs/design-system.md) scripts use fixture-backed
 browser routes. Their visual measurements complement these tests and do not
 replace real-service end-to-end checks. See
 [`docs/testing.md`](../../docs/testing.md) for coverage scopes and dated results.
@@ -205,3 +205,9 @@ mail bodies, Mailpit data or raw output. Cleanup stops the frontend and disposab
 containers and removes `.env.e2e`. The workflow's browser
 cache behavior is defined by its actual steps; npm caching alone does not prove
 that downloaded browser binaries are cached.
+
+Each CI shard owns a `planora-e2e-ci` Compose project on its dedicated runner. Retention
+is disabled for these API/UI fixtures; PostgreSQL retention policies have separate backend
+integration suites. The HTTP test overlay disables the external compromised-password lookup
+and sends email only to Mailpit. CI explicitly enables the genuine Todo outage case: the
+test verifies project/service labels and the immutable container ID before stop/start.

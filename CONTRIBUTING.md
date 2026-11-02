@@ -4,6 +4,18 @@
 
 Thanks for improving Planora. This repository has several service boundaries, so changes should be small, traceable, and documented.
 
+<!-- contents:start -->
+## Contents
+
+- [Before You Change Code](#before-you-change-code)
+- [Local Setup](#local-setup)
+- [Required Checks](#required-checks)
+- [Change Guidelines](#change-guidelines)
+- [Pull Request Checklist](#pull-request-checklist)
+- [Security Reports](#security-reports)
+- [Documentation Index](#documentation-index)
+<!-- contents:end -->
+
 ## Before You Change Code
 
 1. Read only the raw files needed for the change.
@@ -65,10 +77,14 @@ docker compose --env-file .env up -d --build
 npm --prefix frontend run e2e
 ```
 
-For documentation changes, CI runs markdownlint and offline link checks. Run local equivalents if the tools are installed:
+For documentation changes, CI checks all Git-listed Markdown with markdownlint and parsed local links/anchors. Run local equivalents if the tools are installed:
 
 ```powershell
-npx markdownlint-cli2 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING.md ARCHITECTURE.md "docs/**/*.md"
+Push-Location tools/docs
+npm ci --ignore-scripts
+npm test
+npm run check
+Pop-Location
 ```
 
 ## Change Guidelines
@@ -78,7 +94,7 @@ npx markdownlint-cli2 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING
 - Add tests for behavior, not just implementation details.
 - Update docs when changing routes, config, DB schema, security behavior, launch scripts, tests, or UI workflows.
 - Update production and secret-management docs when changing deployment assumptions or secret names.
-- Separate implemented behavior, target policy, historical decisions and unverified operations. The [audit](docs/audits/2026-10-06.md) lists known implementation gaps; citing an invariant does not demonstrate compliance.
+- Separate implemented behavior, target policy, historical decisions and unverified operations. The [known limitations](docs/known-limitations.md) lists known implementation gaps; citing an invariant does not demonstrate compliance.
 - Do not commit `.env`, secrets, logs, build outputs, coverage outputs, `.next`, `bin`, `obj`, or `node_modules`.
 
 ## Pull Request Checklist

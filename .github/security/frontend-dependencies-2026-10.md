@@ -50,7 +50,7 @@ audit exemption.
 
 PR #123 and the five action updates were merged on 2026-10-06 after the owner
 explicitly accepted these documented limits. The
-[integration review](../../docs/audits/dependabot-2026-10-06.md) records the
+[known limitations](../../docs/known-limitations.md) records the
 commits and workflow evidence. Passing unit tests and build checks do not
 substitute for the blocked Docker-backed E2E flows or establish that every
 GitHub check is green.

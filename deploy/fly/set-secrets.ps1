@@ -16,7 +16,7 @@
 
 .PARAMETER EnvFile
     Path to a key=value env file. Defaults to `.env.fly` next to this script
-    (i.e. `deploy/fly/.env.fly`). The file is gitignored — never commit it.
+    (i.e. `deploy/fly/.env.fly`). The file is gitignored - never commit it.
 
 .PARAMETER DryRun
     Print the planned commands without executing them. No secrets are
@@ -40,7 +40,7 @@
           RabbitMq__HostName, RabbitMq__UserName, RabbitMq__Password
           OTEL_EXPORTER_OTLP_ENDPOINT (optional)
           OTEL_EXPORTER_OTLP_HEADERS  (optional)
-          LOKI_URL, LOKI_USER, LOKI_TOKEN (optional — activates Loki sink)
+          LOKI_URL, LOKI_USER, LOKI_TOKEN (optional - activates Loki sink)
 
       planora-auth:        ConnectionStrings__AuthDatabase
                            Email__Provider, Email__Username, Email__Password,
@@ -53,7 +53,7 @@
       planora-messaging:   ConnectionStrings__MessagingDatabase
                            GrpcServices__AuthApi=https://planora-auth.internal:443
 
-    Realtime, Gateway, outbox-worker, migrator get only the shared values.
+    Realtime and migrator also receive their database settings from the matrix below.
 #>
 [CmdletBinding()]
 param(
@@ -78,12 +78,14 @@ if (-not (Test-Path $EnvFile)) {
 
 # Parse env file (key=value, lines starting with # are comments) --------------
 $secrets = @{}
+$lineNumber = 0
 foreach ($line in Get-Content -LiteralPath $EnvFile) {
+    $lineNumber++
     $trimmed = $line.Trim()
     if (-not $trimmed -or $trimmed.StartsWith('#')) { continue }
     $eq = $trimmed.IndexOf('=')
     if ($eq -lt 1) {
-        Write-Warning "Skipping malformed line: $trimmed"
+        Write-Warning "Skipping malformed line $lineNumber in env file."
         continue
     }
     $key = $trimmed.Substring(0, $eq).Trim()
@@ -139,7 +141,10 @@ $matrix = [ordered]@{
         'GrpcServices__AuthApi',
         'GrpcServices__TodoApi'
     )
-    'planora-realtime'    = $shared
+    'planora-realtime'    = $shared + @(
+        'ConnectionStrings__RealtimeDatabase',
+        'GrpcServices__TodoApi'
+    )
     'planora-gateway'     = $shared + @('Frontend__BaseUrl')
     'planora-outbox-worker' = $shared
     'planora-migrator'    = @(
@@ -147,7 +152,8 @@ $matrix = [ordered]@{
         'ConnectionStrings__CategoryDatabase',
         'ConnectionStrings__TodoDatabase',
         'ConnectionStrings__MessagingDatabase',
-        'ConnectionStrings__CollaborationDatabase'
+        'ConnectionStrings__CollaborationDatabase',
+        'ConnectionStrings__RealtimeDatabase'
     )
 }
 
@@ -170,7 +176,7 @@ foreach ($app in $matrix.Keys) {
         }
     }
     if ($payload.Count -eq 0) {
-        Write-Host "  no matching variables in env file — skip" -ForegroundColor DarkGray
+        Write-Host "  no matching variables in env file - skip" -ForegroundColor DarkGray
         continue
     }
 
@@ -193,7 +199,7 @@ foreach ($app in $matrix.Keys) {
 
 Write-Host "`nAll secret stages queued." -ForegroundColor Green
 if ($DryRun) {
-    Write-Host '  --DryRun supplied — no secrets were actually pushed.' -ForegroundColor Yellow
+    Write-Host '  --DryRun supplied - no secrets were actually pushed.' -ForegroundColor Yellow
 } else {
     Write-Host "  The next 'flyctl deploy' (or tag push to trigger CD) will activate them." -ForegroundColor Cyan
 }

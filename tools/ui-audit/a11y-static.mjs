@@ -15,7 +15,7 @@
  *      handler that only stops propagation is exempt: it is not an action.
  *   3. an interactive element pulled out of the tab order with `tabIndex={-1}`.
  *
- *   node docs/ui-audit/tools/a11y-static.mjs
+ *   node tools/ui-audit/a11y-static.mjs
  *
  * Exits non-zero when anything is flagged, so it can gate a build.
  */
@@ -23,7 +23,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const SRC = path.join(process.cwd(), 'frontend', 'src')
+import { fileURLToPath } from 'node:url'
+
+const SRC = fileURLToPath(new URL('../../frontend/src/', import.meta.url))
 
 const files = []
 ;(function walk(dir) {

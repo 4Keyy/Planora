@@ -3,6 +3,16 @@
 The complete runtime reference is [docs/architecture.md](docs/architecture.md).
 This page is a navigation guide to the implementation.
 
+<!-- contents:start -->
+## Contents
+
+- [Summary](#summary)
+- [Confirmed Runtime Shape](#confirmed-runtime-shape)
+- [Shared Infrastructure](#shared-infrastructure)
+- [Core Decisions And Verification](#core-decisions-and-verification)
+- [Read More](#read-more)
+<!-- contents:end -->
+
 ## Summary
 
 Planora has a Next.js 16 frontend, an Ocelot gateway, and six .NET 10 domain services:
@@ -64,8 +74,9 @@ for the precise boundaries and remaining reliability gaps.
 [ADRs](docs/DECISIONS/) preserve the architecture decisions and their later implementation notes.
 [INVARIANTS.md](docs/INVARIANTS.md) distinguishes intended rules from current enforcement gaps.
 
-The current Todo migration chain lacks its initial schema migration, so a clean empty Todo
-database is not supported by the tracked chain alone. Realtime's delivery-audit entity is a
+Todo startup validates its reviewed migration history and schema before preparing an empty
+database or adopting an equivalent legacy baseline. Verify both paths on disposable PostgreSQL
+before a schema release. Realtime's delivery-audit entity is a
 scaffold; hub reconnect does not replay missed notification toasts. These limitations are
 documented in [database.md](docs/database.md) and [architecture.md](docs/architecture.md).
 

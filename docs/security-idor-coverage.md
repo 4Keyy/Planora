@@ -6,6 +6,22 @@ in paths, queries and bodies. It does not certify that every cross-user scenario
 regression test. See [API.md](API.md) for contracts and [auth-security.md](auth-security.md)
 for authentication, CSRF, revocation and service trust.
 
+<!-- contents:start -->
+## Contents
+
+- [Evidence Conventions](#evidence-conventions)
+- [Auth API](#auth-api)
+- [Todo API](#todo-api)
+- [Collaboration API](#collaboration-api)
+- [Category API](#category-api)
+- [Messaging API](#messaging-api)
+- [Realtime API And Hub](#realtime-api-and-hub)
+- [Shared Administration](#shared-administration)
+- [Cross-Service gRPC Trust](#cross-service-grpc-trust)
+- [Known Findings And Missing Regressions](#known-findings-and-missing-regressions)
+- [Maintenance Contract](#maintenance-contract)
+<!-- contents:end -->
+
 ## Evidence Conventions
 
 - **Explicit regression** means the named test asserts the relevant denial/actor rule.

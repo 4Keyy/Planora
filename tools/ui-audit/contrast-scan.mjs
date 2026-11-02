@@ -11,7 +11,7 @@
  *      Viénot–Brettel–Mollon 1999 linear-RGB matrices) for the five task
  *      priority colours, with pairwise OKLab distance before and after.
  *
- *   node docs/ui-audit/tools/contrast-scan.mjs [--json out.json]
+ *   node tools/ui-audit/contrast-scan.mjs [--json out.json]
  *
  * Read-only. Never touches application code.
  */
@@ -125,7 +125,7 @@ function simulateCvd(rgb, type) {
  * the token file is a flat object of string literals by construction.
  */
 const TOKENS_SRC = fs.readFileSync(
-  new URL('../../../frontend/src/lib/design-tokens.ts', import.meta.url),
+  new URL('../../frontend/src/lib/design-tokens.ts', import.meta.url),
   'utf8',
 )
 
@@ -234,7 +234,7 @@ const priorityPairs = Object.entries(PRIORITY).map(([name, c]) => {
 
 // ─── 2. oklch CSS variables → sRGB, compared to the hex palette ─────────────
 
-const cssText = fs.readFileSync('frontend/src/app/globals.css', 'utf8')
+const cssText = fs.readFileSync(new URL('../../frontend/src/app/globals.css', import.meta.url), 'utf8')
 const oklchVars = []
 for (const m of cssText.matchAll(/(--[\w-]+):\s*oklch\(([^)]+)\)/g)) {
   const parts = m[2].trim().split(/[\s/]+/).filter(Boolean)

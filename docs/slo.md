@@ -9,6 +9,21 @@ drowning in dashboards.
 > commitments. They are reviewed and refreshed at the end of each quarter
 > against the metrics produced by [`docs/observability.md`](observability.md).
 
+<!-- contents:start -->
+## Contents
+
+- [How To Read This Doc](#how-to-read-this-doc)
+- [Query validation prerequisite](#query-validation-prerequisite)
+- [SLO-01 — Gateway request availability](#slo-01--gateway-request-availability)
+- [SLO-02 — Authenticated read latency (p95)](#slo-02--authenticated-read-latency-p95)
+- [SLO-03 — Login authentication latency (p95)](#slo-03--login-authentication-latency-p95)
+- [SLO-04 — Outbox processing freshness](#slo-04--outbox-processing-freshness)
+- [SLO-05 — Realtime notification fan-out](#slo-05--realtime-notification-fan-out)
+- [Error-budget Policy](#error-budget-policy)
+- [Activation](#activation)
+- [References](#references)
+<!-- contents:end -->
+
 ## How To Read This Doc
 
 | Field | Meaning |

@@ -10,6 +10,22 @@ variables set, every service produces traces and metrics in-process but no
 exporter is registered — there are no background connections, no log noise,
 and no behaviour change. Configuration is read at process startup; activating an exporter needs a compatible endpoint and a restart/deploy. The gateway and Auth use separate Serilog startup wiring, so the shared Loki extension is not automatically active there.
 
+<!-- contents:start -->
+## Contents
+
+- [The Three Signals](#the-three-signals)
+- [End-to-end Trace Path](#end-to-end-trace-path)
+- [Built-in Custom Metrics](#built-in-custom-metrics)
+- [Export protocol and collector contract](#export-protocol-and-collector-contract)
+- [Activating Traces and Metrics](#activating-traces-and-metrics)
+- [Activating Centralized Logs (Grafana Cloud Loki)](#activating-centralized-logs-grafana-cloud-loki)
+- [Querying — Recommended Starter Dashboards](#querying--recommended-starter-dashboards)
+- [Suggested Alerts](#suggested-alerts)
+- [Sensitive Data Considerations](#sensitive-data-considerations)
+- [Common Operational Questions](#common-operational-questions)
+- [Code References](#code-references)
+<!-- contents:end -->
+
 ## The Three Signals
 
 | Signal | Producer | Default destination | How to activate the production destination |

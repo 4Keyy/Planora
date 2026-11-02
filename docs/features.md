@@ -2,6 +2,28 @@
 
 This reference describes confirmed Planora behavior and points each feature back to implementation files.
 
+<!-- contents:start -->
+## Contents
+
+- [Authentication And Session Lifecycle](#authentication-and-session-lifecycle)
+- [CSRF Protection](#csrf-protection)
+- [Profile, Security, And 2FA](#profile-security-and-2fa)
+- [Friendships](#friendships)
+- [Categories](#categories)
+- [Todos](#todos)
+- [Task Workers ("In Progress")](#task-workers-in-progress)
+- [Task Comments (Collaboration Service)](#task-comments-collaboration-service)
+- [Shared Todos And Hidden Viewer Preferences](#shared-todos-and-hidden-viewer-preferences)
+- [Messaging](#messaging)
+- [Realtime Notifications](#realtime-notifications)
+- [Live Sync And Branch Presence](#live-sync-and-branch-presence)
+- [Product Analytics Events](#product-analytics-events)
+- [Sign-in, Create-account, Recovery And Verification Screens](#sign-in-create-account-recovery-and-verification-screens)
+- [The Landing Page](#the-landing-page)
+- [Animated Background](#animated-background)
+- [Automatic data cleanup (retention)](#automatic-data-cleanup-retention)
+<!-- contents:end -->
+
 ## Authentication And Session Lifecycle
 
 ### Purpose
@@ -1741,7 +1763,7 @@ The LCP figure is a **median of five runs** on purpose: the same code measured 3
 
 The app ships a fragment-shader background (`ColorBends`, raw WebGL) wrapped in a lazy +
 Suspense layer (`ColorBendsLayer`) that is dropped once into the root layout and sits behind all
-content. **It runs live only on the landing page (`/`)** — BLUEPRINT § 12.1 — and every other route
+content. **It runs live only on the landing page (`/`)**, and every other route
 shows the static gradient in the same palette: a list you work in gains nothing from a render loop
 that costs every frame.
 
