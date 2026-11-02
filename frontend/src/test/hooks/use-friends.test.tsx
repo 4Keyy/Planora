@@ -88,6 +88,25 @@ describe("useFriends", () => {
     expect(get).toHaveBeenCalledTimes(2)
   })
 
+  it("does not deliver a warm cache after the account changes", async () => {
+    account("first")
+    vi.spyOn(api, "get").mockResolvedValue({ data: page([friend("private-first")]) })
+    await getCachedFriends()
+    const warm = getCachedFriends()
+    account("second")
+    await expect(warm).resolves.toEqual([])
+  })
+
+  it("invalidates a warm read across logout and login even to the same viewer", async () => {
+    account("first")
+    vi.spyOn(api, "get").mockResolvedValue({ data: page([friend("private-first")]) })
+    await getCachedFriends()
+    const warm = getCachedFriends()
+    useAuthStore.setState({ user: undefined })
+    account("first")
+    await expect(warm).resolves.toEqual([])
+  })
+
   it("stops paging if the account changes while a page is pending", async () => {
     account("first")
     let finish!: (value: { data: PagedResult<FriendDto> }) => void

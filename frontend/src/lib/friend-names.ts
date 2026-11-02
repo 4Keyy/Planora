@@ -1,4 +1,5 @@
 import { getCachedFriends } from "@/hooks/use-friends"
+import { useAuthStore } from "@/store/auth"
 import type { FriendDto } from "@/types/auth"
 
 const formatFriendName = (friend: FriendDto) => {
@@ -27,7 +28,9 @@ export const ensureFriendNames = async (
   if (missingIds.size === 0) return
 
   try {
+    const viewer = useAuthStore.getState().user
     const friends = await getCachedFriends()
+    if (useAuthStore.getState().user !== viewer) return
     for (const friend of friends) {
       if (missingIds.has(friend.id)) {
         cache.set(friend.id, formatFriendName(friend))

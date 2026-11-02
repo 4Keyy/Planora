@@ -117,6 +117,8 @@ The frontend shares friend and audience-affinity reads within the current viewer
 accounts or logging out hides the old viewer's data immediately; late responses from an old
 viewer or invalidated read cannot refill the cache or clear a newer request. Disabled pickers
 expose no warm friend or affinity data. Friend-list paging stops if the viewer changes mid-read.
+Per-page author-name maps are recreated for each viewer and ignore pending enrichment from
+the previous viewer.
 
 ### Purpose
 

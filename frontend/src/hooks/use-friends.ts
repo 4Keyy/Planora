@@ -55,11 +55,13 @@ function loadFriends(): Promise<FriendDto[]> {
     invalidateFriends()
     ownerId = userId
   }
-  if (cache && Date.now() - cache.at < TTL_MS) return Promise.resolve(cache.value)
-  if (inflight) return inflight.promise
-
   const requestGeneration = generation
   const isCurrent = () => requestGeneration === generation && viewerId() === userId
+  if (cache && Date.now() - cache.at < TTL_MS) {
+    const value = cache.value
+    return Promise.resolve().then(() => isCurrent() ? value : EMPTY)
+  }
+  if (inflight) return inflight.promise
   const promise = fetchAllFriends(isCurrent)
     .then((value) => {
       if (!isCurrent()) return EMPTY
@@ -119,3 +121,11 @@ export function useFriends(enabled: boolean): FriendDto[] {
 
   return enabled && friends.userId === userId ? friends.value : EMPTY
 }
+
+// Invalidate even when no picker is mounted, including a logout/login to the same account.
+useAuthStore.subscribe((state, previous) => {
+  if (state.user?.userId !== previous.user?.userId || state.isAuthenticated !== previous.isAuthenticated) {
+    ownerId = state.user?.userId
+    invalidateFriends()
+  }
+})

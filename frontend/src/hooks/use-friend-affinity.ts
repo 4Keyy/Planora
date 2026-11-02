@@ -79,3 +79,10 @@ export function useFriendAffinity(enabled: boolean): ReadonlyMap<string, FriendA
 
   return enabled && affinity.userId === userId ? affinity.value : EMPTY
 }
+
+useAuthStore.subscribe((state, previous) => {
+  if (state.user?.userId !== previous.user?.userId || state.isAuthenticated !== previous.isAuthenticated) {
+    ownerId = state.user?.userId
+    invalidateFriendAffinity()
+  }
+})

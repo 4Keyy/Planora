@@ -25,24 +25,27 @@ export interface AuthorNames {
  * others used `sameUserId`. The names are kept per page, as they were.
  */
 export function useAuthorNames(viewerId: string | null | undefined): AuthorNames {
-  const names = useRef<Map<string, string>>(new Map())
+  const scope = useMemo(() => ({ viewerId, names: new Map<string, string>() }), [viewerId])
+  const currentScope = useRef(scope)
+  currentScope.current = scope
 
   const enrich = useCallback(async (items: Todo[]) => {
-    if (!viewerId) return items
-    const friendIds = new Set(items.filter((t) => isFriendsVisibleTask(t, viewerId)).map((t) => t.userId))
+    const ownerId = scope.viewerId
+    if (!ownerId) return items
+    const friendIds = new Set(items.filter((t) => isFriendsVisibleTask(t, ownerId)).map((t) => t.userId))
     if (friendIds.size === 0) return items
 
-    await ensureFriendNames(friendIds, names.current)
-    if (names.current.size === 0) return items
+    await ensureFriendNames(friendIds, scope.names)
+    if (currentScope.current !== scope || scope.names.size === 0) return items
 
     return items.map((t) => {
-      if (!isFriendsVisibleTask(t, viewerId)) return t
-      const authorName = names.current.get(t.userId)
+      if (!isFriendsVisibleTask(t, ownerId)) return t
+      const authorName = scope.names.get(t.userId)
       return authorName ? { ...t, authorName } : t
     })
-  }, [viewerId])
+  }, [scope])
 
-  const nameOf = useCallback((userId: string) => names.current.get(userId), [])
+  const nameOf = useCallback((userId: string) => currentScope.current === scope ? scope.names.get(userId) : undefined, [scope])
 
   return useMemo(() => ({ enrich, nameOf }), [enrich, nameOf])
 }

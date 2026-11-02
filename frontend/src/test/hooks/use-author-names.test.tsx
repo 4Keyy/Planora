@@ -96,7 +96,7 @@ describe("useAuthorNames", () => {
     expect(ensureFriendNames).not.toHaveBeenCalled()
   })
 
-  it("keeps the names it has read for the page's life, and its functions while the viewer stays", async () => {
+  it("keeps names within a viewer and resets them when the viewer changes", async () => {
     const { result, rerender } = renderHook(({ viewer }) => useAuthorNames(viewer), { initialProps: { viewer: ME } })
     const first = result.current
     await first.enrich([task({ userId: "ada", isPublic: true })])
@@ -106,7 +106,23 @@ describe("useAuthorNames", () => {
 
     rerender({ viewer: "someone-else" })
     expect(result.current.enrich).not.toBe(first.enrich)
-    expect(result.current.nameOf).toBe(first.nameOf)
-    expect(result.current.nameOf("ada")).toBe("Ada Lovelace")
+    expect(result.current.nameOf).not.toBe(first.nameOf)
+    expect(result.current.nameOf("ada")).toBeUndefined()
+    expect(first.nameOf("ada")).toBeUndefined()
+  })
+
+  it("does not apply an old viewer's pending enrichment to a new viewer", async () => {
+    let finish!: () => void
+    vi.mocked(ensureFriendNames).mockImplementationOnce(async (_ids, cache) => {
+      await new Promise<void>((resolve) => { finish = resolve })
+      cache.set("ada", "Ada Lovelace")
+    })
+    const { result, rerender } = renderHook(({ viewer }) => useAuthorNames(viewer), { initialProps: { viewer: ME } })
+    const items = [task({ userId: "ada", isPublic: true })]
+    const pending = result.current.enrich(items)
+    rerender({ viewer: "another-viewer" })
+    finish()
+    expect(await pending).toBe(items)
+    expect(result.current.nameOf("ada")).toBeUndefined()
   })
 })

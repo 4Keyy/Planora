@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { invalidateFriends } from "@/hooks/use-friends"
+import * as friendCache from "@/hooks/use-friends"
+import { useAuthStore } from "@/store/auth"
 import { api } from "@/lib/api"
 import type { FriendDto, PagedResult } from "@/types/auth"
 
@@ -26,6 +28,7 @@ const page = (items: FriendDto[], hasNextPage = false): PagedResult<FriendDto> =
 describe("ensureFriendNames", () => {
   afterEach(() => {
     invalidateFriends() // reset the shared friend cache so tests stay isolated
+    useAuthStore.setState({ user: undefined })
     vi.restoreAllMocks()
   })
 
@@ -81,6 +84,19 @@ describe("ensureFriendNames", () => {
     const cache = new Map<string, string>()
 
     await expect(ensureFriendNames(new Set(["friend-1"]), cache)).resolves.toBeUndefined()
+    expect(cache.size).toBe(0)
+  })
+
+  it("does not write names from an already settled promise after the viewer changes", async () => {
+    const account = (userId: string) => useAuthStore.setState({
+      user: { userId, email: `${userId}@example.test`, firstName: "User", lastName: "Test" },
+    })
+    account("first")
+    vi.spyOn(friendCache, "getCachedFriends").mockResolvedValue([friend({ firstName: "Private" })])
+    const cache = new Map<string, string>()
+    const pending = ensureFriendNames(new Set(["friend-1"]), cache)
+    account("second")
+    await pending
     expect(cache.size).toBe(0)
   })
 })
