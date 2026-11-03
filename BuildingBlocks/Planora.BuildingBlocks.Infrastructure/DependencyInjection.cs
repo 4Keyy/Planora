@@ -2,6 +2,7 @@ using Planora.BuildingBlocks.Infrastructure.Caching;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
@@ -90,7 +91,7 @@ namespace Planora.BuildingBlocks.Infrastructure
             var hcBuilder = services.AddHealthChecks();
 
             if (!string.IsNullOrEmpty(dbConn))
-                hcBuilder.AddNpgSql(dbConn, name: "Database", tags: new[] { "db", "postgres" });
+                hcBuilder.AddNpgSql(dbConn, name: "Database", tags: new[] { "db", "postgres", HealthCheckExtensions.ReadyTag });
 
             if (!string.IsNullOrEmpty(redisConn))
                 hcBuilder.AddRedis(redisConn, name: "Redis", tags: new[] { "cache", "redis" });

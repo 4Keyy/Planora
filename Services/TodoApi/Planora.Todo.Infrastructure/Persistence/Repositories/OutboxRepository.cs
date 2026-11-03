@@ -11,6 +11,12 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
+        public async Task StageAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await _context.OutboxMessages.AddAsync(message, cancellationToken);
+        }
+
         public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
             await _context.OutboxMessages.AddAsync(message, cancellationToken);

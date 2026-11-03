@@ -17,8 +17,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Extensions;
 /// returns <see cref="HealthStatus.Healthy"/> by default (vacuous truth), which is the correct
 /// behavior for a process that has booted far enough to serve HTTP.</description></item>
 /// <item><description><c>ready</c> — checks that must succeed for the service to accept traffic
-/// (database reachable, broker connection established, cache available). Traffic is held off
-/// until ready returns 200.</description></item>
+/// (for example, the service database). Broker outages remain Degraded on the aggregate
+/// probe because the outbox buffers events; cache readiness is service-specific.
+/// Traffic is held off until ready returns 200.</description></item>
 /// </list>
 /// Both endpoints disable response caching so that load balancers and orchestrators
 /// always observe fresh state.

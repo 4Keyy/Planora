@@ -894,3 +894,21 @@ Regression / acceptance:
 - Сопоставить результат с exact SHA и целевой средой, сохранить exit code и counts.
 - Trigger больше не приводит к описанному impact при оговорённой конфигурации.
 - Все связанные gates проходят, остаточные ограничения явно перечислены.
+
+## BE-008 — Large accepted page numbers overflow the login-history offset
+
+Priority P2; severity medium; confidence CONFIRMED (static path); package T02.
+
+- `PaginationQuery.CalculateSkip` and `PaginationExtensions.ApplyPagination` multiply Int32 values without guarding overflow.
+- `GetLoginHistoryQueryValidator` accepts any positive page number and page size up to 100.
+- `LoginHistoryRepository.GetPagedByUserIdAsync` clamps the overflowing product to zero.
+
+Trigger: authenticated login-history request with PageNumber=2147483647 and PageSize=100.
+The signed Int32 offset becomes -200; the repository requests Skip(0), repeating the first
+page with huge page metadata. The current-user predicate remains intact; no cross-account
+exposure is asserted. [READ-011 evidence](results/evidence/read-011-review.json) contains exact ranges.
+
+Use overflow-safe offset validation and preserve ordinary page/owner behavior. Add C# and
+disposable PostgreSQL regressions before changing the code. The reviewer ran a Node Int32
+arithmetic diagnostic only; endpoint/provider reproduction is pending. This finding does
+not change or renumber the original 34 findings.

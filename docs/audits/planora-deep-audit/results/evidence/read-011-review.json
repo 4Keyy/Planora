@@ -1,0 +1,548 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-011",
+  "reviewed_date_local": "2026-11-03",
+  "timezone": "Europe/Moscow",
+  "reviewer": "continuation_review",
+  "source_head": "915a430547e7138027704adb976bb9394ab78ffe",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 767,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IDomainEventHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          9
+        ]
+      ],
+      "line_count": 9,
+      "sha256": "be6c5ad6ea682e7ffb79fc4fb7ba13b077e609ec1626da8163895349d243fa17",
+      "purpose_and_callers": "Typed in-process asynchronous domain handler. DomainEventDispatcher resolves the closed generic handler and awaits it; Category DI registers CategoryDeletedDomainEventHandler.",
+      "trust_state_errors_concurrency": "Caller authorizes domain mutation; interface provides no authorization, transaction or durable dispatch. Cancellation is explicit; awaited errors propagate. Dispatcher uses a new scope and processes handlers sequentially.",
+      "test_evidence": "IntegrationEventHandlerTests.cs:21-66 inspected for mocked outbox success/failure. No execution.",
+      "conclusion": "No new interface defect. Category post-commit dispatch remains BE-001.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IEventBus.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          15
+        ]
+      ],
+      "line_count": 15,
+      "sha256": "8ed2a0be0d1a8b063b7552521d07c4a1ff69d84f24ee8727c8a9147dcea3f41a",
+      "purpose_and_callers": "Publish/subscribe/unsubscribe contract. RabbitMqEventBus publish:54-105 and consumer path:215-344 inspected; publish serializes event identity and waits for mandatory persistent publish confirmation.",
+      "trust_state_errors_concurrency": "Trusted internal broker boundary; registered handler type determines deserialization. Publish/subscribe cancellation is explicit, unsubscribe has none. Publish serialization uses a semaphore; at-least-once duplicates remain possible.",
+      "test_evidence": "RabbitMqEventBusFailureTests.cs:1-78 fully read; these test classifier/key helpers, not live broker durability. No execution.",
+      "conclusion": "No new interface defect. Queue identity/DLQ remain DIST-001/DIST-002.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IIntegrationEventHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          7
+        ]
+      ],
+      "line_count": 7,
+      "sha256": "06bb4ef0c4a6b27e986620e1f545529f477f83fc773c6fcf03cbf3ca0780ec12",
+      "purpose_and_callers": "Typed asynchronous event consumer. RabbitMqEventBus resolves concrete handlers; Category UserDeletedEventConsumer was fully read as a representative implementation.",
+      "trust_state_errors_concurrency": "Consumer owns storage permission/filtering. ACK follows handler; inbox is not generally atomic with business state. Token exists in interface, but current broker supplies CancellationToken.None. Replay safety is a consumer requirement.",
+      "test_evidence": "IntegrationEventHandlerTests.cs:68-114 read for empty cleanup and repository failure. No execution.",
+      "conclusion": "No new contract defect. Broker/inbox limits are not closed by interface presence.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IntegrationEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          19
+        ]
+      ],
+      "line_count": 19,
+      "sha256": "0d3adfb4794b2ac3a59dcaadcc88701372ff938302279dcac371587d3edf8b20",
+      "purpose_and_callers": "Base event Id and OccurredOn. RabbitMqEventBus serializes Id into payload/MessageId and derives inbox key from deserialized Id plus handler.",
+      "trust_state_errors_concurrency": "Default constructor generates Guid and UTC time; supplied constructor preserves replay identity. Init properties are not cryptographic authentication. Payload validation is downstream. No shared mutable state.",
+      "test_evidence": "RabbitMqEventBusFailureTests.cs:39-75 read for deterministic per-event/per-handler key; JSON/live replay not executed.",
+      "conclusion": "No new demonstrated defect; replay must preserve serialized identity rather than construct a new event.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Models/Error.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          41
+        ]
+      ],
+      "line_count": 41,
+      "sha256": "7fca6539d2df0a0289fe89b844e190e600250cb4f41767342aa191c34215892a",
+      "purpose_and_callers": "Application error representation and factories. Auth Application global import and Result/handler/controller error branches traced.",
+      "trust_state_errors_concurrency": "Code/Message immutable; validation dictionary remains caller-owned. Factories neither sanitize values nor determine HTTP status. Distinct from Domain.Error used by generic response filter. No persistence or async behavior.",
+      "test_evidence": "DomainPrimitivesTests.cs:208-236 and ResultGuardTests.cs:1-48 read. No execution.",
+      "conclusion": "No new concrete defect; caller message safety and response mapping remain service concerns.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Models/Result.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          80
+        ]
+      ],
+      "line_count": 80,
+      "sha256": "bab0a71b75e1b9c7ac63d439cb3d870fda130ee35dcd973a02c1808453504427",
+      "purpose_and_callers": "Application success/failure wrapper used by Auth GetUsers/GetLoginHistory handlers. Constructor rejects inconsistent error/success state; failed Value access throws.",
+      "trust_state_errors_concurrency": "Implicit null conversion fails; explicit Success(null) is still possible, without a demonstrated failing caller. Map/Tap/Match propagate delegate exceptions. Internal value wrapper does not authorize reads or commit data; fields are immutable references.",
+      "test_evidence": "DomainPrimitivesTests.cs:208-236 and ResultGuardTests.cs:8-28 read. No execution.",
+      "conclusion": "No new demonstrated defect; null semantic asymmetry recorded without inventing a runtime failure.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/IOutboxProcessor.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          7
+        ]
+      ],
+      "line_count": 7,
+      "sha256": "c08185c59ecc60e0b58f6f3c7ada2b55325a82c49ff8e0615faa505e66245531",
+      "purpose_and_callers": "Legacy ProcessPendingMessagesAsync contract. Search across BuildingBlocks/Services/tests found no runtime implementation/callers.",
+      "trust_state_errors_concurrency": "No executable persistence/cancellation/concurrency behavior in interface. Hosted OutboxProcessor does not implement it; DIST-009 is about that runtime path.",
+      "test_evidence": "No direct implementation/test found; no execution.",
+      "conclusion": "Reviewed unused contract; no cleanup performed.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/IOutboxRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          17
+        ]
+      ],
+      "line_count": 17,
+      "sha256": "ab99304edc7a8f02d818d509bd7cb93b8712f1d98687b577db97008379fbb1c2",
+      "purpose_and_callers": "StageAsync track-only addition by root T01 reread in full. Canonical repository, Auth/Category adapters and Todo/Collaboration repositories implement it.",
+      "trust_state_errors_concurrency": "Owner scopes authorization and DbContext. StageAsync contract does not save/publish; AddAsync explicitly remains save-through including other tracked changes. All operations expose cancellation; interface alone proves neither atomicity nor distributed claiming.",
+      "test_evidence": "New root OutboxStagingContractTests inspected from task context. Their execution is root evidence, not this audit.",
+      "conclusion": "Working-tree hash includes root concurrent change; callers are migrated in later packages.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessageStatus.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          36
+        ]
+      ],
+      "line_count": 36,
+      "sha256": "88ddb5f8449d0d88be246b891d6cfcb91a76e513e8b1d04fb36e095bb7460bac",
+      "purpose_and_callers": "Stable persisted enum: Pending0, Processing1, Processed2, Failed3, DeadLettered4. OutboxMessage state machine and processor/repository predicates traced from parent outbox review.",
+      "trust_state_errors_concurrency": "Terminal states excluded from polling. Enum provides no claim, retry enforcement or exclusivity. Failed remains legacy-compatible while current retryable MarkAsFailed generally returns Pending.",
+      "test_evidence": "OutboxMessageStateMachineTests retry/terminal/reclaim assertions located; no tests executed here.",
+      "conclusion": "No new defect. Do not infer delivery durability from state names.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          36
+        ]
+      ],
+      "line_count": 36,
+      "sha256": "813dd98dd8778035cebc7e284f85783914071c9c36cd62ffe6a8060e49c194d0",
+      "purpose_and_callers": "Page payload normalizes page values, computes TotalPages with floating-point division and preserves metadata while mapping items. Auth page handlers construct it from repository results.",
+      "trust_state_errors_concurrency": "Owner filtering belongs upstream. Items is read-only interface over caller reference, not deep immutability. No async behavior; count/page consistency comes from upstream DB reads.",
+      "test_evidence": "PaginationExtensionsTests.cs:1-98 fully read: mapping, empty pages, normalization. No execution.",
+      "conclusion": "CONT-001 relates to upstream skip overflow; wrapper faithfully exposes the wrong requested page metadata.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          31
+        ]
+      ],
+      "line_count": 31,
+      "sha256": "9cb616344b97d2390b8e6e7c3125c3c89a32be8735744794c21cc2fe048b3930",
+      "purpose_and_callers": "Queryable Skip/Take and count+page materialization. Only direct uses found in tests; production Auth repositories duplicate offset logic.",
+      "trust_state_errors_concurrency": "Caller must add authorization/order. Count and list are separate reads, no snapshot guarantee. Cancellation forwarded to EF. Int32 multiplication can overflow despite lower/size normalization.",
+      "test_evidence": "PaginationExtensionsTests.cs:1-98 read; max-page case absent. No execution.",
+      "conclusion": "Unsafe primitive arithmetic is CONT-001; production impact traced separately.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          24
+        ]
+      ],
+      "line_count": 24,
+      "sha256": "7bd1fe4745051ef21b744a8ee81b459c1e4f4ff568c3ade86a2142492664e0e5",
+      "purpose_and_callers": "Shared defaults and normalization used by PaginationQuery, PagedResult and extensions.",
+      "trust_state_errors_concurrency": "Untrusted page input is lower-bounded only; size capped100. Positive Int32.MaxValue passes unchanged and can overflow later offset. Pure function without persistence/concurrency state.",
+      "test_evidence": "PaginationExtensionsTests covers negative/zero and large page size; max page number absent.",
+      "conclusion": "CONT-001: normalization does not ensure safe downstream offset.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          25
+        ]
+      ],
+      "line_count": 25,
+      "sha256": "c27fd00a675c4f8eee589bddb7b8713c06033393c2d77827228d3658a4a66fb2",
+      "purpose_and_callers": "Base HTTP query inherited by Auth GetUsersQuery and GetLoginHistoryQuery. Init setters normalize inputs; CalculateSkip multiplies Int32 values.",
+      "trust_state_errors_concurrency": "Controllers/handlers provide auth. Validators require PageNumber>0 and size<=100, no overflow bound. Request-local record has no global state; cancellation in handlers.",
+      "test_evidence": "PaginationExtensionsTests checks CalculateSkip for normalized page1 only.",
+      "conclusion": "CONT-001: accepted positive inputs can yield negative offset.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Persistence/ICurrentUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "3bc1c6f21acc2156b8664c8bdb8c4ab0461579125bfdff85b4fe4b731c89e903",
+      "purpose_and_callers": "Nullable identity/email, authentication and roles contract. Shared and Category implementations fully read; Messaging SendMessage handler traced.",
+      "trust_state_errors_concurrency": "Data comes from HttpContext principal, middleware remains authority. Invalid GUID yields null. No persistence; scoped identity must not be retained in singleton. Messaging verifies supplied sender against current identity and friendship.",
+      "test_evidence": "CurrentUserServiceTests.cs:1-128 fully read for Auth/Category implementations; no execution.",
+      "conclusion": "No new demonstrated interface defect; shared implementation has no direct equivalent test in inspected file.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Planora.BuildingBlocks.Application.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          27
+        ]
+      ],
+      "line_count": 27,
+      "sha256": "908cf8dbb940bfff430155d6ce753d7f31eea2b53c7889c0998a6161cbcf0411",
+      "purpose_and_callers": "net10.0 nullable application assembly with MediatR, FluentValidation, EF and framework references; references shared Domain. Service project consumers found.",
+      "trust_state_errors_concurrency": "Build/dependency boundary, not request authorization. EF used by query extension. No state/cancellation. Central package versions audited separately under T12.",
+      "test_evidence": "Architecture test located only; no build/restore/SCA executed here.",
+      "conclusion": "No new build-input defect observed; source review is not compilation certification.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          55
+        ]
+      ],
+      "line_count": 55,
+      "sha256": "5a08fb63aa75d1e40d3a90a5fdb70d6bee4f6a70c40e0983f831034b92ec7bad",
+      "purpose_and_callers": "Business logging interface and fixed Ordinal product-event allowlist. BusinessEventLogger and AnalyticsController fully read.",
+      "trust_state_errors_concurrency": "Authenticated analytics endpoint rejects unknown event names/non-object properties and caps4096bytes. Logger cleans CR/LF in message; caller owns arbitrary data safety. No business persistence. Static HashSet initialized once, no exposed writes.",
+      "test_evidence": "AnalyticsControllerTests allow/reject cases located; no execution.",
+      "conclusion": "No new demonstrated defect. Interface does not guarantee safe payload content or retention policy.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Validation/ValidationException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          29
+        ]
+      ],
+      "line_count": 29,
+      "sha256": "b9d11bdb721a9f3074d6fcdb8cef8f26b1ed102ebde55c1a60aec1d0793c566d",
+      "purpose_and_callers": "Groups FluentValidation failures by property; stable VALIDATION.INVALID_INPUT code. ValidationBehavior and middleware400 mapping traced.",
+      "trust_state_errors_concurrency": "Validator messages may echo caller input; privacy depends on validator. Dictionary constructor retains input reference; request-local exception. Validator cancellation forwarded by behavior, exception itself has no async path.",
+      "test_evidence": "ErrorHandlingTests/Application/ValidationExceptionTests.cs:1-61 fully read for code/grouping/empty/custom errors; no execution.",
+      "conclusion": "No new defect in exception; service validators still require their own review.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/AggregateRoot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          37
+        ]
+      ],
+      "line_count": 37,
+      "sha256": "c6cffcd32ffe67a3c6d8ea13755733b51111d897eb6c605a5a2fda5e0f733bc1",
+      "purpose_and_callers": "Generic aggregate/base entity with RowVersion/audit markers. No production subclasses found; test-only subclasses located.",
+      "trust_state_errors_concurrency": "No runtime permission path found. RowVersion declaration alone is not EF concurrency enforcement. Default generic IDs allowed. Synchronous in-memory markers, no thread safety.",
+      "test_evidence": "DomainPrimitivesTests.cs:80-99 read for defaults/audit markers; no execution.",
+      "conclusion": "Reviewed unused generic primitive; not removed and not credited as concurrency protection.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ApiResponse.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          45
+        ]
+      ],
+      "line_count": 45,
+      "sha256": "7ac45b09e448ec65c5337f7808f63c947ac665892dc2d536b10b15fb35067946",
+      "purpose_and_callers": "Success/failure envelope and metadata. ResultToActionResultFilter fully read; middleware error-envelope path inspected.",
+      "trust_state_errors_concurrency": "Caller must supply authorized data/safe error. Factories set success/failure and omit null fields in JSON. Public init properties permit manual inconsistent construction, but no misuse found. Response-local references.",
+      "test_evidence": "DomainPrimitivesTests.cs:175-202 inspected including JSON omission; no execution.",
+      "conclusion": "No new defect. Universal response comment is not proof every manual controller payload uses this envelope.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/BaseEntity.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          99
+        ]
+      ],
+      "line_count": 99,
+      "sha256": "bcdfa367a78bde7bfb21b86c93f5de7936f44f9828e4f2a172e00011db45f230",
+      "purpose_and_callers": "Guid identity, audit/soft-delete state, domain events and type+Id equality. Concrete service inheritance located; Category save/dispatch path inspected.",
+      "trust_state_errors_concurrency": "Domain mutators do not authorize. Explicit empty Id rejected; event list exposed read-only, remains mutable internally. Scoped/tracked entity not thread-safe. Category clears events before save/dispatch: existing BE-001.",
+      "test_evidence": "DomainPrimitivesTests.cs:36-78 read for lifecycle/equality/restore; no execution.",
+      "conclusion": "No new primitive defect. Category persistence timing remains open under T04.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/DomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          15
+        ]
+      ],
+      "line_count": 15,
+      "sha256": "defe2d72c8e258b863c1441342cdc8ddd0006731b84a54fc7a537523c735fbd4",
+      "purpose_and_callers": "Internal event ID/time/type record. Auth event subclasses located; DomainEventDispatcher fully read.",
+      "trust_state_errors_concurrency": "Generated Guid/UTC/type metadata; dispatcher resolves actual runtime type, not the string. No durable storage or permissions in event. Init metadata without shared mutable state; cancellation/errors handled by dispatcher.",
+      "test_evidence": "DomainPrimitivesTests SampleDomainEvent use read; DomainEventContractTests constructors located. No execution.",
+      "conclusion": "No new defect; durability requires outbox/owner save contract.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/BusinessRuleViolationException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          16
+        ]
+      ],
+      "line_count": 16,
+      "sha256": "f592d84158c8126d1822cb07584bd73603d981e73f12794164b2cc2861d035c4",
+      "purpose_and_callers": "Conflict-category business-state error used by Todo transitions/capacity and ResultExtensions fallback.",
+      "trust_state_errors_concurrency": "Caller must supply safe public message; no authorization substitute. Preserves code/message/optional inner exception.409 mapping through category. Does not detect races or persist state.",
+      "test_evidence": "ErrorHandlingTests/Domain/ExceptionTests.cs:86-92 read; no execution.",
+      "conclusion": "No new type defect; service business rules are outside this batch.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ConcurrencyException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          18
+        ]
+      ],
+      "line_count": 18,
+      "sha256": "05d9f3eda5d594a39602e1a863164424a011cd6341ff53aebb45c4e957f02e1b",
+      "purpose_and_callers": "Representation of already detected race with entity details or custom message. gRPC mapping located; explicit production throws not found.",
+      "trust_state_errors_concurrency": "No row lock or CAS in class. Current middleware maps EF concurrency exception separately. ID/type in public message must describe authorized object; no violating caller identified.",
+      "test_evidence": "DomainPrimitivesTests.cs:134-157 and ErrorHandlingTests/Domain/ExceptionTests.cs:80-84 read; no execution.",
+      "conclusion": "No new defect; enforcement must be proved at EF/mutation path.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DomainException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          55
+        ]
+      ],
+      "line_count": 55,
+      "sha256": "9f421caeab3e3027008ba4dfb8ef250291994567413cb27d820d050196ba5afb",
+      "purpose_and_callers": "Base domain exception carries category/code/details and maps to problem context. Middleware mapping/log/error-envelope paths inspected.",
+      "trust_state_errors_concurrency": "Message returned to client; Details logged but not wholesale exposed in current error envelope. Copies Details into context; inner exception retained internally. Request-local mutable details, no synchronization. Caller owns content safety.",
+      "test_evidence": "DomainPrimitivesTests.cs:103-129 and ErrorHandlingTests/Domain/ExceptionTests.cs:43-102 read; no execution.",
+      "conclusion": "No new demonstrated security defect; safe envelope does not automatically sanitize every caller message.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DuplicateEntityException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          14
+        ]
+      ],
+      "line_count": 14,
+      "sha256": "df0359727a674c8599711a41cdd2ae3c46f52e7d86136fe5bd30cfb5d87d5d4f",
+      "purpose_and_callers": "Conflict error with entity/field/value; RegisterCommandHandler:59 is located production throw for supplied duplicate email.",
+      "trust_state_errors_concurrency": "Submitted value appears in message/log details. Located caller reflects user's own submitted email; no secret disclosure asserted. Exception itself provides no DB uniqueness enforcement, race prevention or persistence.",
+      "test_evidence": "DomainPrimitivesTests.cs:140-157 read for duplicate metadata; no execution.",
+      "conclusion": "No new type-level defect; enumeration/log policy and insert race need Auth package review.",
+      "finding_ids": []
+    }
+  ],
+  "concurrent_changes": "Root T01 StageAsync addition in IOutboxRepository was reread after modification; recorded hash is working tree, not HEAD. No other batch source changes observed.",
+  "method": "All 25 files were printed and read in full with line numbers. Targeted caller/test traces followed. Hash-only scans were not counted as semantic review.",
+  "findings": [
+    {
+      "provisional_id": "CONT-001",
+      "suggested_owner": [
+        "T02",
+        "T13"
+      ],
+      "priority": "P2",
+      "confidence": "CONFIRMED_STATIC",
+      "runtime_reproduction": "NOT_RUN",
+      "title": "Large accepted page numbers overflow Int32 offset and repeat the first login-history page",
+      "trigger": "Authenticated me/login-history request with PageNumber=2147483647 and PageSize=100.",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+          "lines": "9-22",
+          "observation": "No upper page-number bound."
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationQuery.cs",
+          "lines": "8-24",
+          "observation": "Large positive page accepted; CalculateSkip multiplies Int32."
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationExtensions.cs",
+          "lines": "10-14",
+          "observation": "Shared offset arithmetic is identical; direct production uses not found."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/GetLoginHistory/GetLoginHistoryQueryValidator.cs",
+          "lines": "9-14",
+          "observation": "Only positive page and size<=100 checks."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/GetLoginHistory/GetLoginHistoryQueryHandler.cs",
+          "lines": "31-50",
+          "observation": "Current UserId filter and unchanged page values passed to repository/metadata."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/LoginHistoryRepository.cs",
+          "lines": "32-42",
+          "observation": "Math.Max(0, overflowing product) changes -200 to Skip(0)."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+          "lines": "345-361",
+          "observation": "Authenticated bound query returns page result."
+        }
+      ],
+      "arithmetic_evidence": {
+        "mathematical_offset": 214748364600,
+        "int32_wrapped_offset": -200,
+        "effective_skip": 0,
+        "method": "Node Math.imul signed-int32 model only; not C# or PostgreSQL execution",
+        "exit_code": 0
+      },
+      "impact": "First page repeats with huge page metadata. Owner filter remains intact; no cross-account disclosure claimed. Admin UserRepository has related unchecked offset without Math.Max; provider-specific behavior not executed.",
+      "recommendation": "Add overflow-safe offset validation/calculation, reject or explicitly handle unrepresentable offsets, preserve ordinary paging and owner predicates.",
+      "required_regressions": [
+        "CalculateSkip/ApplyPagination int.MaxValue and size100.",
+        "Owner-scoped LoginHistory repository with multiple records and huge page must not repeat first page.",
+        "Boundary/normal pages, invalid-input status and cancellation; disposable Npgsql provider case."
+      ],
+      "status": "OPEN; static evidence, runtime regression pending T02/T13.",
+      "id": "BE-008"
+    }
+  ],
+  "verification": [
+    {
+      "kind": "source_review",
+      "result": "25 complete source files, exact line counts and hashes recorded. Supplemental traces do not count as full review of other batches."
+    },
+    {
+      "kind": "arithmetic_diagnostic",
+      "command": "node -e 'const pageNumber=2147483647,pageSize=100; console.log((pageNumber-1)*pageSize,Math.imul(pageNumber-1,pageSize),Math.max(0,Math.imul(pageNumber-1,pageSize)));'",
+      "exit_code": 0,
+      "result": "214748364600, -200, 0",
+      "is_application_execution": false,
+      "note": "Equivalent expression shown; executed diagnostic additionally emitted labeled JSON."
+    },
+    {
+      "kind": "application_tests",
+      "result": "NOT_RUN. No .NET build/test/provider/browser execution by this agent; root owns concurrent runs."
+    },
+    {
+      "kind": "exploration_correction",
+      "result": "Two guessed handler paths under Queries absent; corrected to Features/Users/Handlers and fully read. Not counted as test failures/successes."
+    }
+  ],
+  "limitations": [
+    "REVIEWED means source reviewed at recorded hash, not runtime PASS.",
+    "CONT-001 runtime/Npgsql regression still needed.",
+    "Existing BE-001/DIST-001/DIST-002/DIST-009 remain open in their packages.",
+    "Supplemental source snippets do not promote other batches to reviewed.",
+    "No secrets, production DB, remote mutation, source changes or commits used."
+  ],
+  "next_step": "Root assigns stable CONT-001 ID, merges exact coverage, rechecks hashes on drift, and schedules pagination regression with T02/T13.",
+  "root_finalization": "Agent finished semantic review and wrote all 25 records, then hit service usage limit before hashing/Markdown. Root checked line counts and filled current content hashes. No runtime claim added."
+}

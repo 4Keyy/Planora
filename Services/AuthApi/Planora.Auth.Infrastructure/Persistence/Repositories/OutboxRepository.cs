@@ -20,6 +20,9 @@ public sealed class OutboxRepository : IOutboxRepository
         _inner = new Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext>(context);
     }
 
+    public Task StageAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        => _inner.StageAsync(message, cancellationToken);
+
     public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         => _inner.AddAsync(message, cancellationToken);
 

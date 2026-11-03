@@ -24,6 +24,12 @@ public sealed class OutboxRepository<TContext> : IOutboxRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
+    public async Task StageAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await _context.Set<OutboxMessage>().AddAsync(message, cancellationToken);
+    }
+
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
         await _context.Set<OutboxMessage>().AddAsync(message, cancellationToken);

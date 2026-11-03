@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "package": "T01",
+  "recorded_at_utc": "2026-11-02T23:59:11Z",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "working_head_sha": "915a430547e7138027704adb976bb9394ab78ffe",
+  "cwd": "F:\\Projects\\Planora",
+  "node_version": "v22.18.0",
+  "owned_paths": [
+    "tools/outbox/validate-topology.mjs",
+    "tools/outbox/validate-topology.test.mjs",
+    "tools/outbox/README.md",
+    "docs/audits/planora-deep-audit/results/evidence/t01-topology-verification.json"
+  ],
+  "status": "PASS_LOCAL_VALIDATOR_CONTRACT",
+  "runtime_exclusivity_verified": false,
+  "live_release_gate": "T14_PENDING",
+  "checks": [
+    {
+      "phase": "RED_NEW_API_ABSENT",
+      "command": "node --test tools/outbox/validate-topology.test.mjs",
+      "exit_code": 1,
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "cancelled": 0,
+      "duration_ms": 83.2717,
+      "reason": "ERR_MODULE_NOT_FOUND: the new validator implementation did not exist. This is an executable new-feature RED, not a reproduction of a live two-processor race."
+    },
+    {
+      "phase": "GREEN_INITIAL",
+      "command": "node --test tools/outbox/validate-topology.test.mjs",
+      "exit_code": 0,
+      "tests": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "duration_ms": 467.875
+    },
+    {
+      "phase": "SYNTAX_AFTER_SELF_REVIEW",
+      "command": "node --check tools/outbox/validate-topology.mjs",
+      "exit_code": 0
+    },
+    {
+      "phase": "GREEN_AFTER_SELF_REVIEW",
+      "command": "node --test tools/outbox/validate-topology.test.mjs",
+      "exit_code": 0,
+      "tests": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "duration_ms": 619.1235,
+      "reason": "Repeated after ordering the identifier type check before regex evaluation and reusing one file-stat result."
+    },
+    {
+      "phase": "DOC_LINT",
+      "command": "node tools/docs/node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs --config .markdownlint-cli2.jsonc tools/outbox/README.md",
+      "exit_code": 0,
+      "files": 1,
+      "issues": 0
+    },
+    {
+      "phase": "DOC_LINKS",
+      "command": "node --input-type=module -e \"import { checkFiles } from './tools/docs/check.mjs'; const result = checkFiles(process.cwd(), ['tools/outbox/README.md']); process.stdout.write(JSON.stringify(result)); process.exitCode = result.errors.length ? 1 : 0;\"",
+      "exit_code": 0,
+      "documents": 1,
+      "checked_links": 0,
+      "errors": 0
+    }
+  ],
+  "covered_contracts": [
+    "Exactly the five current processor owners: auth, todo, category, messaging and collaboration.",
+    "Complete, fresh canonical UTC snapshot; five-minute inclusive maximum age; no future timestamp.",
+    "Sanitized scope, runtime and database identities; globally unique runtime IDs.",
+    "Exactly one running instance per owner, grouped additionally by canonical outbox database identity.",
+    "Only stop-before-start rollout without autoscaling or automatic starts.",
+    "Unknown and missing fields, malformed shapes, unsupported collectors and unreadable input fail closed.",
+    "CLI exit status, bounded input size and diagnostics that do not echo supplied values."
+  ],
+  "review": {
+    "self_review": "Completed for owned files; no dependency, CI, manifest, runtime source or root test changes.",
+    "independent_review": "Pending root review.",
+    "ux_matrix": "N/A: standalone offline CLI; no application UI changes.",
+    "migration_rollback": "No schema or data changes. Remove only these owned new files if this standalone preflight is rejected."
+  },
+  "limitations": [
+    "No authoritative collector is implemented; collector provenance and completeness are assertions whose evidence T14 must verify.",
+    "The validator cannot prove that database aliases were normalized correctly or discover an omitted processor.",
+    "A passing snapshot does not enforce runtime ownership, prevent concurrent starts, or verify that rollout declarations are followed.",
+    "No production or live disposable topology was queried or changed by this task.",
+    "The current CD bluegreen declaration is incompatible with the accepted rollout contract; manifests were not changed.",
+    "DIST-009 remains subject to the live deployment gate; fixture success does not close that operational finding.",
+    "No throughput or live race experiment was performed; test duration is not application latency.",
+    "No commit or push was performed by this subtask."
+  ],
+  "next_step": "Root reviews and includes the standalone contract in T01; T14 implements authoritative collection and enforces a release-bound stop-before-start sequence with fresh transition checks."
+}

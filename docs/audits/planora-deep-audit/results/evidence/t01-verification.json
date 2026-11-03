@@ -1,0 +1,369 @@
+{
+  "schema_version": 1,
+  "package": "T01",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "working_head_sha": "915a430547e7138027704adb976bb9394ab78ffe",
+  "sdk": "10.0.300",
+  "checks": [
+    {
+      "id": "readiness-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~ReadinessContractTests' --logger 'trx;LogFileName=readiness-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "note": "Readiness test-harness attempt: five expected missing-tag failures; two host bind failures. Not accepted as HTTP regression evidence.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\readiness-red.txt",
+      "log_sha256": "f57f8b22c4b49168ebfc2aa4d11f2afcd1f3655bcf616c8c7e1d663f9355ef4a",
+      "counts": {
+        "total": 7,
+        "executed": 7,
+        "passed": 0,
+        "failed": 7,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:02:23.1427075+03:00",
+        "queuing": "2026-11-02T23:02:23.1427080+03:00",
+        "start": "2026-11-02T23:02:17.5093774+03:00",
+        "finish": "2026-11-02T23:02:23.1556286+03:00"
+      }
+    },
+    {
+      "id": "readiness-red-isolated",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~ReadinessContractTests' --logger 'trx;LogFileName=readiness-red-isolated.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "note": "Second harness attempt: missing configuration provider; not accepted as HTTP regression evidence.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\readiness-red-isolated.txt",
+      "log_sha256": "39a6a7b3db3e3bd95740dd50ee0bc5707a5a3593a8d7f3c65453cc3416cb3929",
+      "counts": {
+        "total": 7,
+        "executed": 7,
+        "passed": 0,
+        "failed": 7,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:02:50.9974544+03:00",
+        "queuing": "2026-11-02T23:02:50.9974548+03:00",
+        "start": "2026-11-02T23:02:49.6104041+03:00",
+        "finish": "2026-11-02T23:02:51.0154266+03:00"
+      }
+    },
+    {
+      "id": "staging-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~OutboxStagingContractTests' --logger 'trx;LogFileName=staging-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "note": "Compile error in new test namespace; corrected before behavior RED. No tests executed.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\staging-red.txt",
+      "log_sha256": "372c72d3a565778119b8a636f69d7ad44e39c5fe09b59c5e7775aca43415ee82",
+      "tests_executed": 0
+    },
+    {
+      "id": "contracts-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~OutboxStagingContractTests|FullyQualifiedName~ReadinessContractTests' --logger 'trx;LogFileName=contracts-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "note": "Accepted RED: five registration failures, unhealthy database returned HTTP 200, ten StageAsync API-absent failures; five legacy AddAsync controls and broker-only HTTP control passed.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\contracts-red.txt",
+      "log_sha256": "3c5815d53a345ba14f7d08f74629ed101c59b8dba6428705762280c25a371cb6",
+      "counts": {
+        "total": 22,
+        "executed": 22,
+        "passed": 6,
+        "failed": 16,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:04:34.9784633+03:00",
+        "queuing": "2026-11-02T23:04:34.9784640+03:00",
+        "start": "2026-11-02T23:04:33.5748131+03:00",
+        "finish": "2026-11-02T23:04:36.3233641+03:00"
+      },
+      "failures": [
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.SharedRegistration_IncludesDatabaseInReadiness(connectionName: \"TodoDatabase\")",
+          "message": "Assert.Contains() Failure: Item not found in set\r\nSet:       [\"db\", \"postgres\"]\r\nNot found: \"ready\""
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_CanceledRequestDoesNotTrackOrSave(implementation: \"category-adapter\")",
+          "message": "Assert.ThrowsAny() Failure: Exception type was not compatible\r\nExpected: typeof(System.OperationCanceledException)\r\nActual:   typeof(Xunit.Sdk.NotNullException)\r\n---- Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_TracksCompleteBatchUntilOwnerSaves(implementation: \"auth-adapter\")",
+          "message": "Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_CanceledRequestDoesNotTrackOrSave(implementation: \"auth-adapter\")",
+          "message": "Assert.ThrowsAny() Failure: Exception type was not compatible\r\nExpected: typeof(System.OperationCanceledException)\r\nActual:   typeof(Xunit.Sdk.NotNullException)\r\n---- Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_CanceledRequestDoesNotTrackOrSave(implementation: \"canonical\")",
+          "message": "Assert.ThrowsAny() Failure: Exception type was not compatible\r\nExpected: typeof(System.OperationCanceledException)\r\nActual:   typeof(Xunit.Sdk.NotNullException)\r\n---- Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_TracksCompleteBatchUntilOwnerSaves(implementation: \"collaboration\")",
+          "message": "Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_TracksCompleteBatchUntilOwnerSaves(implementation: \"todo\")",
+          "message": "Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.SharedRegistration_IncludesDatabaseInReadiness(connectionName: \"CategoryDatabase\")",
+          "message": "Assert.Contains() Failure: Item not found in set\r\nSet:       [\"db\", \"postgres\"]\r\nNot found: \"ready\""
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_TracksCompleteBatchUntilOwnerSaves(implementation: \"canonical\")",
+          "message": "Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.SharedRegistration_IncludesDatabaseInReadiness(connectionName: \"MessagingDatabase\")",
+          "message": "Assert.Contains() Failure: Item not found in set\r\nSet:       [\"db\", \"postgres\"]\r\nNot found: \"ready\""
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.SharedRegistration_IncludesDatabaseInReadiness(connectionName: \"AuthDatabase\")",
+          "message": "Assert.Contains() Failure: Item not found in set\r\nSet:       [\"db\", \"postgres\"]\r\nNot found: \"ready\""
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.SharedRegistration_IncludesDatabaseInReadiness(connectionName: \"CollaborationDatabase\")",
+          "message": "Assert.Contains() Failure: Item not found in set\r\nSet:       [\"db\", \"postgres\"]\r\nNot found: \"ready\""
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.ReadinessContractTests.Probes_UseRealRegistrationTagsAndKeepDependencyFailuresOutOfLiveness(databaseStatus: Unhealthy, brokerStatus: Healthy, readyStatus: ServiceUnavailable, aggregateStatus: \"Unhealthy\")",
+          "message": "Assert.Equal() Failure: Values differ\r\nExpected: ServiceUnavailable\r\nActual:   OK"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_TracksCompleteBatchUntilOwnerSaves(implementation: \"category-adapter\")",
+          "message": "Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_CanceledRequestDoesNotTrackOrSave(implementation: \"todo\")",
+          "message": "Assert.ThrowsAny() Failure: Exception type was not compatible\r\nExpected: typeof(System.OperationCanceledException)\r\nActual:   typeof(Xunit.Sdk.NotNullException)\r\n---- Assert.NotNull() Failure: Value is null"
+        },
+        {
+          "test": "Planora.UnitTests.Services.Infrastructure.OutboxStagingContractTests.StageAsync_CanceledRequestDoesNotTrackOrSave(implementation: \"collaboration\")",
+          "message": "Assert.ThrowsAny() Failure: Exception type was not compatible\r\nExpected: typeof(System.OperationCanceledException)\r\nActual:   typeof(Xunit.Sdk.NotNullException)\r\n---- Assert.NotNull() Failure: Value is null"
+        }
+      ]
+    },
+    {
+      "id": "contracts-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~OutboxStagingContractTests|FullyQualifiedName~ReadinessContractTests|FullyQualifiedName~CanonicalOutboxRepositoryTests|FullyQualifiedName~CategoryOutboxRepositoryTests' --logger 'trx;LogFileName=contracts-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "New staging/readiness contract plus existing outbox controls.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\contracts-green.txt",
+      "log_sha256": "9a9b518e41fca1848784a04271e2609cfa34459ed976d8d9cd3a168e39121c1c",
+      "counts": {
+        "total": 26,
+        "executed": 26,
+        "passed": 26,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:05:49.3699231+03:00",
+        "queuing": "2026-11-02T23:05:49.3699235+03:00",
+        "start": "2026-11-02T23:05:48.2043811+03:00",
+        "finish": "2026-11-02T23:05:50.2621782+03:00"
+      }
+    },
+    {
+      "id": "unit-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --no-build --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName!~Postgres' --logger 'trx;LogFileName=unit-broad.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "PLANORA_TEST_POSTGRES unset; skips retained and tested separately on disposable server.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit-broad.txt",
+      "log_sha256": "56cd464d0b797049037ea900dd7f5232a7524947be6e9cb4777ef909dd6fc7ae",
+      "counts": {
+        "total": 1260,
+        "executed": 1229,
+        "passed": 1229,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:07:18.1118213+03:00",
+        "queuing": "2026-11-02T23:07:18.1118219+03:00",
+        "start": "2026-11-02T23:07:17.1609840+03:00",
+        "finish": "2026-11-02T23:07:37.9765663+03:00"
+      }
+    },
+    {
+      "id": "errors",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\errors\\ --logger 'trx;LogFileName=errors.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "ErrorHandling test host uses in-memory persistence and mocked external services.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\errors.txt",
+      "log_sha256": "d5c475c3298d9da966bff04a457e953ddcbf1aa7bedb0a10e7bfece939026bee",
+      "counts": {
+        "total": 94,
+        "executed": 94,
+        "passed": 94,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-02T23:08:03.1782883+03:00",
+        "queuing": "2026-11-02T23:08:03.1782888+03:00",
+        "start": "2026-11-02T23:08:00.4141561+03:00",
+        "finish": "2026-11-02T23:08:08.5558988+03:00"
+      }
+    },
+    {
+      "id": "provider-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --no-build --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~Postgres|FullyQualifiedName~TodoDatabaseStartupTests|FullyQualifiedName~RealtimeDatabaseStartupTests' --logger 'trx;LogFileName=provider-broad.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "Verified disposable PostgreSQL server; no working-stack access.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\provider-broad.txt",
+      "log_sha256": "089d2836d09fa7b026031f794985c37bbe113525e650dd6d441b345133e91d24",
+      "counts": {
+        "total": 72,
+        "executed": 72,
+        "passed": 72,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T02:58:31.0986290+03:00",
+        "queuing": "2026-11-03T02:58:31.0986296+03:00",
+        "start": "2026-11-03T02:58:21.0321683+03:00",
+        "finish": "2026-11-03T02:58:42.9025572+03:00"
+      }
+    },
+    {
+      "id": "staging-provider",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\unit\\ --filter 'FullyQualifiedName~OutboxStagingPostgresTests' --logger 'trx;LogFileName=staging-provider.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "New canonical and Todo staging: visibility before save, complete save, rollback on rejected outbox insert.",
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\staging-provider.txt",
+      "log_sha256": "700757a281a7a3ac41ad202c07e1dad5f210bc96bfd2bfa7543e9461b79e538c",
+      "counts": {
+        "total": 4,
+        "executed": 4,
+        "passed": 4,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T03:00:52.5260763+03:00",
+        "queuing": "2026-11-03T03:00:52.5260769+03:00",
+        "start": "2026-11-03T03:00:48.5610559+03:00",
+        "finish": "2026-11-03T03:00:54.0792022+03:00"
+      }
+    }
+  ],
+  "provider_environment": {
+    "container_id": "41e429499fe363d7893af73a907c71250614c9ba7dcee09abca42a62f0a80bfb",
+    "image_digest": "sha256:b7587f3cb74f4f4b2a4f9d67f052edbf95eb93f4fec7c5ada3792546caaf7383",
+    "label": "com.planora.audit=deepaudit-t01-20261102",
+    "network_id": "cff8b2cbfc871731b635c59d992879269d6bed9356b015977f0a3da1e5e33aa1",
+    "published_port": "127.0.0.1:63450",
+    "mounts": [],
+    "tmpfs": "/var/lib/postgresql/data:rw,size=536870912",
+    "synthetic_only": true,
+    "startup_probe_exits": [
+      1,
+      0
+    ]
+  },
+  "limitations": [
+    "New API RED proves absent StageAsync, not a reproduced business-handler transaction fix. Existing callers were not converted.",
+    "Provider tests prove staging semantics with real PostgreSQL; complete domain fan-out transactions remain T03/T04.",
+    "Full solution build, frontend coverage/build/browser and deployment/restore gates remain pending.",
+    "No claim/lease, runtime exclusivity or throughput improvement is asserted."
+  ]
+}

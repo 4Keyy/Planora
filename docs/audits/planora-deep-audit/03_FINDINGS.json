@@ -1487,5 +1487,69 @@
     ],
     "dependencies": [],
     "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+  },
+  {
+    "id": "BE-008",
+    "title": "Large accepted page numbers overflow Int32 offset and repeat the first login-history page",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "conditional: extreme accepted page number",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+        "lines": "9-22",
+        "observation": "No upper page-number bound."
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationQuery.cs",
+        "lines": "8-24",
+        "observation": "Large positive page accepted; CalculateSkip multiplies Int32."
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationExtensions.cs",
+        "lines": "10-14",
+        "observation": "Shared offset arithmetic is identical; direct production uses not found."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/GetLoginHistory/GetLoginHistoryQueryValidator.cs",
+        "lines": "9-14",
+        "observation": "Only positive page and size<=100 checks."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/GetLoginHistory/GetLoginHistoryQueryHandler.cs",
+        "lines": "31-50",
+        "observation": "Current UserId filter and unchanged page values passed to repository/metadata."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/LoginHistoryRepository.cs",
+        "lines": "32-42",
+        "observation": "Math.Max(0, overflowing product) changes -200 to Skip(0)."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+        "lines": "345-361",
+        "observation": "Authenticated bound query returns page result."
+      }
+    ],
+    "trigger": "Authenticated me/login-history request with PageNumber=2147483647 and PageSize=100.",
+    "impact": "First page repeats with huge page metadata. Owner filter remains intact; no cross-account disclosure claimed. Admin UserRepository has related unchecked offset without Math.Max; provider-specific behavior not executed.",
+    "root_cause": "Unbounded accepted PageNumber is multiplied as Int32; LoginHistoryRepository clamps the wrapped negative offset to zero.",
+    "fix": "Add overflow-safe offset validation/calculation, reject or explicitly handle unrepresentable offsets, preserve ordinary paging and owner predicates.",
+    "alternatives": [
+      "Reject offsets beyond the supported Int32 Skip range with a validated client error; do not silently clamp them to the first page."
+    ],
+    "tests": [
+      "CalculateSkip/ApplyPagination int.MaxValue and size100.",
+      "Owner-scoped LoginHistory repository with multiple records and huge page must not repeat first page.",
+      "Boundary/normal pages, invalid-input status and cancellation; disposable Npgsql provider case."
+    ],
+    "acceptance": [
+      "A huge accepted page never repeats the first page.",
+      "Normal pagination, ownership and cancellation remain intact; invalid-input behavior is covered."
+    ],
+    "dependencies": [],
+    "limitations": "Source-confirmed arithmetic/validation path. Node signed-Int32 diagnostic only; C# endpoint and Npgsql reproduction pending. See results/evidence/read-011-review.json."
   }
 ]

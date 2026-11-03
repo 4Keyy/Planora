@@ -23,6 +23,9 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
             _inner = new Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<CategoryDbContext>(context);
         }
 
+        public Task StageAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+            => _inner.StageAsync(message, cancellationToken);
+
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
             => _inner.AddAsync(message, cancellationToken);
 

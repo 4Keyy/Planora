@@ -1,5 +1,11 @@
 # Фактический охват файлов
 
+Продолжение исполнения: [актуальный индекс](02_FILE_AUDIT_INDEX.csv) и
+[READ-011 evidence](results/evidence/read-011-review.md). Завершён дополнительный
+source review 25 файлов: суммарно READ/REVIEWED 255 из исходных 1558 (16.37%).
+Осталось 79 пачек; runtime verification не следует из статуса чтения.
+Исходная таблица ниже сохраняет исторический baseline, а не текущий прогресс.
+
 [CSV — каждый tracked файл](02_FILE_AUDIT_INDEX.csv), [исходная инвентаризация](evidence/inventory.json), [пачки продолжения](evidence/continuation-batches.json).
 
 Baseline содержит 1558 tracked файлов. READ/REVIEWED: 230 (14.76%). Это доля файлов, не строк и не доказательство полноты тестирования. REVIEWED может относиться к указанным ranges; столбец lines первичен.

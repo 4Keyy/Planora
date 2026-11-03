@@ -153,8 +153,11 @@
       "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DomainException.cs",
       "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/DuplicateEntityException.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-011-review.json",
+    "reviewed_head": "915a430547e7138027704adb976bb9394ab78ffe",
+    "working_tree_contract_update": "IOutboxRepository.StageAsync reread; exact content hashes in evidence."
   },
   {
     "batch_id": "READ-012",
