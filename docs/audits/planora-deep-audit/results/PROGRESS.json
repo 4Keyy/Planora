@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "db0d82acd35a705d903a2e121893034c2097ebe2",
+  "current_sha": "7373c36564c72fed985020ff3fa0e5c6a6494709",
   "status": "in_progress",
   "current_task": "T05",
   "completed_tasks": [
@@ -64,7 +64,7 @@
     "Independent T01 staging/readiness review completed with26 passing tests; topology/runtime exclusivity outside review.",
     "T05 explicit logical IDs and durable per-subscription quarantine; old queues must never be deleted automatically."
   ],
-  "next_step": "Commit T12 OPS-010 scanner policy with partial/open security gates, then execute T05 live RED/GREEN against the verified disposable broker.",
+  "next_step": "T05: unitRED16(14fail/2pass),liveRED3(2fail/1pass) reproduced; finish transport GREEN, domain Postgres delivery and DLQ restart proof, independent review.",
   "commands": [
     {
       "id": "readiness-red",
@@ -431,6 +431,11 @@
     {
       "task": "T01 local contract",
       "sha": "db0d82acd35a705d903a2e121893034c2097ebe2",
+      "pushed": false
+    },
+    {
+      "task": "T12 OPS-010 local fix; package partial",
+      "sha": "7373c36564c72fed985020ff3fa0e5c6a6494709",
       "pushed": false
     }
   ],

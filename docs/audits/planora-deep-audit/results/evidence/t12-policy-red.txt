@@ -9,7 +9,7 @@ not ok 1 - gitleaks scans runtime paths and literal values without suppressing s
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
     + [
     +   {
     +     detected: false,
@@ -63,7 +63,7 @@ not ok 1 - gitleaks scans runtime paths and literal values without suppressing s
     +   }
     + ]
     - []
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
