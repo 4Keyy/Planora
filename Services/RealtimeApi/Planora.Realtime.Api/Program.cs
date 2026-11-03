@@ -166,12 +166,12 @@ public class Program
                     app.Lifetime.ApplicationStopping);
 
                 // Subscribe to events
-                await eventBus.SubscribeAsync<NotificationEvent, NotificationEventHandler>(app.Lifetime.ApplicationStopping);
-                await eventBus.SubscribeAsync<RealtimeSyncIntegrationEvent, RealtimeSyncEventHandler>(app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<NotificationEvent, NotificationEventHandler>("realtime.notification", app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<RealtimeSyncIntegrationEvent, RealtimeSyncEventHandler>("realtime.sync", app.Lifetime.ApplicationStopping);
 
                 // Cascade cleanup: drop notifications when their task or recipient is deleted upstream.
-                await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedNotificationCleanupHandler>(app.Lifetime.ApplicationStopping);
-                await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedNotificationCleanupHandler>(app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedNotificationCleanupHandler>("realtime.task-deleted-cleanup", app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedNotificationCleanupHandler>("realtime.user-deleted-cleanup", app.Lifetime.ApplicationStopping);
                 logger.LogInformation("✅ RealtimeApi dependencies ready");
 
                 // Retention purge indexes — the daily notification housekeeping sweeps read notifications

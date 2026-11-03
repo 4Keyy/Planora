@@ -160,7 +160,7 @@ namespace Planora.Category.Api
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();
-                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>("category.user-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to UserDeletedIntegrationEvent");
                 }
 

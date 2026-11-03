@@ -150,19 +150,19 @@ namespace Planora.Collaboration.Api
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();
 
-                    await eventBus.SubscribeAsync<TaskCreatedIntegrationEvent, TaskCreatedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<TaskCreatedIntegrationEvent, TaskCreatedEventConsumer>("collaboration.task-created", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to TaskCreatedIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<TaskActivityIntegrationEvent, TaskActivityEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<TaskActivityIntegrationEvent, TaskActivityEventConsumer>("collaboration.task-activity", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to TaskActivityIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedEventConsumer>("collaboration.task-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to TaskDeletedIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<SubtaskDeletedIntegrationEvent, SubtaskDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<SubtaskDeletedIntegrationEvent, SubtaskDeletedEventConsumer>("collaboration.subtask-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to SubtaskDeletedIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>("collaboration.user-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to UserDeletedIntegrationEvent");
                 }
 

@@ -2,15 +2,17 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "7373c36564c72fed985020ff3fa0e5c6a6494709",
+  "current_sha": "90f8341ae35a60e39fcdbabde83577a1a96bfa02",
   "status": "in_progress",
-  "current_task": "T05",
+  "current_task": "T08",
   "completed_tasks": [
-    "T01 local contract (deployment closure remains T14)"
+    "T01 local contract (deployment closure remains T14)",
+    "T05 local transport (working topology transition and historical repair remain pending T14)"
   ],
   "in_progress_tasks": [
     "T12",
-    "T05"
+    "READ-014",
+    "READ-038"
   ],
   "pending_tasks": [
     "T08",
@@ -50,7 +52,22 @@
     "tools/outbox",
     ".gitleaks.toml",
     "tools/security/gitleaks-policy.test.mjs",
-    "tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqLiveTests.cs"
+    "tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqLiveTests.cs",
+    "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IEventBus.cs",
+    "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+    "Services/TodoApi/Planora.Todo.Api/Program.cs",
+    "Services/CategoryApi/Planora.Category.Api/Program.cs",
+    "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+    "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+    "tests/Planora.ErrorHandlingTests/Integration/TodoApiTestFactory.cs",
+    "tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqSubscriptionTests.cs",
+    "tests/Planora.UnitTests/BuildingBlocks/Messaging/UserDeletionRabbitPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/T05.md",
+    "docs/audits/planora-deep-audit/results/PROGRESS.json",
+    "docs/audits/planora-deep-audit/results/evidence/t05-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/t05-broker-restart.json",
+    "docs/audits/planora-deep-audit/results/evidence/t05-topology-transition.md",
+    "docs/audits/planora-deep-audit/results/evidence/t05-independent-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -62,9 +79,12 @@
     "Independent T01 review was interrupted by agent service usage limit; root self-review completed, no independent approval claimed.",
     "T12 OPS-010 regression passed20 synthetic cases; full history scan66 old/88 new policy remains red, not waived.",
     "Independent T01 staging/readiness review completed with26 passing tests; topology/runtime exclusivity outside review.",
-    "T05 explicit logical IDs and durable per-subscription quarantine; old queues must never be deleted automatically."
+    "T05 explicit logical IDs and durable per-subscription quarantine; old queues must never be deleted automatically.",
+    "T05 broker and unit failures reproduced on original code; logical IDs/quorum DLQ locally verified with1334unit+94errorhandling passes,0skips.",
+    "Two orchestrated broker restart tests separately passed; first post-restart verification rejected changed dynamic bindings before reconfiguration.",
+    "Root reviewed real-domain test; independent reviewer covered transport/callers/root-live/runbook source; atomic exactly-once is not claimed."
   ],
-  "next_step": "T05: unitRED16(14fail/2pass),liveRED3(2fail/1pass) reproduced; finish transport GREEN, domain Postgres delivery and DLQ restart proof, independent review.",
+  "next_step": "Commit verified T05 local transport; integrate READ-014/READ-038 full source reviews; read T08 prompt and ef-migration skill, reproduce schema/provider defects on owned disposable databases only.",
   "commands": [
     {
       "id": "readiness-red",
@@ -405,6 +425,421 @@
         "start": "2026-11-03T03:00:48.5610559+03:00",
         "finish": "2026-11-03T03:00:54.0792022+03:00"
       }
+    },
+    {
+      "id": "subscription-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-unit\\ --filter 'FullyQualifiedName~RabbitMqSubscriptionTests' --logger 'trx;LogFileName=subscription-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 2,
+        "failed": 14,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T17:53:06.7747168+03:00",
+        "queuing": "2026-11-03T17:53:06.7747172+03:00",
+        "start": "2026-11-03T17:52:59.8023999+03:00",
+        "finish": "2026-11-03T17:53:06.8986686+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\subscription-red.txt",
+      "log_sha256": "d64af55968b6446a0cd065deaa93224d425c3c6fc388e68684bd668bda29634a",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results\\subscription-red.trx",
+      "trx_sha256": "858a4ac681e7c81c93fc554082c3552465581f03f30c9f458bed9286298a1968",
+      "failures": [
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.ExistingSubscriptionId_CannotBeReassignedToAnotherHandler",
+          "message": "Assert.Throws() Failure: No exception was thrown\r\nExpected: typeof(System.InvalidOperationException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.DifferentSubscribers_WithSameHandlerName_HaveIndependentQueues",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                                                                      ↓ (pos 0)\r\nExpected: string[]                                                   [\"planora.todo.user-deleted.v1\", \"planora.category.user-deleted.v1\"]\r\nActual:   SelectManySingleSelectorIterator<RecordingChannel, string> [\"TestEvent.UserDeletedEventConsumer\", \"TestEvent.UserDeletedEventConsumer\"]\r\n                                                                      ↑ (pos 0)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.InvalidSubscriptionId_IsRejectedBeforeConnecting(subscriptionId: \"todo/deleted\")",
+          "message": "Assert.ThrowsAny() Failure: No exception was thrown\r\nExpected: typeof(System.ArgumentException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.FailedSubscription_CanBeRetriedAndDisposesTheFailedChannel",
+          "message": "Assert.Equal() Failure: Values differ\r\nExpected: 2\r\nActual:   1"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.Subscription_DeclaresDurableQuorumDlqAndBindingBeforeConsumption",
+          "message": "Assert.Single() Failure: The collection did not contain any matching items\r\nExpected:   (predicate expression)\r\nCollection: [QueueDeclaration { Name = TestEvent.UserDeletedEventConsumer, Durable = True, Exclusive = False, AutoDelete = False, Arguments = System.Collections.Generic.Dictionary`2[System.String,System.Object] }]"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.MissingHandler_IsRetriedWithoutAcknowledging",
+          "message": "Moq.MockException : \r\nExpected invocation on the mock should never have been performed, but was 1 times: c => c.BasicAckAsync(It.IsAny<ulong>(), It.IsAny<bool>(), It.IsAny<CancellationToken>())\r\n\r\nPerformed invocations:\r\n\r\n   Mock<IChannel:16> (c):\r\n\r\n      IChannel.ExchangeDeclareAsync(\"planora-eventbus\", \"topic\", True, False, null, False, False, CancellationToken)\r\n      IChannel.QueueDeclareAsync(\"TestEvent.UserDeletedEventConsumer\", True, False, False, Dictionary<string, object>, False, False, CancellationToken)\r\n      IChannel.QueueBindAsync(\"TestEvent.UserDeletedEventConsumer\", \"planora-eventbus\", \"TestEvent\", null, False, CancellationToken)\r\n      IChannel.BasicQosAsync(0, 1, False, CancellationToken)\r\n      IChannel.BasicConsumeAsync(\"TestEvent.UserDeletedEventConsumer\", False, \"\", False, False, null, AsyncEventingBasicConsumer, CancellationToken)\r\n      IChannel.BasicAckAsync(1, False, CancellationToken)\r\n"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.Delivery_DispatchesOnlyItsSubscriptionsHandler",
+          "message": "Assert.Equal() Failure: Values differ\r\nExpected: 0\r\nActual:   1"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.InvalidSubscriptionId_IsRejectedBeforeConnecting(subscriptionId: \"todo.*\")",
+          "message": "Assert.ThrowsAny() Failure: No exception was thrown\r\nExpected: typeof(System.ArgumentException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.InvalidSubscriptionId_IsRejectedBeforeConnecting(subscriptionId: \"\")",
+          "message": "Assert.ThrowsAny() Failure: No exception was thrown\r\nExpected: typeof(System.ArgumentException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.CanceledSubscription_DoesNotConnectOrRegister",
+          "message": "Assert.Single() Failure: The collection was empty"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.Replicas_UseTheSameLogicalQueue",
+          "message": "Assert.Equal() Failure: Strings differ\r\n           ↓ (pos 0)\r\nExpected: \"planora.todo.user-deleted.v1\"\r\nActual:   \"TestEvent.UserDeletedEventConsumer\"\r\n           ↑ (pos 0)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.InvalidSubscriptionId_IsRejectedBeforeConnecting(subscriptionId: \"todo..deleted\")",
+          "message": "Assert.ThrowsAny() Failure: No exception was thrown\r\nExpected: typeof(System.ArgumentException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.InvalidSubscriptionId_IsRejectedBeforeConnecting(subscriptionId: \"Todo.user-deleted\")",
+          "message": "Assert.ThrowsAny() Failure: No exception was thrown\r\nExpected: typeof(System.ArgumentException)"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqSubscriptionTests.PoisonPayload_IsDeadLetteredWithoutAcknowledging(payload: \"null\")",
+          "message": "Moq.MockException : \r\nExpected invocation on the mock should never have been performed, but was 1 times: c => c.BasicAckAsync(It.IsAny<ulong>(), It.IsAny<bool>(), It.IsAny<CancellationToken>())\r\n\r\nPerformed invocations:\r\n\r\n   Mock<IChannel:8> (c):\r\n\r\n      IChannel.ExchangeDeclareAsync(\"planora-eventbus\", \"topic\", True, False, null, False, False, CancellationToken)\r\n      IChannel.QueueDeclareAsync(\"TestEvent.UserDeletedEventConsumer\", True, False, False, Dictionary<string, object>, False, False, CancellationToken)\r\n      IChannel.QueueBindAsync(\"TestEvent.UserDeletedEventConsumer\", \"planora-eventbus\", \"TestEvent\", null, False, CancellationToken)\r\n      IChannel.BasicQosAsync(0, 1, False, CancellationToken)\r\n      IChannel.BasicConsumeAsync(\"TestEvent.UserDeletedEventConsumer\", False, \"\", False, False, null, AsyncEventingBasicConsumer, CancellationToken)\r\n      IChannel.BasicAckAsync(1, False, CancellationToken)\r\n"
+        }
+      ]
+    },
+    {
+      "id": "subscription-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-unit\\ --filter 'FullyQualifiedName~RabbitMqSubscriptionTests|FullyQualifiedName~RabbitMqEventBusFailureTests' --logger 'trx;LogFileName=subscription-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 23,
+        "executed": 23,
+        "passed": 23,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T17:56:40.8875121+03:00",
+        "queuing": "2026-11-03T17:56:40.8875128+03:00",
+        "start": "2026-11-03T17:56:36.5984714+03:00",
+        "finish": "2026-11-03T17:56:41.3526896+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\subscription-green.txt",
+      "log_sha256": "775ff7c72c8fa1034d21be549e73747189305268f5a0032070c54b676f453ecd",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results\\subscription-green.trx",
+      "trx_sha256": "41102b317222e87aa12047277378ad0b0c67a4d50e791358d55cd8845739036d",
+      "failures": []
+    },
+    {
+      "id": "subscription-final",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-unit\\ --filter 'FullyQualifiedName~RabbitMqSubscriptionTests|FullyQualifiedName~RabbitMqEventBusFailureTests' --logger 'trx;LogFileName=subscription-final.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 29,
+        "executed": 29,
+        "passed": 29,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T17:58:15.7353385+03:00",
+        "queuing": "2026-11-03T17:58:15.7353390+03:00",
+        "start": "2026-11-03T17:58:13.0405355+03:00",
+        "finish": "2026-11-03T17:58:16.1581983+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\subscription-final.txt",
+      "log_sha256": "582e784bb53084a1b9a1b4882750f970f9950991724c42fcd931c110c08387cb",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-results\\subscription-final.trx",
+      "trx_sha256": "ae6b47e5b213a868bc56317d0f4f1c0ea19a33834300649a84572f05a082066f",
+      "failures": []
+    },
+    {
+      "id": "live-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\agent-unit\\ --filter 'FullyQualifiedName~RabbitMqLiveTests' --logger 'trx;LogFileName=live-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "counts": {
+        "total": 3,
+        "executed": 3,
+        "passed": 1,
+        "failed": 2,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T17:53:48.9608384+03:00",
+        "queuing": "2026-11-03T17:53:48.9608389+03:00",
+        "start": "2026-11-03T17:53:32.2216980+03:00",
+        "finish": "2026-11-03T17:53:49.1050187+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\live-red.txt",
+      "log_sha256": "38f0cf1f2417f765c824d7427d8f1732b173e389469125b152576fb0a975ea81",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\live-red.trx",
+      "trx_sha256": "2813b4231209d3c6b14587382c2c7c45eb6f25c8cb31f13dc8cfd143befdde7e",
+      "failures": [
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqLiveTests.OnePublish_ReachesThreeSubscribers_AndReplicasShareWork",
+          "message": "One publish must reach every logical subscriber"
+        },
+        {
+          "test": "Planora.UnitTests.BuildingBlocks.Messaging.RabbitMqLiveTests.PoisonAndExhaustedRetry_AreQuarantined_WithOriginalIdentity",
+          "message": "RabbitMQ.Client.Exceptions.OperationInterruptedException : The AMQP operation was interrupted: AMQP close-reason, initiated by Peer, code=404, text='NOT_FOUND - no queue 'planora.audit.2dcb5d65375141f48cb64c23d715ae5e.failure.v1.dlq' in vhost '/'', classId=60, methodId=70"
+        }
+      ]
+    },
+    {
+      "id": "transport-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit\\ --filter '(FullyQualifiedName~RabbitMqLiveTests&FullyQualifiedName!~Restart)|FullyQualifiedName~UserDeletionRabbitPostgresTests|FullyQualifiedName~RabbitMqSubscriptionTests|FullyQualifiedName~RabbitMqEventBusFailureTests' --logger 'trx;LogFileName=transport-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 33,
+        "executed": 33,
+        "passed": 33,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:00:20.8823835+03:00",
+        "queuing": "2026-11-03T18:00:20.8823846+03:00",
+        "start": "2026-11-03T18:00:11.1863430+03:00",
+        "finish": "2026-11-03T18:00:28.7645131+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\transport-green.txt",
+      "log_sha256": "5d916b4fe2bb9e6cb7decf2098e8f26d8ad8d96628d7e502c044b35bba5842b7",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\transport-green.trx",
+      "trx_sha256": "07f2dbc658d5817f4d88f0fa6803ebdd65d987fed714512cce3db39bf83d500b",
+      "failures": []
+    },
+    {
+      "id": "restart-seed",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit\\ --filter 'FullyQualifiedName~RestartSeed' --logger 'trx;LogFileName=restart-seed.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 1,
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:01:06.8128428+03:00",
+        "queuing": "2026-11-03T18:01:06.8128434+03:00",
+        "start": "2026-11-03T18:01:04.6344108+03:00",
+        "finish": "2026-11-03T18:01:06.8213130+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\restart-seed.txt",
+      "log_sha256": "b0c2597c89c1ad95ee43e1926754a3921e8b0699dd306811640a4eb780d0e26e",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\restart-seed.trx",
+      "trx_sha256": "1e4ee77415af5f2e1d318b3f9cac03dc71bfeee49fdde713835ec119dfabf887",
+      "failures": []
+    },
+    {
+      "id": "restart-verify",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit\\ --filter 'FullyQualifiedName~RestartVerify' --logger 'trx;LogFileName=restart-verify.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 1,
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:02:17.1629787+03:00",
+        "queuing": "2026-11-03T18:02:17.1629793+03:00",
+        "start": "2026-11-03T18:02:14.6449774+03:00",
+        "finish": "2026-11-03T18:02:17.1743249+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\restart-verify.txt",
+      "log_sha256": "1c48085f2491f8d73a17460a45a6e699492a07d67ac87a4e6b88c47abb3b728b",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\restart-verify.trx",
+      "trx_sha256": "70199b000ff95902ae4df3b3ad5aa688d962056560a36e184ac88363200d0cc0",
+      "failures": []
+    },
+    {
+      "id": "unit-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit\\ --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=unit-broad.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 1334,
+        "executed": 1334,
+        "passed": 1334,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:03:29.0793314+03:00",
+        "queuing": "2026-11-03T18:03:29.0793318+03:00",
+        "start": "2026-11-03T18:03:26.4315785+03:00",
+        "finish": "2026-11-03T18:04:17.1987142+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit-broad.txt",
+      "log_sha256": "7da0ea24c730d64851a128f19f36d9c94252117d3871d2c64cd167694dc84312",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\unit-broad.trx",
+      "trx_sha256": "a586f27a96eb54bebd39188dc39bd264c55dbbfd4e325e90a762c4e06424df18",
+      "failures": []
+    },
+    {
+      "id": "live-final",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\unit\\ --filter '(FullyQualifiedName~RabbitMqLiveTests&FullyQualifiedName!~Restart)|FullyQualifiedName~UserDeletionRabbitPostgresTests' --logger 'trx;LogFileName=live-final.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 5,
+        "executed": 5,
+        "passed": 5,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:07:05.1448177+03:00",
+        "queuing": "2026-11-03T18:07:05.1448185+03:00",
+        "start": "2026-11-03T18:06:58.8040879+03:00",
+        "finish": "2026-11-03T18:07:07.7791160+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\live-final.txt",
+      "log_sha256": "4d45fc4f34f2ac1d84b642655676eb8c4b81584a471e969a8bbaeca621623189",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\live-final.trx",
+      "trx_sha256": "d3186b78f1a40f02d6fc26ea1acedad71920e4b7206a6a103206c189baf6a1d2",
+      "failures": []
+    },
+    {
+      "id": "errors",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\errors\\ --logger 'trx;LogFileName=errors.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 94,
+        "executed": 94,
+        "passed": 94,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T18:05:13.5238150+03:00",
+        "queuing": "2026-11-03T18:05:13.5238156+03:00",
+        "start": "2026-11-03T18:05:05.0216129+03:00",
+        "finish": "2026-11-03T18:05:28.0904849+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\errors.txt",
+      "log_sha256": "294f21cb7cf2720969505c09345f531a0db582c407160ebf4aa066821c671326",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t05\\results\\errors.trx",
+      "trx_sha256": "c9336721f2329c82e1ac2d83c795659607ae82966feb0d41420101994d2264f1"
     }
   ],
   "audit_coverage": {
@@ -425,7 +860,11 @@
     "results/evidence/t12-verification.json",
     "results/evidence/t12-final-triage.json",
     "results/evidence/t12-independent-review.md",
-    "results/evidence/t01-independent-review.md"
+    "results/evidence/t01-independent-review.md",
+    "results/evidence/t05-verification.json",
+    "results/evidence/t05-broker-restart.json",
+    "results/evidence/t05-topology-transition.md",
+    "results/evidence/t05-independent-review.md"
   ],
   "local_commits": [
     {
@@ -451,10 +890,15 @@
       "id": "a702edd4d55ddcae0e682a2565aa18cd01a6db7e8f086a5741198e00c7718f21",
       "kind": "rabbit-container",
       "label": "com.planora.audit=deepaudit-t05-20261103",
-      "bind": "127.0.0.1:56433 AMQP; 127.0.0.1:56432 management",
+      "bind": "127.0.0.1:49901 AMQP; 127.0.0.1:49900 management; reverified after restart",
       "volume": "planora-audit-t05-rabbit-data",
       "network": "planora-audit-t01",
       "fixture_credentials": "synthetic; ignored .buildcheck/deep-audit-t05/rabbit-fixture.json"
     }
-  ]
+  ],
+  "remaining_gates": {
+    "T01": "DIST-009 authoritative deployment exclusivity closure in T14",
+    "T05": "Working topology migration/historical replay pending T14+owner approval; complete erasure T02/T03/T04",
+    "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance"
+  }
 }

@@ -354,14 +354,14 @@ public class MockEventBus : IEventBus
         return Task.CompletedTask;
     }
 
-    public Task SubscribeAsync<TEvent, THandler>(CancellationToken cancellationToken = default)
+    public Task SubscribeAsync<TEvent, THandler>(string subscriptionId, CancellationToken cancellationToken = default)
         where TEvent : IntegrationEvent
         where THandler : IIntegrationEventHandler<TEvent>
     {
         return Task.CompletedTask;
     }
 
-    public Task UnsubscribeAsync<TEvent, THandler>()
+    public Task UnsubscribeAsync<TEvent, THandler>(string subscriptionId, CancellationToken cancellationToken = default)
         where TEvent : IntegrationEvent
         where THandler : IIntegrationEventHandler<TEvent>
     {

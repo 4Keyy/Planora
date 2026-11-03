@@ -1,0 +1,34 @@
+{
+  "container_id": "a702edd4d55ddcae0e682a2565aa18cd01a6db7e8f086a5741198e00c7718f21",
+  "label": "com.planora.audit=deepaudit-t05-20261103",
+  "volume": "planora-audit-t05-rabbit-data",
+  "mounts_verified": true,
+  "command": [
+    "docker",
+    "restart",
+    "a702edd4d55ddcae0e682a2565aa18cd01a6db7e8f086a5741198e00c7718f21"
+  ],
+  "restart_exit_code": 0,
+  "post_restart_verification_first_exit_code": 1,
+  "note": "First verification correctly rejected changed random bindings before any connection. Re-inspected same owned container, network, volume and loopback ports; fixture updated.",
+  "ports_before": {
+    "amqp": "127.0.0.1:56433",
+    "management": "127.0.0.1:56432"
+  },
+  "ports_after": {
+    "15672/tcp": [
+      {
+        "HostIp": "127.0.0.1",
+        "HostPort": "49900"
+      }
+    ],
+    "5672/tcp": [
+      {
+        "HostIp": "127.0.0.1",
+        "HostPort": "49901"
+      }
+    ]
+  },
+  "started_at_after": "2026-11-03T15:01:38.663476434Z",
+  "queue_deletions": 0
+}

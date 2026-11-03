@@ -163,13 +163,13 @@ namespace Planora.Todo.Api
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();
-                    await eventBus.SubscribeAsync<CategoryDeletedIntegrationEvent, CategoryDeletedEventHandler>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<CategoryDeletedIntegrationEvent, CategoryDeletedEventHandler>("todo.category-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to CategoryDeletedIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>("todo.user-deleted", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to UserDeletedIntegrationEvent");
 
-                    await eventBus.SubscribeAsync<FriendshipRemovedIntegrationEvent, FriendshipRemovedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    await eventBus.SubscribeAsync<FriendshipRemovedIntegrationEvent, FriendshipRemovedEventConsumer>("todo.friendship-removed", app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to FriendshipRemovedIntegrationEvent");
                 }
 

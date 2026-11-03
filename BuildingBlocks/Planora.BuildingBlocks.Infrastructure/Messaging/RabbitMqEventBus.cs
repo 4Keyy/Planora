@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -10,12 +10,10 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
     private readonly ILogger<RabbitMqEventBus> _logger;
     private readonly IServiceProvider _serviceProvider;
 
-    // Singleton bus shared across the whole process: Subscribe (startup) and the async
-    // consumer callbacks race on these maps, so they must be concurrency-safe. The handler
-    // lists are treated as copy-on-write (replaced, never mutated in place) so a consumer
-    // enumerating a snapshot is never torn by a concurrent Subscribe/Unsubscribe.
-    private readonly ConcurrentDictionary<string, IReadOnlyList<Type>> _eventHandlers = new();
-    private readonly ConcurrentDictionary<string, RabbitMQ.Client.IChannel> _consumerChannels = new();
+    private sealed record Subscription(Type EventType, Type HandlerType, IChannel Channel);
+
+    private readonly Dictionary<string, Subscription> _subscriptions = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _subscriptionLock = new(1, 1);
 
     // A single reused confirm-channel for publishing. Creating a channel + declaring the
     // exchange on every publish cost ~3 AMQP round-trips per message; the outbox drains in
@@ -25,7 +23,8 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
 
     private const string ExchangeName = "planora-eventbus";
     private const string DeadLetterExchange = "planora-eventbus-dlx";
-    private bool _disposed;
+    private int _disposeState;
+    private bool IsDisposed => Volatile.Read(ref _disposeState) != 0;
 
     public RabbitMqEventBus(
         IRabbitMqConnectionManager connectionManager,
@@ -39,13 +38,14 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
 
     public async Task EnsureConnectionAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         var connection = await _connectionManager.GetConnectionAsync(cancellationToken);
         var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
         try
         {
-            await channel.ExchangeDeclareAsync(ExchangeName, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null);
-            await channel.ExchangeDeclareAsync(DeadLetterExchange, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null);
+            await channel.ExchangeDeclareAsync(ExchangeName, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null, cancellationToken: cancellationToken);
+            await channel.ExchangeDeclareAsync(DeadLetterExchange, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null, cancellationToken: cancellationToken);
 
             _logger.LogInformation("RabbitMQ EventBus connection ensured");
         }
@@ -58,6 +58,7 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
     public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default)
         where TEvent : IntegrationEvent
     {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         var eventName = @event.GetType().Name;
 
         // A channel is not safe for concurrent publishes (especially with confirm tracking,
@@ -67,6 +68,7 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
         await _publishLock.WaitAsync(cancellationToken);
         try
         {
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             var channel = await GetOrCreatePublishChannelAsync(cancellationToken);
 
             try
@@ -129,10 +131,18 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
             publisherConfirmationTrackingEnabled: true);
         var channel = await connection.CreateChannelAsync(channelOpts, cancellationToken);
 
-        await channel.ExchangeDeclareAsync(ExchangeName, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null);
-
-        _publishChannel = channel;
-        return channel;
+        try
+        {
+            await channel.ExchangeDeclareAsync(ExchangeName, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false,
+                arguments: null, cancellationToken: cancellationToken);
+            _publishChannel = channel;
+            return channel;
+        }
+        catch
+        {
+            await channel.DisposeAsync();
+            throw;
+        }
     }
 
     // Must be called under _publishLock.
@@ -155,190 +165,177 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
         }
     }
 
-    public async Task SubscribeAsync<TEvent, THandler>(CancellationToken cancellationToken = default)
+    public async Task SubscribeAsync<TEvent, THandler>(string subscriptionId, CancellationToken cancellationToken = default)
         where TEvent : IntegrationEvent
         where THandler : IIntegrationEventHandler<TEvent>
     {
-        var eventName = typeof(TEvent).Name;
-        var handlerType = typeof(THandler);
-
-        var alreadyRegistered = false;
-        _eventHandlers.AddOrUpdate(
-            eventName,
-            _ => new[] { handlerType },
-            (_, existing) =>
-            {
-                if (existing.Contains(handlerType))
-                {
-                    alreadyRegistered = true;
-                    return existing;
-                }
-                // Copy-on-write: never mutate the list a consumer might be enumerating.
-                return existing.Append(handlerType).ToArray();
-            });
-
-        if (alreadyRegistered)
-        {
-            _logger.LogWarning("Handler {HandlerType} already registered for event {EventName}",
-                handlerType.Name, eventName);
-            return;
-        }
-
-        var connection = await _connectionManager.GetConnectionAsync(cancellationToken);
-        var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-
-        await channel.ExchangeDeclareAsync(ExchangeName, RabbitMQ.Client.ExchangeType.Topic, durable: true, autoDelete: false, arguments: null);
-
-        var queueName = $"{eventName}.{handlerType.Name}";
-        var arguments = new Dictionary<string, object?>
-        {
-            { "x-dead-letter-exchange", DeadLetterExchange }
-        };
-
-        await channel.QueueDeclareAsync(queueName, durable: true, exclusive: false, autoDelete: false, arguments: arguments);
-
-        await channel.QueueBindAsync(queueName, ExchangeName, eventName, arguments: null);
-
-        await channel.BasicQosAsync(0, 1, false);
-
-        var consumer = new RabbitMQ.Client.Events.AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += async (_, ea) => await ProcessEventAsync(channel, eventName, ea);
-
-        await channel.BasicConsumeAsync(queueName, autoAck: false, consumerTag: string.Empty, noLocal: false, exclusive: false, arguments: null, consumer: consumer, cancellationToken);
-
-        _consumerChannels[queueName] = channel;
-
-        _logger.LogInformation("Subscribed to event {EventName} with handler {HandlerName}",
-            eventName, handlerType.Name);
-    }
-
-    public async Task UnsubscribeAsync<TEvent, THandler>()
-        where TEvent : IntegrationEvent
-        where THandler : IIntegrationEventHandler<TEvent>
-    {
-        var eventName = typeof(TEvent).Name;
-        var handlerType = typeof(THandler);
-
-        _eventHandlers.AddOrUpdate(
-            eventName,
-            _ => Array.Empty<Type>(),
-            (_, existing) => existing.Where(t => t != handlerType).ToArray());
-
-        var queueName = $"{eventName}.{handlerType.Name}";
-        if (_consumerChannels.TryRemove(queueName, out var channel) && channel != null)
-        {
-            await channel.DisposeAsync();
-        }
-
-        _logger.LogInformation("Unsubscribed from event {EventName} handler {HandlerName}",
-            eventName, handlerType.Name);
-    }
-
-    private async Task ProcessEventAsync(IChannel channel, string eventName, BasicDeliverEventArgs eventArgs)
-    {
-        if (!_eventHandlers.TryGetValue(eventName, out var handlers) || handlers.Count == 0)
-        {
-            _logger.LogWarning("No handlers found for event {EventName}", eventName);
-            // Nothing can ever process this message — dead-letter it instead of requeueing forever.
-            await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false);
-            return;
-        }
-
+        ValidateSubscriptionId(subscriptionId);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        await _subscriptionLock.WaitAsync(cancellationToken);
         try
         {
-            var message = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
-
-            foreach (var handlerType in handlers)
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            if (_subscriptions.TryGetValue(subscriptionId, out var existing))
             {
-                using var scope = _serviceProvider.CreateScope();
-                var handler = scope.ServiceProvider.GetService(handlerType);
+                EnsureSubscriptionTypes<TEvent, THandler>(subscriptionId, existing);
+                if (existing.Channel.IsOpen)
+                    return;
+                _subscriptions.Remove(subscriptionId);
+                await existing.Channel.DisposeAsync();
+            }
 
-                if (handler == null)
+            var connection = await _connectionManager.GetConnectionAsync(cancellationToken);
+            var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+            var registered = false;
+            try
+            {
+                await channel.ExchangeDeclareAsync(ExchangeName, ExchangeType.Topic, durable: true, autoDelete: false,
+                    arguments: null, cancellationToken: cancellationToken);
+                await channel.ExchangeDeclareAsync(DeadLetterExchange, ExchangeType.Topic, durable: true, autoDelete: false,
+                    arguments: null, cancellationToken: cancellationToken);
+
+                var queueName = $"planora.{subscriptionId}.v1";
+                var deadLetterQueue = queueName + ".dlq";
+                await channel.QueueDeclareAsync(deadLetterQueue, durable: true, exclusive: false, autoDelete: false,
+                    arguments: new Dictionary<string, object?> { ["x-queue-type"] = "quorum" }, cancellationToken: cancellationToken);
+                await channel.QueueBindAsync(deadLetterQueue, DeadLetterExchange, queueName,
+                    arguments: null, cancellationToken: cancellationToken);
+
+                // Quorum's confirmed dead-letter transfer retains rejected deliveries while the DLQ is unavailable.
+                var arguments = new Dictionary<string, object?>
                 {
-                    _logger.LogWarning("Handler {HandlerType} could not be resolved", handlerType.Name);
-                    continue;
+                    ["x-queue-type"] = "quorum",
+                    ["x-dead-letter-exchange"] = DeadLetterExchange,
+                    ["x-dead-letter-routing-key"] = queueName,
+                    ["x-dead-letter-strategy"] = "at-least-once",
+                    ["x-overflow"] = "reject-publish"
+                };
+                await channel.QueueDeclareAsync(queueName, durable: true, exclusive: false, autoDelete: false,
+                    arguments: arguments, cancellationToken: cancellationToken);
+                var eventName = typeof(TEvent).Name;
+                await channel.QueueBindAsync(queueName, ExchangeName, eventName,
+                    arguments: null, cancellationToken: cancellationToken);
+                await channel.BasicQosAsync(0, 1, global: false, cancellationToken: cancellationToken);
+
+                var consumer = new AsyncEventingBasicConsumer(channel);
+                consumer.ReceivedAsync += (_, delivery) => ProcessEventAsync<TEvent, THandler>(channel, subscriptionId, delivery);
+                await channel.BasicConsumeAsync(queueName, autoAck: false, consumerTag: string.Empty, noLocal: false,
+                    exclusive: false, arguments: null, consumer: consumer, cancellationToken: cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                ObjectDisposedException.ThrowIf(IsDisposed, this);
+                _subscriptions.Add(subscriptionId, new(typeof(TEvent), typeof(THandler), channel));
+                registered = true;
+                _logger.LogInformation("Subscribed {SubscriptionId} to event {EventName} with handler {HandlerName}",
+                    subscriptionId, eventName, typeof(THandler).Name);
+            }
+            finally
+            {
+                if (!registered)
+                    await channel.DisposeAsync();
+            }
+        }
+        finally
+        {
+            _subscriptionLock.Release();
+        }
+    }
+
+    public async Task UnsubscribeAsync<TEvent, THandler>(string subscriptionId, CancellationToken cancellationToken = default)
+        where TEvent : IntegrationEvent
+        where THandler : IIntegrationEventHandler<TEvent>
+    {
+        ValidateSubscriptionId(subscriptionId);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        await _subscriptionLock.WaitAsync(cancellationToken);
+        try
+        {
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            if (!_subscriptions.TryGetValue(subscriptionId, out var subscription))
+                return;
+            EnsureSubscriptionTypes<TEvent, THandler>(subscriptionId, subscription);
+            _subscriptions.Remove(subscriptionId);
+            await subscription.Channel.DisposeAsync();
+            _logger.LogInformation("Unsubscribed {SubscriptionId} from event {EventName}", subscriptionId, typeof(TEvent).Name);
+        }
+        finally
+        {
+            _subscriptionLock.Release();
+        }
+    }
+
+    private static void ValidateSubscriptionId(string subscriptionId)
+    {
+        if (string.IsNullOrEmpty(subscriptionId) || subscriptionId.Length > 120 ||
+            !Regex.IsMatch(subscriptionId, @"\A[a-z0-9]+(?:[.-][a-z0-9]+)*\z", RegexOptions.CultureInvariant))
+            throw new ArgumentException("Subscription ID must contain lowercase letters or digits separated by single dots or hyphens (maximum 120 characters).", nameof(subscriptionId));
+    }
+
+    private static void EnsureSubscriptionTypes<TEvent, THandler>(string subscriptionId, Subscription subscription)
+    {
+        if (subscription.EventType != typeof(TEvent) || subscription.HandlerType != typeof(THandler))
+            throw new InvalidOperationException($"Subscription '{subscriptionId}' is already assigned to another event or handler.");
+    }
+
+    private async Task ProcessEventAsync<TEvent, THandler>(IChannel channel, string subscriptionId, BasicDeliverEventArgs eventArgs)
+        where TEvent : IntegrationEvent
+        where THandler : IIntegrationEventHandler<TEvent>
+    {
+        var eventName = typeof(TEvent).Name;
+        try
+        {
+            var message = Encoding.UTF8.GetString(eventArgs.Body.Span);
+            var @event = JsonSerializer.Deserialize<TEvent>(message)
+                ?? throw new JsonException("The integration event payload must not be null.");
+            using var scope = _serviceProvider.CreateScope();
+            var handler = scope.ServiceProvider.GetRequiredService<THandler>();
+
+            // Preserve existing per-handler keys so deliveries already recorded before this topology change still deduplicate.
+            var inbox = scope.ServiceProvider.GetService<IInboxRepository>();
+            var eventId = @event.Id;
+            var inboxKey = eventId == Guid.Empty ? Guid.Empty : DeriveInboxKey(eventId, typeof(THandler));
+            if (inbox != null && inboxKey != Guid.Empty)
+            {
+                var alreadyProcessed = false;
+                try
+                {
+                    alreadyProcessed = await inbox.ExistsAsync(inboxKey, CancellationToken.None);
                 }
-
-                var eventType = handlerType.GetInterfaces()
-                    .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IIntegrationEventHandler<>))
-                    .GetGenericArguments()[0];
-
-                var @event = JsonSerializer.Deserialize(message, eventType);
-
-                if (@event == null)
-                    continue;
-
-                // Consumer idempotency (INV-COMM-4). Delivery is at-least-once, so a redelivered
-                // or restart-replayed event must not run the SAME handler twice. We dedup on a key
-                // derived from BOTH the stable event Id AND the handler type: a single event fanned
-                // out to several handlers must run once PER HANDLER, so keying the inbox on the event
-                // id alone would let the first handler's record suppress every other handler. This is
-                // graceful and defensive: if the service registers no IInboxRepository (or it errors),
-                // we process without dedup — exactly the previous behaviour, never worse.
-                var inbox = scope.ServiceProvider.GetService<IInboxRepository>();
-                var eventId = (@event as IntegrationEvent)?.Id ?? Guid.Empty;
-                var inboxKey = eventId == Guid.Empty ? Guid.Empty : DeriveInboxKey(eventId, handlerType);
-
-                if (inbox != null && inboxKey != Guid.Empty)
+                catch (Exception dedupEx)
                 {
-                    try
-                    {
-                        if (await inbox.ExistsAsync(inboxKey, CancellationToken.None))
-                        {
-                            _logger.LogInformation(
-                                "Skipping already-processed event {EventName} {EventId} for handler {Handler}",
-                                eventName, eventId, handlerType.Name);
-                            continue;
-                        }
-                    }
-                    catch (Exception dedupEx)
-                    {
-                        _logger.LogWarning(dedupEx,
-                            "Inbox dedup check failed for {EventName}; processing without dedup", eventName);
-                        inbox = null;
-                    }
+                    _logger.LogWarning(dedupEx, "Inbox dedup check failed for {EventName}; processing without dedup", eventName);
+                    inbox = null;
                 }
-
-                var handleMethod = handlerType.GetMethod("HandleAsync");
-                var result = handleMethod?.Invoke(handler, new[] { @event, CancellationToken.None });
-                if (result is Task t)
-                    await t;
-
-                if (inbox != null && inboxKey != Guid.Empty)
+                if (alreadyProcessed)
                 {
-                    try
-                    {
-                        var record = new InboxMessage(inboxKey, eventId.ToString(), eventName, message, DateTime.UtcNow);
-                        record.MarkAsProcessed();
-                        await inbox.AddAsync(record, CancellationToken.None);
-                    }
-                    catch (Exception recordEx)
-                    {
-                        // Recording is best-effort: a failure here only risks reprocessing on a
-                        // later redelivery, never data loss or a broken consume loop.
-                        _logger.LogWarning(recordEx,
-                            "Failed to record processed event {EventName} {EventId} in inbox", eventName, eventId);
-                    }
+                    _logger.LogInformation("Skipping already-processed event {EventName} {EventId} for {SubscriptionId}",
+                        eventName, eventId, subscriptionId);
+                    await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+                    return;
                 }
             }
 
-            await channel.BasicAckAsync(eventArgs.DeliveryTag, false);
+            await handler.HandleAsync(@event, CancellationToken.None);
+            if (inbox != null && inboxKey != Guid.Empty)
+            {
+                try
+                {
+                    var record = new InboxMessage(inboxKey, eventId.ToString(), eventName, message, DateTime.UtcNow);
+                    record.MarkAsProcessed();
+                    await inbox.AddAsync(record, CancellationToken.None);
+                }
+                catch (Exception recordEx)
+                {
+                    _logger.LogWarning(recordEx, "Failed to record processed event {EventName} {EventId} in inbox", eventName, eventId);
+                }
+            }
+
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
         }
         catch (Exception ex)
         {
-            var action = ClassifyFailure(ex, eventArgs.Redelivered);
-            if (action == DeliveryFailureAction.Requeue)
-            {
-                _logger.LogWarning(ex,
-                    "Transient failure processing event {EventName}; requeueing once", eventName);
-                await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: true);
-            }
-            else
-            {
-                _logger.LogError(ex,
-                    "Dead-lettering event {EventName} (poison or retry-exhausted); routing to DLX", eventName);
-                await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false);
-            }
+            var requeue = ClassifyFailure(ex, eventArgs.Redelivered) == DeliveryFailureAction.Requeue;
+            _logger.LogError(ex, "Event {EventName} for {SubscriptionId} failed; requeue={Requeue}", eventName, subscriptionId, requeue);
+            await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: requeue);
         }
     }
 
@@ -376,36 +373,59 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
             return;
-        _disposed = true;
 
-        foreach (var channel in _consumerChannels.Values)
+        await _subscriptionLock.WaitAsync();
+        try
         {
-            if (channel is not null)
-                await channel.DisposeAsync();
+            foreach (var subscription in _subscriptions.Values)
+            {
+                try { await subscription.Channel.DisposeAsync(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error disposing subscription channel"); }
+            }
+            _subscriptions.Clear();
         }
-        _consumerChannels.Clear();
-
-        if (_publishChannel is not null)
+        finally
         {
-            await _publishChannel.DisposeAsync();
-            _publishChannel = null;
+            _subscriptionLock.Release();
         }
 
-        _publishLock.Dispose();
+        await _publishLock.WaitAsync();
+        try { await DisposePublishChannelAsync(); }
+        finally { _publishLock.Release(); }
     }
 
-    // Synchronous fallback for a synchronously-disposed DI container (e.g. unit tests). RabbitMQ.Client
-    // channels are async-dispose-only, so the sync path only releases managed primitives; graceful
-    // channel teardown happens via DisposeAsync on the async shutdown path the hosts actually use.
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
             return;
-        _disposed = true;
 
-        _consumerChannels.Clear();
-        _publishLock.Dispose();
+        _subscriptionLock.Wait();
+        try
+        {
+            foreach (var subscription in _subscriptions.Values)
+            {
+                try { subscription.Channel.Dispose(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error disposing subscription channel"); }
+            }
+            _subscriptions.Clear();
+        }
+        finally
+        {
+            _subscriptionLock.Release();
+        }
+
+        _publishLock.Wait();
+        try
+        {
+            _publishChannel?.Dispose();
+            _publishChannel = null;
+        }
+        finally
+        {
+            _publishLock.Release();
+        }
+        // The managed semaphores remain usable for in-flight waiters, which observe IsDisposed after acquiring them.
     }
 }
