@@ -1,0 +1,752 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-038",
+  "reviewed_date_local": "2026-11-03",
+  "timezone": "Europe/Moscow",
+  "reviewer": "t12_reconcile",
+  "source_head": "f12f038e7b545456f82cb6e256592a3c8544d355",
+  "source_head_at_start": "90f8341ae35a60e39fcdbabde83577a1a96bfa02",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 915,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          41
+        ]
+      ],
+      "line_count": 41,
+      "sha256": "40745c7ece4b2cc400e2b4b60d2552c48d5290e08d9d06e56429158c84f89c23",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "HTTP/gRPC host project, central package references and service/shared project graph.",
+      "trust_state_errors_concurrency": "net10/nullable/Web SDK and a development user-secret identifier configure build behavior, not live credentials or authorization.",
+      "test_evidence": "Program composes host. No restore/build executed by reviewer.",
+      "conclusion": "No new manifest defect; actual package security belongs to T12.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Program.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          248
+        ]
+      ],
+      "line_count": 248,
+      "sha256": "8b704b92b8b90f80a29f9273fed066c6c75e5ebc11b9ed4fb2d1adcb140e3c08",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Entrypoint: JWT/security stamp, application/shared/service DI, startup waits/schema, HTTP middleware, gRPC interceptor and health routes.",
+      "trust_state_errors_concurrency": "JWT issuer/audience/lifetime/signature validation and minimum secret length; authentication precedes per-user limiter. Startup can create database/ensure schema before serving; no host was started. Separate Redis probe result has no disposal here. Abrupt Environment.Exit flush behavior is unexecuted.",
+      "test_evidence": "Traced shared DI25-109, service DI18-66, DependencyWaiter109-163 and controller33-56.",
+      "conclusion": "Shared Database readiness is now T01; operational/schema/cancellation behavior remains unverified here.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Properties/launchSettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          60
+        ]
+      ],
+      "line_count": 60,
+      "sha256": "bda9353ce6126c6d051606adacc5d7c4dca1b3c2ebe1ce7c4b37363c79483446",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Three local launch profiles provide environment, legacy aliases and listener configuration.",
+      "trust_state_errors_concurrency": "All60 lines inspected with sensitive values redacted. Development/Staging and Production-labelled profile contain historical defaults; Production database is interpolation-shaped. No service alias mapper found for JWT_SECRET/MESSAGING_DB_CONNECTION versus hierarchical runtime keys. External launcher overrides not exhaustively traced.",
+      "test_evidence": "Compared Program42-56 and service DI22-33. No launch-profile execution.",
+      "conclusion": "Config provenance is not deployed-use validation; effective alias/placeholder behavior needs synthetic regression.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.Docker.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          36
+        ]
+      ],
+      "line_count": 36,
+      "sha256": "5b35f3d0acf680c8a363995b5bfd52b9c45d83e38369fccae80bbbd96ac3b57e",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Docker JSON overrides logging, database/cache, JWT, Rabbit, Auth gRPC and Kestrel.",
+      "trust_state_errors_concurrency": "Every field inspected; empty credential settings expect runtime overrides, while development database defaults require actual target verification. No env/deployed settings read.",
+      "test_evidence": "Program80-83/140-168 and service DI22-33 consume named database. No container runtime check.",
+      "conclusion": "No production-state claim; OPS-003 default provenance uncertainty remains.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          52
+        ]
+      ],
+      "line_count": 52,
+      "sha256": "d2299332afd8a5c7529f02c8d991803441910014bee7d56adffe08cedf8213b7",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Default logging/database/Redis/Rabbit/Auth/cache/JWT/CORS/Kestrel/service-key settings.",
+      "trust_state_errors_concurrency": "JWT/service-key fields are empty; external configuration required. Redis section differs from Program probe which checks only the Redis connection-string key then fallback, whereas shared DI also accepts Redis:Configuration. No sensitive values retained.",
+      "test_evidence": "Program149-153 versus shared DI42-59 inspected; no effective configuration/connection test.",
+      "conclusion": "Startup Redis selection and launch alias behavior are unverified risks, not new confirmed runtime findings.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Common/OutboxExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          28
+        ]
+      ],
+      "line_count": 28,
+      "sha256": "d7a9cb22d15882eaa687a9e202f83e79eb9ccad8bf7a04cb68ba718d786d1e4a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Internal integration-event serializer delegates one OutboxMessage to AddAsync.",
+      "trust_state_errors_concurrency": "SendMessageHandler first tracks Message via canonical BaseRepository.AddAsync, then this sole notification save uses the same scoped MessagingDbContext; errors/cancellation propagate. No independent message save traced.",
+      "test_evidence": "Send handler53-66, DI25-41, canonical base86-89 and mock tests40-74 inspected. No provider rollback run.",
+      "conclusion": "No new split-commit finding in traced send; future multiple-event producers need separate checks.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/DTOs/MessageDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          14
+        ]
+      ],
+      "line_count": 14,
+      "sha256": "d0317762f3f417135092b12fea949887b71c29d1df20d9c79f44add6375d10e0",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "MessageDto projects identity, subject/body, participants, read/archive state and creation time.",
+      "trust_state_errors_concurrency": "Private content requires caller-scoped queries. Required init members are construction constraints, not authorization.",
+      "test_evidence": "QueryHandler27-38 maps explicitly; controller53-56 supplies current identity. No HTTP serialization/browser run.",
+      "conclusion": "No DTO defect; no user payload retained in evidence.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          33
+        ]
+      ],
+      "line_count": 33,
+      "sha256": "e777bc95abd8f5cb53d99ede917dd514b580ae2e3a5e939cd14e79d365212b09",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Application DI discovers handlers, outer logging/validation/performance behaviors, validators and profiles.",
+      "trust_state_errors_concurrency": "Registration establishes neither identity nor transaction. Validation errors propagate; no shared mutable request state here.",
+      "test_evidence": "Program77 and handler/validator source traced. DI behavior not executed.",
+      "conclusion": "No new registration defect; logging sanitization is not proven by comments.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          12
+        ]
+      ],
+      "line_count": 12,
+      "sha256": "21e8d4191a9d0dcbc26f1b605f3746fae8485e6c86dd0434966e45715a14f3d5",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Send command accepts optional sender, subject/body and recipient; response returns ID/time.",
+      "trust_state_errors_concurrency": "HTTP clears SenderId and handler rejects mismatch/requires accepted friendship. Domain validates participants. Record itself grants no permission.",
+      "test_evidence": "Controller33-42, handler33-66 and mock sender/friendship controls inspected; gRPC22-35 refuses both methods.",
+      "conclusion": "No demonstrated HTTP spoof/IDOR path from this command.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          26
+        ]
+      ],
+      "line_count": 26,
+      "sha256": "399df7ddaa33b15528505ebfaa152e801db7f338997b5e70d5fe695535a5d4bc",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Send validator checks recipient, nonempty subject/body, length limits and optional self-send.",
+      "trust_state_errors_concurrency": "Identity/friendship are handler boundaries, not validator guarantees. Synchronous rules; cancellation/remote calls absent.",
+      "test_evidence": "Handler and domain controls source inspected; no length-boundary test executed.",
+      "conclusion": "No new validator defect; retain both API and domain guards.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Mappings/MessageMappingProfile.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          15
+        ]
+      ],
+      "line_count": 15,
+      "sha256": "b8ae61fadf4feef33932bb27aa9e472a81a48c6fb6481d61b476fb9775671e8a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "AutoMapper Message/MessageDto ReverseMap registration; current query uses explicit projection.",
+      "trust_state_errors_concurrency": "Reverse mapping could populate domain members if used, but no reverse production caller was found in inspected path; no authorization supplied.",
+      "test_evidence": "Application DI26 and query handler27-38 inspected; no mapper execution.",
+      "conclusion": "No demonstrated mapping bypass; avoid asserting safety for untraced future callers.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          11
+        ]
+      ],
+      "line_count": 11,
+      "sha256": "37c1b5e399d0fdf8ebd72a22e0160d252115c97b30d5697c118f72d1725e933c",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Conversation query carries current user, other participant and page/size.",
+      "trust_state_errors_concurrency": "HTTP derives UserId from context; absent otherUserId becomes empty GUID. Record does not authorize or calculate offset.",
+      "test_evidence": "Controller45-56, query handler17-25 and repository42-61 traced.",
+      "conclusion": "No new owner-boundary finding; high-page arithmetic is related BE-008 scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQueryValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          19
+        ]
+      ],
+      "line_count": 19,
+      "sha256": "838d53b42b74bc98f7dafd7c089e0f9d9df1130a08b20fd4e5bb96788a036e71",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Query validator requires UserId, positive page and page size1..100.",
+      "trust_state_errors_concurrency": "No upper page/overflow bound. Later unchecked repository product can become negative for accepted int.MaxValue. User remains in conversation predicate.",
+      "test_evidence": "ValidatorTests10-46 cover ordinary/empty/zero/oversize controls; no overflow case.",
+      "conclusion": "Related BE-008-family risk; C#/Npgsql/HTTP outcome not run, no duplicate new ID.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          16
+        ]
+      ],
+      "line_count": 16,
+      "sha256": "3cccb0e6ac1a66f628b7e39939db53a97145194405b0b46a6eb6895a4824ad17",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Application-wide CQRS/domain/mediator/DI/logging using directives.",
+      "trust_state_errors_concurrency": "Compile-time glue only; no permissions, state, errors or concurrency behavior.",
+      "test_evidence": "Read all16 lines; no compilation.",
+      "conclusion": "No new defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Planora.Messaging.Application.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          24
+        ]
+      ],
+      "line_count": 24,
+      "sha256": "43c0c5e4a3f1dd98ba53c64b0b43113e5828194cbcdf66ff65a65aa29971ed38",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Application project central MediatR/validation/mapping packages and shared/domain/infrastructure references.",
+      "trust_state_errors_concurrency": "Existing infrastructure assembly coupling is not a newly introduced runtime bypass. net10 and nullable settings match host.",
+      "test_evidence": "Host references application; no restore/build/license scan in this pass.",
+      "conclusion": "No new manifest defect; dependency gate belongs to T12.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Services/IFriendshipService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          7
+        ]
+      ],
+      "line_count": 7,
+      "sha256": "5422f08a50ed5f4295c9e3a6331ee99b614b01164bd859f9a498f90dddc36921",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Asynchronous two-user friendship contract with cancellation.",
+      "trust_state_errors_concurrency": "Implementation must distinguish dependency failure from denial. FriendshipGrpcService returns false for InvalidArgument/NotFound and throws on other RPC failures before message tracking.",
+      "test_evidence": "Handler45-50, FriendshipGrpcService20-56 and mock denial tests inspected; no live Auth RPC.",
+      "conclusion": "No new fail-open finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Domain/Entities/Message.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          53
+        ]
+      ],
+      "line_count": 53,
+      "sha256": "b5c24550da59cd271c561c2fa7ee64460700c0b3010719a48843c4108d0ea323",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Message aggregate constructor validates content/participants; stores read/archive/attachment state.",
+      "trust_state_errors_concurrency": "No self/empty participants; read is idempotent after set. Length caps are validator-level. Read/archive methods do not themselves implement persistence concurrency or authorization.",
+      "test_evidence": "MessageDomainTests10-44 inspected for construction, read/archive and EF constructor.",
+      "conclusion": "No new domain invariant defect; no concurrent update test executed.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Domain/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          4
+        ]
+      ],
+      "line_count": 4,
+      "sha256": "fd280a2dc1e8c252f00f9b4d602ed41a8dd748c5daa0621b1f7ff3a13d3fce26",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain interface using directive.",
+      "trust_state_errors_concurrency": "Compile-time-only file, no runtime trust/state/errors/concurrency.",
+      "test_evidence": "All4 lines read.",
+      "conclusion": "No new defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Domain/Planora.Messaging.Domain.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          14
+        ]
+      ],
+      "line_count": 14,
+      "sha256": "82a83660daabb920bd816c2ce6d6291fafdb0c657a587e75e43ab1fff6948d53",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain net10 project references shared domain abstractions.",
+      "trust_state_errors_concurrency": "Build/dependency boundary only; no persistence or permission operation.",
+      "test_evidence": "All14 lines read; no build.",
+      "conclusion": "No new manifest defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Domain/Repositories.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          13
+        ]
+      ],
+      "line_count": 13,
+      "sha256": "360f87d54e9effd1ca91c55e3f3a8daa12f5c342aa565922afda364c74e2dae3",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Message repository contract: sent/received/conversation/paged/unread queries.",
+      "trust_state_errors_concurrency": "Caller supplies user IDs; controller/implementation enforce scope. Tuple count/items do not promise snapshot/tie stability. Cancellation explicit.",
+      "test_evidence": "Controller53-56 and repository14-71 traced; query handler tests mock repository.",
+      "conclusion": "No interface defect; offset/order/filter behavior remains implementation concern.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          23
+        ]
+      ],
+      "line_count": 23,
+      "sha256": "dcb4d37246b12b12852e39437fa875ffc56df33f12ab618bf2df284f432644a7",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Design-time factory reads optional current-directory JSON, DefaultConnection/env alias, then development fallback.",
+      "trust_state_errors_concurrency": "It ignores runtime MessagingDatabase and named environment input; target can silently fall back. No connection or EF operation executed. Current directory and precedence also matter.",
+      "test_evidence": "Service DI22-33 and migration workflow84-101 compared. Existing factory tests15-32 omit Messaging.",
+      "conclusion": "CONT038-001 static-confirmed mismatch; align named inputs under T08 with no-connect tests.",
+      "finding_ids": [
+        "CONT038-001"
+      ]
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          26
+        ]
+      ],
+      "line_count": 26,
+      "sha256": "dd679d99464f19b247b2ba75b86b9d621a63208ea59f53d0088e70b8cd95b090",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Infrastructure EF/inbox/outbox/domain/configuration/DI using directives.",
+      "trust_state_errors_concurrency": "Compile-time glue; stale Category comments do not execute. No runtime trust/state/errors/concurrency here.",
+      "test_evidence": "All26 lines read.",
+      "conclusion": "No functional finding; no cosmetic edits.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          65
+        ]
+      ],
+      "line_count": 65,
+      "sha256": "9f6c82e9a5489327b8857fb8d12caaafe3e8cb0a3faf2bfb35aa602148fc89bd",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "EF outbox table/key/type255/content/status string/error2000/retry and polling/cleanup/partial active indexes.",
+      "trust_state_errors_concurrency": "Model indexes are not evidence of deployed schema or measured query plans. Save/update length errors and processor retries are separate. No lease/claim concurrency added.",
+      "test_evidence": "DbContext26 applies configurations. T01/T08 provider/schema evidence not rerun.",
+      "conclusion": "No new mapping defect; schema parity/performance need executed owner checks.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          51
+        ]
+      ],
+      "line_count": 51,
+      "sha256": "35df84e3a369f19bf100b5048c5dde270751b1fa9bb68edb2b20267e67af2d45",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "MessagingDbContext DbSets, assembly mapping and inline required Message properties/query indexes.",
+      "trust_state_errors_concurrency": "Scoped DI shares context for send/outbox save. No global Message soft-delete filter or explicit Message concurrency token in this file; custom repository queries bypass explicit base filtering. No current soft-delete mutation path established.",
+      "test_evidence": "DI25-41, base86-89, send53-66 and retention provider-test source129-155 inspected; no execution.",
+      "conclusion": "No new atomicity finding; schema/filter/concurrent-write/tie-order behavior remains verification scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          24
+        ]
+      ],
+      "line_count": 24,
+      "sha256": "7e16aeb46a07fc900e3dec8fec3437acca44bfd5d2ee8ec8217235b199a7d571",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Obsolete BaseRepository<T> compatibility adapter exposing context/set aliases.",
+      "trust_state_errors_concurrency": "Delegates to canonical generic repository; no independent save/query/auth behavior. Concrete MessageRepository directly uses canonical base; out-of-tree consumers unknown.",
+      "test_evidence": "MessageRepository7-10 and canonical base35-95 inspected.",
+      "conclusion": "No defect or removal/refactor needed for this review.",
+      "finding_ids": []
+    }
+  ],
+  "method": "All25 batch files were read completely with numbered lines; configuration/design-time sensitive values redacted in output and not persisted. Supplemental caller/test traces are not full-batch coverage.",
+  "concurrent_changes": "Root T05 changes occurred during review. Batch source text matches recorded HEAD; raw SHA256 preserves working-tree CRLF where Git stores LF. Initial raw-byte equality check failed for15 CRLF files, then normalized-text equality was verified for all25.",
+  "supplemental_traces": [
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Commands/SendMessage/SendMessageCommandHandler.cs",
+      "ranges_read": [
+        [
+          1,
+          74
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Application/Features/Messages/Queries/GetMessages/GetMessagesQueryHandler.cs",
+      "ranges_read": [
+        [
+          1,
+          43
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Repositories/MessageRepository.cs",
+      "ranges_read": [
+        [
+          1,
+          73
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+      "ranges_read": [
+        [
+          1,
+          71
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs",
+      "ranges_read": [
+        [
+          1,
+          68
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Grpc/MessagingGrpcService.cs",
+      "ranges_read": [
+        [
+          1,
+          37
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Services/FriendshipGrpcService.cs",
+      "ranges_read": [
+        [
+          1,
+          60
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+      "ranges_read": [
+        [
+          25,
+          109
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs",
+      "ranges_read": [
+        [
+          1,
+          79
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+      "ranges_read": [
+        [
+          109,
+          163
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+      "ranges_read": [
+        [
+          1,
+          95
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+      "ranges_read": [
+        [
+          1,
+          24
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/Infrastructure/DesignTimeDbContextFactoryTests.cs",
+      "ranges_read": [
+        [
+          1,
+          109
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/MessagingApi/Validators/GetMessagesQueryValidatorTests.cs",
+      "ranges_read": [
+        [
+          1,
+          48
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/MessagingApi/Messages/GetMessagesQueryHandlerTests.cs",
+      "ranges_read": [
+        [
+          1,
+          75
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/MessagingApi/Handlers/SendMessageHandlerTests.cs",
+      "ranges_read": [
+        [
+          1,
+          122
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/MessagingApi/Domain/MessageDomainTests.cs",
+      "ranges_read": [
+        [
+          1,
+          46
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres/ContentRetentionPostgresTests.cs",
+      "ranges_read": [
+        [
+          128,
+          179
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": ".github/workflows/migrations.yml",
+      "ranges_read": [
+        [
+          84,
+          101
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    }
+  ],
+  "findings": [
+    {
+      "provisional_id": "CONT038-001",
+      "priority": "P2",
+      "confidence": "CONFIRMED_STATIC",
+      "runtime_reproduction": "NOT_RUN",
+      "suggested_owner": [
+        "T08",
+        "T13"
+      ],
+      "title": "Messaging design-time factory ignores the named MessagingDatabase connection input",
+      "trigger": "Invoke factory with only MessagingDatabase or ConnectionStrings__MessagingDatabase input and no DefaultConnection entry.",
+      "evidence": [
+        {
+          "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+          "lines": "7-18",
+          "observation": "Only DefaultConnection and its alias are checked before fallback."
+        },
+        {
+          "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+          "lines": "22-33",
+          "observation": "Runtime requires named MessagingDatabase."
+        },
+        {
+          "path": ".github/workflows/migrations.yml",
+          "lines": "84-101",
+          "observation": "EF script generation supplies service-specific environment keys."
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/Infrastructure/DesignTimeDbContextFactoryTests.cs",
+          "lines": "15-32",
+          "observation": "Existing factory regression omits Messaging."
+        }
+      ],
+      "impact": "Named target is ignored and Npgsql options can silently select a development fallback. Script generation may pass without proving target selection; no wrong-database operation was performed or claimed.",
+      "recommendation": "Align named per-service inputs and explicit precedence, fail safely when required target is missing, retain compatibility only where justified.",
+      "required_regressions": [
+        "No-connect synthetic named Messaging target selection.",
+        "Environment/configuration precedence with decoy DefaultConnection and optional JSON/current directory.",
+        "Predictable missing input failure without silent development fallback.",
+        "Existing factory/EF script generation controls; no migration application."
+      ],
+      "status": "OPEN at this source snapshot; root assigns stable ID and any implementation handoff."
+    }
+  ],
+  "related_risks": [
+    {
+      "related_id": "BE-008",
+      "status": "STATIC_ARITHMETIC_FAMILY; PROVIDER_OUTCOME_NOT_RUN",
+      "observation": "Messaging validator accepts huge positive page; repository49-61 computes unchecked int32 Skip. Conversation owner predicate remains; no cross-user disclosure claimed."
+    },
+    {
+      "related_id": null,
+      "status": "UNVERIFIED_RUNTIME",
+      "observation": "Timestamp-only message order, launch-profile aliases, startup Redis config/probe disposal, and custom-query soft-delete filtering need reachable-trigger/provider checks before any confirmed runtime finding."
+    }
+  ],
+  "verification": [
+    {
+      "kind": "source_review",
+      "result": "25 complete files; exact ranges/counts/SHA256 and semantic records."
+    },
+    {
+      "kind": "metadata_validation",
+      "result": "Manifest scope/unique paths/full ranges asserted; all25 match recorded HEAD after line-ending normalization."
+    },
+    {
+      "kind": "application_tests",
+      "result": "NOT_RUN by reviewer;0 application tests executed. Root T05 suite is separate."
+    },
+    {
+      "kind": "working_environment",
+      "result": "NOT_ACCESSED; no real env/auth/credentials files, databases, brokers or migrations used."
+    }
+  ],
+  "limitations": [
+    "Source review is not runtime PASS or full audit acceptance.",
+    "CONT038-001 is static evidence at recorded snapshot; no EF command/connection executed.",
+    "Test sources inspected are not test execution, provider guarantees or measured coverage.",
+    "No source values, connection strings, user payloads or credential values persisted in reports.",
+    "Supplemental traces do not promote other batches.",
+    "Configuration provenance does not establish deployed use or compromise."
+  ],
+  "next_step": "Root assigns stable finding, integrates25 exact coverage records, rechecks changed hashes and schedules no-connect factory plus owner-scoped pagination regressions. Read-only report itself changes no source/index/findings/PROGRESS.",
+  "root_integration": {
+    "assigned_finding_ids": {
+      "CONT038-001": "BE-009"
+    },
+    "scope": "Historical source snapshot; runtime checks tracked in owning task results."
+  }
+}

@@ -11,6 +11,9 @@ Baseline `dc6b1781a24d43d967c418de30acda10fcafb8f9`. CONFIRMED означает 
 | BE-005 | P2 | CONFIRMED | Friendship removal оставляет worker rows и занятую capacity | [T03](PROMPT_03_TASKS_COLLABORATION.md) |
 | BE-006 | P2 | CONFIRMED | Удаление subtask activity определяется заголовком вместо identity | [T03](PROMPT_03_TASKS_COLLABORATION.md) |
 | BE-007 | P1 | CONFIRMED | Auth/Category/Collaboration schema upgrades не воспроизводятся tracked EF chain | [T08](PROMPT_08_DATABASE.md) |
+| BE-008 | P2 | CONFIRMED | Переполнение offset при большом допустимом PageNumber | [T02](PROMPT_02_AUTH_PRIVACY.md) |
+| BE-009 | P2 | CONFIRMED | Messaging design-time factory игнорирует MessagingDatabase | [T08](PROMPT_08_DATABASE.md) |
+| BE-010 | P2 | CONFIRMED | Retention cap проверяет только исходное число кандидатов | [T13](PROMPT_13_TEST_STRATEGY.md) |
 | DIST-001 | P1 | CONFIRMED | Коллизия consumer queue: удаление пользователя не доставляется каждому домену | [T05](PROMPT_05_MESSAGING.md) |
 | DIST-002 | P1 | CONFIRMED | DLX объявлен без durable dead-letter queue и binding | [T05](PROMPT_05_MESSAGING.md) |
 | DIST-003 | P2 | CONFIRMED | Readiness большинства сервисов не включает базу данных | [T01](PROMPT_01_FOUNDATIONS.md) |
@@ -912,3 +915,31 @@ Use overflow-safe offset validation and preserve ordinary page/owner behavior. A
 disposable PostgreSQL regressions before changing the code. The reviewer ran a Node Int32
 arithmetic diagnostic only; endpoint/provider reproduction is pending. This finding does
 not change or renumber the original 34 findings.
+
+## BE-009 — Messaging design-time database input diverges from runtime
+
+Priority P2; confidence CONFIRMED (static source path); owner T08/T13.
+The factory reads only `DefaultConnection` and its legacy environment alias, while
+runtime, Migrator and migration workflow use `MessagingDatabase`. A standard named
+input is ignored and a development fallback can conceal the mismatch. No database
+connection or wrong-target mutation was performed by the source reviewer.
+
+[READ-038 evidence](results/evidence/read-038-review.md) records full source ranges,
+provenance and the required no-connect target-selection/precedence regressions. T08
+must reject missing/blank input and preserve only deliberate legacy compatibility.
+Executable reproduction and correction are tracked separately in T08.
+
+## BE-010 — Retention cap does not bound the whole deletion pass
+
+Priority P2; confidence CONFIRMED for the static loop semantics; owner T13.
+`MaxDeletionsPerRun` is documented as a per-pass cap, but the executor checks only
+its initial eligible count, then drains batches without remaining-budget accounting.
+Concurrent eligibility growth could exceed the cap. The advisory lock excludes peer
+retention runs, rather than domain writers.
+
+[READ-014 evidence](results/evidence/read-014-review.md) explicitly limits this finding:
+most reviewed policies use a fixed cutoff and new normal timestamps do not qualify.
+A supported backfill/restore or other concurrent transition must first be reproduced
+on a disposable provider before asserting normal-runtime impact. No real data-loss
+incident is claimed. T13 must verify the generic cap regression and the reachable
+provider case before choosing a narrowly scoped correction.

@@ -1551,5 +1551,88 @@
     ],
     "dependencies": [],
     "limitations": "Source-confirmed arithmetic/validation path. Node signed-Int32 diagnostic only; C# endpoint and Npgsql reproduction pending. See results/evidence/read-011-review.json."
+  },
+  {
+    "id": "BE-009",
+    "title": "Messaging design-time factory ignores the named service database input",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "conditional: standard design-time named input without legacy alias",
+    "package": "T08",
+    "evidence": [
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+        "lines": "7-18",
+        "observation": "Only DefaultConnection/its environment alias is consulted before a silent development fallback."
+      },
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DependencyInjection.cs",
+        "lines": "22-33",
+        "observation": "Runtime requires MessagingDatabase."
+      },
+      {
+        "path": ".github/workflows/migrations.yml",
+        "lines": "84-101",
+        "observation": "EF tooling receives the named per-service environment keys."
+      }
+    ],
+    "trigger": "Create design-time Messaging context using MessagingDatabase/ConnectionStrings__MessagingDatabase and a missing or decoy DefaultConnection.",
+    "impact": "The configured service target is ignored; SQL generation can appear successful with an unintended options target. No wrong-database operation is claimed.",
+    "root_cause": "Design-time input selection diverges from runtime and Migrator.",
+    "fix": "Prioritize the named service key with explicit environment/configuration precedence, retain reviewed legacy compatibility only when the named key is absent, reject missing/blank input.",
+    "alternatives": [
+      "A deliberate legacy-only tooling contract would require explicit matching workflow/runtime documentation and no silent fallback."
+    ],
+    "tests": [
+      "Synthetic no-connect named input selection and decoy alias precedence.",
+      "Missing/blank canonical input fails predictably.",
+      "Existing Auth/Category/Todo factory controls."
+    ],
+    "acceptance": [
+      "Standard named service input selects the requested target without a connection.",
+      "Missing or blank required target never silently selects a development database."
+    ],
+    "dependencies": [],
+    "limitations": "Source-confirmed; initial runtime options reproduction pending in T08. See results/evidence/read-038-review.json."
+  },
+  {
+    "id": "BE-010",
+    "title": "Retention per-run deletion cap only checks the initial eligible count",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "conditional: additional past-cutoff rows become eligible during the same pass",
+    "package": "T13",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs",
+        "lines": "53-60",
+        "observation": "Option describes a per-pass safety cap."
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionExecutor.cs",
+        "lines": "41-62,72-88",
+        "observation": "Initial count tripwire is followed by an unbounded drain loop; each call gets the full batch size."
+      }
+    ],
+    "trigger": "Initial eligible count does not exceed the cap, then concurrent backfill/restore or another supported state transition adds past-cutoff eligible rows before the drain finishes.",
+    "impact": "The generic executor can exceed the advertised per-pass cap and return Deleted greater than Scanned. No production incident or normal-runtime reachability is claimed.",
+    "root_cause": "Remaining deletion budget is not tracked; the advisory lock excludes other retention runs, not domain writes.",
+    "fix": "First define and reproduce cap semantics, then limit each batch by the remaining budget and stop/report safely at exhaustion while preserving dry-run/cancellation/lock release.",
+    "alternatives": [
+      "If the field intentionally gates only the initial count, explicitly change its contract after owner review rather than imply a per-run cap."
+    ],
+    "tests": [
+      "Deterministic executor: cap10, initial count10, delete results10/1/0.",
+      "Disposable provider scenario with a supported separate writer and fixed cutoff.",
+      "Existing initial tripwire/dry-run/cancellation/advisory-release controls."
+    ],
+    "acceptance": [
+      "The documented per-run budget is obeyed in the proven supported scenario.",
+      "Unproven normal-runtime impact is not asserted."
+    ],
+    "dependencies": [],
+    "limitations": "Static loop/cap semantics only. Most reviewed policies use a fixed cutoff and new normal timestamps do not qualify. Prove a supported eligibility-growth path before claiming runtime impact; see results/evidence/read-014-review.json."
   }
 ]

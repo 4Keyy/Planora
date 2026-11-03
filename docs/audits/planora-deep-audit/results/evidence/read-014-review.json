@@ -1,0 +1,531 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-014",
+  "reviewed_date_local": "2026-11-03",
+  "timezone": "Europe/Moscow",
+  "reviewer": "t05_transport",
+  "source_head": "f12f038e7b545456f82cb6e256592a3c8544d355",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 2657,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/OperationEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          21
+        ]
+      ],
+      "line_count": 21,
+      "sha256": "726b27dc89168386eca7d033bda725615c00fdfd9e558300d9cb5959ec91c817",
+      "purpose_and_callers": "AsyncLocal OperationContext enricher used by the legacy LoggingConfiguration.ConfigureSerilog; active enterprise wiring uses Logging.Enrichers.OperationEnricher instead.",
+      "trust_state_errors_concurrency": "Reads current async-flow operation and adds it only if no Operation property exists. No storage, authorization, blocking I/O or mutable cross-request collection. Caller-supplied context is diagnostic rather than a permission check.",
+      "test_evidence": "Symbol/caller search and LoggingConfiguration.cs:26-52 inspected; no direct OperationEnricher test or runtime execution in this review.",
+      "conclusion": "No new concrete defect; distinguish the legacy enricher from the active HTTP-context enricher.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          223
+        ]
+      ],
+      "line_count": 223,
+      "sha256": "837985db47ae8b14df8567f73dc773106870b64a7f8f278303cbc2076acae1f3",
+      "purpose_and_callers": "ConfigureEnterpriseLogging is called by all six API Program.cs files; WebApplicationBuilder and standalone IHostBuilder configure console/files, optional Seq and Loki sinks.",
+      "trust_state_errors_concurrency": "Configuration and serviceName are trusted deployment inputs. Real credential values were not read. Web path limits file size/count; directory/sink construction can fail startup. Loki is opt-in and batches asynchronously. Logging includes exception details and user identifiers; this file provides no general PII redaction or remote-backend access controls.",
+      "test_evidence": "SerilogConfigurationTests.cs read in full: no-URL, URL/env wiring, credential fixture and argument guards. Tests construct logger/sink; no remote Loki availability, delivery, retention or secret-redaction proof. No tests executed here.",
+      "conclusion": "No new demonstrated defect; deployment log access/retention and sensitive exception payload review remain operational limits.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SpanIdContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          38
+        ]
+      ],
+      "line_count": 38,
+      "sha256": "175469c2ab114b00e6d9775445bb291f8809c6d73d8c31679152dd459dea3b8e",
+      "purpose_and_callers": "SpanIdContext stores an optional string in AsyncLocal and generates a 16-character GUID fragment when absent; CorrelationIdMiddleware uses it.",
+      "trust_state_errors_concurrency": "State follows ExecutionContext rather than one shared static string. Setter accepts arbitrary diagnostic text; there is no reset/disposable context API. Normal request isolation depends on ASP.NET execution-context lifetime. No authorization or durable identifier guarantee.",
+      "test_evidence": "CorrelationIdMiddleware.cs:19-48 and SpanIdEnricher.cs read fully; no direct runtime test executed.",
+      "conclusion": "No demonstrated cross-request leak; caller-context cleanup is a limit, not a claimed exploit.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SpanIdEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          22
+        ]
+      ],
+      "line_count": 22,
+      "sha256": "b2f8385085228dbc8f6897983321c070d7693512b6c2c286991b38d605dcf858",
+      "purpose_and_callers": "Legacy LoggingConfiguration registers SpanIdEnricher. It prefers Activity.Current.SpanId and falls back to SpanIdContext.",
+      "trust_state_errors_concurrency": "Adds SpanId only if absent, so existing structured properties win. Diagnostic enrichment has no persistent mutation; AsyncLocal/Activity scoping is owned by callers.",
+      "test_evidence": "LoggingConfiguration.cs:26-52 and SpanIdContext.cs full source inspected; no direct test executed.",
+      "conclusion": "No new concrete defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          150
+        ]
+      ],
+      "line_count": 150,
+      "sha256": "f513aad7e5b3cd62db0258522eb467227324ac66984626a69bbe9a3a0850fc3f",
+      "purpose_and_callers": "AddPlanoraTelemetry is the shared six-API registration for resource identity, HTTP/EF instrumentation, custom Planora.* sources/meters and optional exporters.",
+      "trust_state_errors_concurrency": "Configuration controls endpoints and switches. With no OTLP endpoint and console disabled, no explicit exporter is registered here. EF statement text defaults off; opt-in can expose SQL metadata/PII. HttpClient/ASP.NET exception recording remains on. Invalid endpoint configuration can throw during provider construction. Resource instance uses machine identity; labels are deployment metadata.",
+      "test_evidence": "OpenTelemetryExtensionsTests.cs read fully and AuthApiConfigurationTests symbols located. Tests verify registration/default setup/hosted lifecycle, not export reachability, absence of all PII or actual resource cardinality. No execution.",
+      "conclusion": "No new concrete defect; claims about live export or PII absence require dedicated measurement.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/UserIdEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          31
+        ]
+      ],
+      "line_count": 31,
+      "sha256": "f6a436d0a7ef4250e6dee115c3e04cbaefcf4245d12a0a99db25bf3523c92229",
+      "purpose_and_callers": "Legacy root-namespace UserIdEnricher is a no-op: GetCurrentUserId always returns null. Active enterprise configuration instead constructs Logging.Enrichers.UserIdEnricher with IHttpContextAccessor.",
+      "trust_state_errors_concurrency": "This placeholder adds no UserId and reads no identity. It is not used to authorize requests. Do not infer that the active pipeline loses its user enrichment from this unused/legacy implementation alone.",
+      "test_evidence": "SerilogConfiguration.cs:48-54 and LoggingConfiguration.cs:46-50 traced; source-only review.",
+      "conclusion": "No new runtime defect attributed; legacy no-op should not be represented as active user context support.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/DomainEventDispatcher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          102
+        ]
+      ],
+      "line_count": 102,
+      "sha256": "55d6a38054394cd4f1edce10288636788ceed595d5f58f551d55bd12565dae1c",
+      "purpose_and_callers": "Shared DI maps Application.Messaging.IDomainEventDispatcher to this dispatcher. Category/Auth DbContexts dispatch domain events; closed generic IDomainEventHandler<T> services resolve from a fresh scope.",
+      "trust_state_errors_concurrency": "Events must be nonnull. Scope isolates handler services from the producer context, handlers run sequentially, cancellation token propagates to handlers, and errors are logged/rethrown. Missing handlers only warn; no durable dispatch/transactional claim follows from this dispatcher. Producer save boundary remains decisive.",
+      "test_evidence": "DependencyInjection.cs:80-82 and DbContext caller symbols inspected. No direct dispatcher execution or provider failure test performed in this review.",
+      "conclusion": "Existing BE-001/BE-002 transaction boundaries remain owned by T03/T04; no new independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/IRabbitMqConnectionManager.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          7
+        ]
+      ],
+      "line_count": 7,
+      "sha256": "6b046ef1b298f79bb54f144a5cbb0fa7e878172ab27b813619ed1f3cae8df355",
+      "purpose_and_callers": "RabbitMqEventBus and startup hosted service depend on IRabbitMqConnectionManager.GetConnectionAsync; manager owns broker connection acquisition and close.",
+      "trust_state_errors_concurrency": "Interface allows cancellation on acquisition but not CloseAsync. It says nothing about broker permissions, durable queues, channel thread safety or recovery. T05 transport supplies its own confirmed publication/subscription behavior.",
+      "test_evidence": "T05 constructor seam and callers previously inspected; this source-only pass does not repeat or certify the root live broker gates.",
+      "conclusion": "No new interface defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CorrelationIdMiddleware.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          72
+        ]
+      ],
+      "line_count": 72,
+      "sha256": "bf9e015a0cabf9220564c9b30e643182153306c7931aa3ced45d0ef1508da501",
+      "purpose_and_callers": "All six API Program.cs pipelines call UseCorrelationId before global error handling. It sets incoming/generated correlation ID, span context, operation and response header, and logs request start/completion.",
+      "trust_state_errors_concurrency": "X-Correlation-ID and request path are client-controlled diagnostics, not trusted authorization. Method/path log values are sanitized; correlation ID accepts the header as-is and lacks an explicit length cap here. AsyncLocal contexts depend on host request boundaries. Completion log is skipped when downstream throws; exception middleware owns error logging.",
+      "test_evidence": "Six startup caller locations and LogSanitizer use inspected; no Kestrel malformed-header or concurrent request-context experiment executed.",
+      "conclusion": "No new exploit claimed; correlation IDs remain untrusted external diagnostics.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          430
+        ]
+      ],
+      "line_count": 430,
+      "sha256": "3f1a64647b0bf191f41529d9aa06401a2ccc762fc5349e0576487c74ea98182d",
+      "purpose_and_callers": "All six APIs install EnhancedGlobalExceptionHandlerMiddleware. It maps application/domain/HTTP/EF/gRPC exceptions to ApiResponse JSON and structured error logs.",
+      "trust_state_errors_concurrency": "Known domain/validation and selected gRPC detail text is returned; unknown exceptions use generic 500 details. All OperationCanceledException values map to 499 without checking RequestAborted. A response already started is not handled explicitly; ContentType is set before the local fallback try. Validation log scope is sanitized but later log arguments can still contain original validation objects. These boundaries need scenario tests before promoting a defect.",
+      "test_evidence": "MiddlewareTests.cs:1-95 and its gRPC mapping symbols around 229-234 inspected. No already-started response, serialization failure, deadline-vs-client-cancel, or remote detail PII experiment executed.",
+      "conclusion": "No new production incident/exploit claimed from this read. Response schema is ApiResponse despite problem+json metadata; existing clients/tests determine compatibility.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/IdempotencyMiddleware.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          208
+        ]
+      ],
+      "line_count": 208,
+      "sha256": "75b583f9d32bd60f1a46759501a5d84f903f0cea2ce02f8f18aa2f3f94e468d3",
+      "purpose_and_callers": "IdempotencyMiddleware provides optional POST/PUT X-Idempotency-Key reservation/replay using Redis. Repository search found the class and its unit tests, but no production registration/caller in Services, BuildingBlocks, Gateway or frontend.",
+      "trust_state_errors_concurrency": "SET NX protects a five-minute in-flight reservation; completed responses persist 24 hours. Outage deliberately fails open. Cache key includes user ID and client key, but not method/path/body fingerprint; reservation has no unique owner token and cleanup unconditionally deletes. Header/body sizes are not capped here. These are dormant middleware limitations, not demonstrated active endpoint behavior.",
+      "test_evidence": "IdempotencyMiddlewareTests.cs read fully: bypass, reserve/cache, conflict/replay, failure release and Redis fail-open. The concurrent test mocks the reserved result rather than racing a real Redis server; no real Redis or TTL-expiry test executed.",
+      "conclusion": "No new production finding because activation was not found. Do not advertise platform-wide idempotency from the existence of this helper.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          51
+        ]
+      ],
+      "line_count": 51,
+      "sha256": "d59bc3b21d8412376b35a859530f49cd99306b953cfda2af25d4111089df6c66",
+      "purpose_and_callers": "UseSecurityHeaders installs API security headers and non-development HSTS; service Program pipelines select ordering.",
+      "trust_state_errors_concurrency": "Headers are emitted before downstream handling. HSTS gates on environment, not IsHttps; browsers only honor it over HTTPS, and transport/proxy setup remains external. API CSP does not establish frontend Next.js CSP. Append may coexist with gateway headers; this file provides no header-dedup policy.",
+      "test_evidence": "Source and service registration symbols reviewed; no browser/header integration test executed.",
+      "conclusion": "No new concrete defect; API header presence does not certify frontend CSP or production HTTPS.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          142
+        ]
+      ],
+      "line_count": 142,
+      "sha256": "094e4c5b7f0f1d3d30d41b075015b3e54677f5e37679d0d4d29fce601e237fd5",
+      "purpose_and_callers": "PlanoraMetrics exposes one static Meter and counters/histograms used by CSRF, gRPC guards, outbox, avatar/cache and retention paths; shared telemetry subscribes to Planora.*.",
+      "trust_state_errors_concurrency": "Instruments are thread-safe shared objects; privacy/cardinality depend on call-site tags. Definitions document finite outcome/reason/policy/prefix values but do not themselves constrain arbitrary tag inputs. No storage, ACL or exporter configured here.",
+      "test_evidence": "TelemetryConfiguration.cs:129-134 and retention metric call sites inspected. No MeterListener/exporter capture or stress benchmark executed.",
+      "conclusion": "No new concrete defect; metric names alone are not evidence of real emissions or bounded cardinality.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxSignal.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          48
+        ]
+      ],
+      "line_count": 48,
+      "sha256": "99fa9f6fbb99ca4f519021efbc1bd22c2c7be1e9709adf9a22c9ea991ace3eda",
+      "purpose_and_callers": "OutboxSignal is the optional singleton semaphore wake-up used by OutboxNotifyInterceptor and OutboxProcessor. Auth/Todo DI register signal paths.",
+      "trust_state_errors_concurrency": "Capacity one intentionally coalesces notifications; semaphore-full is ignored. Wait cancellation is swallowed so processor can observe its shutdown token. Periodic poll remains the correctness fallback, so this is process-local latency optimization, not distributed coordination or a delivery claim.",
+      "test_evidence": "OutboxProcessor.cs constructor symbols and OutboxNotifyInterceptor plus Auth/Todo DI call sites traced. No timing/race measurement in this review.",
+      "conclusion": "No new concrete defect; existing DIST-009 exclusivity remains outside this signal.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          179
+        ]
+      ],
+      "line_count": 179,
+      "sha256": "ca8cbc4f39d0f46fb57c03dcb83b6de1028cc1352b18ae1bfaffca3fcc6c74b1",
+      "purpose_and_callers": "Canonical BaseRepository<TEntity,TId,TContext> supports shared service adapters, soft-delete predicates, staged writes, pagination and specifications.",
+      "trust_state_errors_concurrency": "Reads explicitly filter soft deletes and usually use AsNoTracking; GetById deliberately tracks. TId is cast to Guid, consistent with the current BaseEntity ID model. Add/Update/Remove stage changes and SaveChanges commits the shared context; they provide no owner authorization. GetPagedAsync uses unchecked Int32 offset and optional ordering; specification paths delegate filtering/tracking to SpecificationEvaluator.",
+      "test_evidence": "Shared source fully read including lines55-73 after output truncation. PaginationParameters and existing BE-008 reviewed previously; no new pagination C#/provider test executed here.",
+      "conclusion": "Additional shared offset surface of existing BE-008; do not create a duplicate finding. Permission predicates remain service responsibility.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/CurrentUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          40
+        ]
+      ],
+      "line_count": 40,
+      "sha256": "31d2d1e98d062ba4b3c80fbc4f763be6da2c7767d281f5e49278c354d0826e6b",
+      "purpose_and_callers": "Shared DI registers Application.Persistence.ICurrentUserService to CurrentUserService; Messaging handlers are example consumers. Auth/Category also have different service-specific classes.",
+      "trust_state_errors_concurrency": "Reads NameIdentifier/sub with Guid.TryParse fallback to null, email and mapped role claims from current HttpContext. IsAuthenticated is exposed separately; claims access is not authorization. No persistent mutable state; ambient HttpContext lifetime is host-owned.",
+      "test_evidence": "CurrentUserServiceTests.cs read fully but it targets Auth/Category implementations, not this exact shared class. Shared DI mapping and Messaging caller symbols inspected; no execution.",
+      "conclusion": "No new demonstrated defect; avoid attributing sibling implementation tests to shared implementation coverage.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/N1Sentinel.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          257
+        ]
+      ],
+      "line_count": 257,
+      "sha256": "972eeec2c577a58b0f19a82eb08e29662a0a73025fe23e9e24ae48b43a59538f",
+      "purpose_and_callers": "N1SentinelInterceptor is an AsyncLocal-scoped EF interceptor for tests. Symbol search found direct RecordCommand/BeginScope tests; no production scope activation was found.",
+      "trust_state_errors_concurrency": "Fingerprints parameter tokens/whitespace, counts in ConcurrentDictionary, exempts configured substrings and raises on scope disposal. Nested disposal restores prior scope in finally. This is a heuristic/test guard; it can mis-normalize SQL literals and is not a SQL parser, query optimizer or production telemetry system.",
+      "test_evidence": "N1SentinelTests.cs symbols around22-169 inspected by search, not whole-file read or execution. Scalar/reader/nonquery sync/async hooks read fully.",
+      "conclusion": "No new production defect; full EF command interception and async-context coverage require explicit tests, not only RecordCommand assertions.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Planora.BuildingBlocks.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          68
+        ]
+      ],
+      "line_count": 68,
+      "sha256": "12ffa93eb783b062448a062f9b81a9f814963a25f7bae81695ba6d4977a4a3be",
+      "purpose_and_callers": "Infrastructure csproj targets net10.0, nullable/latest C#, Microsoft.AspNetCore.App, central PackageReferences and Application/Domain project references; UnitTests is a friend assembly.",
+      "trust_state_errors_concurrency": "Versions reside in Directory.Packages.props and restored assets; this file adds no executable installer or environment credentials. Transitive dependency safety/licensing belongs to T12. Broad dependency surface is architectural context, not by itself a defect.",
+      "test_evidence": "SDK10.0.300 and RabbitMQ.Client7.2.1 verified during earlier T05 work; no restore/build executed for READ-014 while root was running gates.",
+      "conclusion": "No new project-file defect; no package changes made.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          166
+        ]
+      ],
+      "line_count": 166,
+      "sha256": "824fabc8300376851d1ca83a5918b48935babcecaf8c29101dfaa6ef76724461",
+      "purpose_and_callers": "DependencyWaiter is called from API startup for bounded PostgreSQL/Redis/Rabbit readiness; WaitForPostgresWithDatabaseCreationAsync can create a missing database before waiting for it.",
+      "trust_state_errors_concurrency": "Database existence query is parameterized and CREATE DATABASE identifier is quoted/escaped. Administrative database creation is a real mutation requiring environment authorization. Retry loop is bounded 30 attempts with cancellable delay; passed Func<Task> itself has no token parameter and errors are broadly retried. Duplicate creation check-then-create can fail concurrent startup; no runtime race reproduced here.",
+      "test_evidence": "DependencyWaiterTests.cs full read only verifies QuoteIdentifier escaping. Startup caller symbols inspected; no unavailable-service timing, cancellation or concurrent DB-create experiment executed.",
+      "conclusion": "No new proven incident; startup tests must use separately verified disposable infrastructure.",
+      "finding_ids": []
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/IRetentionLock.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          23
+        ]
+      ],
+      "line_count": 23,
+      "sha256": "d6484385aa1fd4e982c9a5808983093f3ab276388828e358d1e2894c2e469224",
+      "purpose_and_callers": "IRetentionLock abstracts retention mutual exclusion; PostgresRetentionLock forwards to PostgresAdvisoryLock.",
+      "trust_state_errors_concurrency": "PostgreSQL session-level lock only covers users of the same policy key/database. Supplemental PostgresAdvisoryLock source shows connection pinned open until release and deterministic key. It does not block unrelated application writes or establish outbox exclusivity.",
+      "test_evidence": "PostgresAdvisoryLock.cs fully inspected as supplemental source; retention unit tests inject fake locks. No real advisory-lock race run in READ-014.",
+      "conclusion": "No new interface defect; lock scope is important for CONT014001.",
+      "finding_ids": [
+        "CONT014001"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/IRetentionPolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          57
+        ]
+      ],
+      "line_count": 57,
+      "sha256": "3ab3c339d59ec03ea75d77d40282903e93e5059781510e3cd1f92dcd5c2a22c1",
+      "purpose_and_callers": "IRetentionPolicy is the singleton/stateless policy contract; scheduler hands it fresh scoped services, options and one UTC timestamp; RetentionResult records counts/guard/dry-run/skip outcomes.",
+      "trust_state_errors_concurrency": "DI scope owns DbContext; policy decides enablement and delegates safety to RetentionExecutor. Result/context objects carry references to mutable options and are not a synchronization or immutability mechanism. Cancellation is explicit. No automatic permission to run deletion follows from the interface.",
+      "test_evidence": "RetentionExecutorGuardTests.cs read fully (5 tests) and scheduler source:1-125 inspected. No execution in this review.",
+      "conclusion": "No new interface defect; executor cumulative-cap concern recorded separately.",
+      "finding_ids": [
+        "CONT014001"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/ProcessedMessagePurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          94
+        ]
+      ],
+      "line_count": 94,
+      "sha256": "0f2462d2faf93311727b6d8c0ddb530dd1316a54dd9040594a59a515f8cc146d",
+      "purpose_and_callers": "ProcessedMessagePurgePolicy is registered across the six domain infrastructure containers. It checks EF mapped types and independently purges processed/aged outbox and inbox rows.",
+      "trust_state_errors_concurrency": "Failed/dead-letter/pending rows are excluded. Cutoffs use completion timestamps and one pass clock. Execution takes per-table advisory keys and guard helper; counts combine both tables. Inbox retention limits how long optional event dedup records survive; replay beyond that window needs domain idempotency. Table skip metadata is not propagated to the combined result.",
+      "test_evidence": "ProcessedMessagePurgePolicyTests.cs full read: dry-run EF InMemory eligibility and enable flag, fake lock, no physical delete. RetentionExecutor source inspected; no provider execution here.",
+      "conclusion": "No new independent policy defect; CONT014001 applies through shared executor. Preserve historical backlog and account for inbox retention before replay.",
+      "finding_ids": [
+        "CONT014001"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/SoftDeletedPurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          58
+        ]
+      ],
+      "line_count": 58,
+      "sha256": "f5b9d1635e914319689cd657b8dc3fead88ca3f2f475f5debb4635aee6a1ca57",
+      "purpose_and_callers": "SoftDeletedPurgePolicy<TEntity> is registered by Category/Collaboration for their owned entity types; Todo uses its bespoke cascade-aware policy.",
+      "trust_state_errors_concurrency": "Only mapped entities with IsDeleted and DeletedAt before grace cutoff qualify. Executor bypasses global query filters for purge. This is irreversible physical deletion; events/cascades must have completed earlier and DB foreign-key semantics must be verified per service. No business owner permission is checked in the background job because it is administrative maintenance.",
+      "test_evidence": "SoftDeletedPurgePolicyTests.cs full read: dry-run InMemory eligibility and enable flag. Service registrations/cascade warning inspected; no live delete/restore race or provider constraint experiment executed.",
+      "conclusion": "No new independent policy defect; BE-001/BE-002 event boundaries and CONT014001 guard remain relevant.",
+      "finding_ids": [
+        "CONT014001"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          141
+        ]
+      ],
+      "line_count": 141,
+      "sha256": "030be2d72b4b6388fefc7aab57ee8884c43e16ddfbab62d62d48dc87c024b23b",
+      "purpose_and_callers": "RetentionOptions binds Retention section for all service schedulers and defines enabled startup/hourly purges, windows, flags and safety limits.",
+      "trust_state_errors_concurrency": "Defaults actively delete selected expired/soft-deleted/processed data after startup delay; forensic/user-history vectors are off. These settings are trusted administrative inputs. No bound validation is registered in AddRetention; invalid days or limits require separate guards/tests. MaxDeletionsPerRun name/docs imply a bound, while executor only checks initial eligible snapshot.",
+      "test_evidence": "RetentionFoundationTests symbols/default contracts located; actual relevant executor guard tests read fully. No configuration mutation or live retention pass executed.",
+      "conclusion": "CONT014001: initial-count-only guard can delete beyond cap when new rows qualify during a pass. Static confirmation only; T13 regression needed.",
+      "finding_ids": [
+        "CONT014001"
+      ]
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionServiceCollectionExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          29
+        ]
+      ],
+      "line_count": 29,
+      "sha256": "56fff03aab0cde4ada51f31616bc136f862ed7aaf74669c77ea26363a18e1859",
+      "purpose_and_callers": "AddRetention binds options, installs PostgresRetentionLock singleton and RetentionBackgroundService; AddRetentionPolicy appends singleton policies. Each service chains its owned policy set.",
+      "trust_state_errors_concurrency": "No ValidateOnStart, deduplication or general DbContext registration occurs here. Service DI must supply the correct scoped DbContext; singleton policies must not capture scoped contexts. Active defaults mean simply launching services can cause maintenance mutations.",
+      "test_evidence": "All six service AddRetention/AddRetentionPolicy call sites located; RetentionBackgroundService:1-125 and policy constructors inspected. No DI lifecycle test executed for this batch.",
+      "conclusion": "No new independent DI defect; never run default stack against working data as an audit fixture.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT014001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "owner_recommendation": "T13 / retention owner",
+      "title": "Retention MaxDeletionsPerRun is checked only before deletion and does not bound concurrent eligibility growth",
+      "trigger": "Initial eligible count is at or below the configured cap, then another application write makes more rows eligible while the batched pass runs. The deletion loop keeps querying and draining until empty.",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs",
+          "ranges": [
+            [
+              53,
+              60
+            ]
+          ]
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionExecutor.cs",
+          "ranges": [
+            [
+              41,
+              62
+            ],
+            [
+              72,
+              88
+            ]
+          ]
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/SoftDeletedPurgePolicy.cs",
+          "ranges": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/ProcessedMessagePurgePolicy.cs",
+          "ranges": [
+            [
+              46,
+              57
+            ],
+            [
+              66,
+              77
+            ]
+          ]
+        }
+      ],
+      "impact": "A pass can physically delete more rows than the advertised per-run safety cap and report Deleted greater than Scanned; this weakens the tripwire during concurrent writes. No real data-loss incident is asserted.",
+      "root_cause": "The cap is applied to one initial count. Each delete receives full BatchSize and total is accumulated without checking remaining cap; advisory locks exclude peer retention passes but not domain writers.",
+      "test_gap": "Existing guard tests cover initial count exceeding cap and normal drained batches only. Suggested deterministic regression: MaxDeletionsPerRun=10, initial count=10, delete delegate yields 10, 1, 0. Existing loop returns Deleted=11; then verify a provider scenario with a separate writer before batch2. Neither new regression nor provider scenario executed here.",
+      "suggested_remediation": "Retention owner should define the per-pass cap precisely, bound each deletion by remaining budget and stop/report safely when exhausted; preserve dry-run, cancellation, tripwire and advisory release. Do not apply against working databases.",
+      "reachability_limit": "The loop behavior is statically confirmed; a normal application path that adds past-cutoff eligible rows during the same pass was not demonstrated. Most reviewed policies capture one fixed cutoff and normal newly-completed/deleted rows have current timestamps, so they do not automatically enter that set. Backfill/restore or other concurrent state transitions require separate provider reproduction before claiming normal-runtime impact."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false,
+    "reason": "Read-only source continuation. Root owns current broader/live gates; no application tests, dotnet builds, Docker/Redis/DB operations were run for READ-014."
+  },
+  "limits": [
+    "Full read covers exactly the 25 batch files and worktree hashes, not full supplemental files unless explicitly stated.",
+    "Supplemental caller/test searches do not promote their separate continuation batches.",
+    "IdempotencyMiddleware activation was not found; its design limitations are not claimed as active endpoint defects.",
+    "Existing BE-008 offset issue is referenced rather than duplicated.",
+    "No secrets, real environment or credential files were read; no raw credential values are written in this report.",
+    "Root must assign permanent ID/integrate CSV/findings/PROGRESS and recheck hashes after concurrent changes."
+  ],
+  "root_integration": {
+    "assigned_finding_ids": {
+      "CONT014001": "BE-010"
+    },
+    "scope": "Historical source snapshot; runtime checks tracked in owning task results."
+  }
+}

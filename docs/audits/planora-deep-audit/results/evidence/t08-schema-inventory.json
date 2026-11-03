@@ -1,0 +1,377 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-11-03T15:16:19.574674+00:00",
+  "head": "f12f038e7b545456f82cb6e256592a3c8544d355",
+  "scope": "Read-only pre-T08 source inventory and design; no working database or ignored migration contents read",
+  "services": [
+    {
+      "service": "Auth",
+      "context": "AuthDbContext",
+      "connection_key": "AuthDatabase",
+      "schema": "public",
+      "tracked_migration_files": [],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "DatabaseStartup.EnsureReadyAsync -> EnsureCreatedAsync when no migrations"
+    },
+    {
+      "service": "Category",
+      "context": "CategoryDbContext",
+      "connection_key": "CategoryDatabase",
+      "schema": "public",
+      "tracked_migration_files": [],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "DatabaseStartup.EnsureReadyAsync -> EnsureCreatedAsync when no migrations"
+    },
+    {
+      "service": "Collaboration",
+      "context": "CollaborationDbContext",
+      "connection_key": "CollaborationDatabase",
+      "schema": "collaboration",
+      "tracked_migration_files": [],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "DatabaseStartup.EnsureReadyAsync -> EnsureCreatedAsync when no migrations"
+    },
+    {
+      "service": "Messaging",
+      "context": "MessagingDbContext",
+      "connection_key": "MessagingDatabase",
+      "schema": "public",
+      "tracked_migration_files": [],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "DatabaseStartup.EnsureReadyAsync -> EnsureCreatedAsync when no migrations"
+    },
+    {
+      "service": "Todo",
+      "context": "TodoDbContext",
+      "connection_key": "TodoDatabase",
+      "schema": "todo",
+      "tracked_migration_files": [
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.Designer.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.cs",
+        "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/TodoDbContextModelSnapshot.cs"
+      ],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [
+        "20260510211105_AddWorkersAndComments",
+        "20260511105105_AddViewerCompletion",
+        "20260517225900_AddSystemComment",
+        "20260518222758_AddGenesisComment",
+        "20260525143832_AddCommentAvatarUrl",
+        "20260526201043_RemoveCommentAvatarSnapshot",
+        "20260529120000_RemoveCommentsAddOutbox",
+        "20260602111500_AddSubtaskParentTodoId",
+        "20261007205138_AddAllFriendsSnapshot"
+      ],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "TodoDatabaseStartup"
+    },
+    {
+      "service": "Realtime",
+      "context": "RealtimeDbContext",
+      "connection_key": "RealtimeDatabase",
+      "schema": "public",
+      "tracked_migration_files": [
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+        "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs"
+      ],
+      "ignored_local_migration_paths": [],
+      "source_inferred_compiled_migration_ids": [
+        "20260615211750_InitialRealtimeNotifications"
+      ],
+      "runtime_reflection_observed": false,
+      "applied_working_database_history": "NOT_OBSERVED",
+      "compile_overrides": [],
+      "startup": "RealtimeDatabaseStartup"
+    }
+  ],
+  "sources": {
+    "Services/AuthApi/Planora.Auth.Infrastructure/Planora.Auth.Infrastructure.csproj": {
+      "sha256": "02af1fdfd5e31c8497827a2c0d7432a93ff741193bcd6a536f0132d19f1c5bdf",
+      "line_count": 37
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs": {
+      "sha256": "2cca9dfdd91c1d6c03db85d10c7655ee3bc4c7609f29a68bece90c7599c5062a",
+      "line_count": 107
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/DesignTime/AuthDbContextFactory.cs": {
+      "sha256": "631d8017c36fa663a097874c8edb33eedb40e6a9b145ed9f0cc6bfc8d89d98be",
+      "line_count": 49
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/FriendshipConfiguration.cs": {
+      "sha256": "46adc92e1ac1f1c6a39b285210ce6f502f94a2fbf9314e42ee3b70ff4eb6b05f",
+      "line_count": 53
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/InboxMessageConfiguration.cs": {
+      "sha256": "2dd912dc1a75d3b9f769ba3a3ba72b46c107c453299159c87c3323e29aa2ae00",
+      "line_count": 42
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/LoginHistoryConfiguration.cs": {
+      "sha256": "8c83f15edba9e539a2ab4d358bbc8225834f2da7508fdba9f1251c2d257f9ef0",
+      "line_count": 30
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "26c4b26f6c30b0edf1672747cb5669b3b7cc12813d14a858d72fbc3da4b538f7",
+      "line_count": 46
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/PasswordHistoryConfiguration.cs": {
+      "sha256": "9f2c17e3f66a98b3b2b11739c50c014175a2d54d3dc068fb785b8bce2e4ae79a",
+      "line_count": 33
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs": {
+      "sha256": "c0ca5b529fcc242143b9b940ae4b2c006e7a47041ffb069ffcb8b9f3f1a6ee12",
+      "line_count": 69
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs": {
+      "sha256": "f81d279e0e52cdd8dd4ccd2aa10275040e1253218ddfed47843ebc921be8e52b",
+      "line_count": 36
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserConfiguration.cs": {
+      "sha256": "b7a582cfb4b3167eac5616d2847a4a2bacb19e78ee4c2b0fe0d4eb571b3f5c5c",
+      "line_count": 98
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRecoveryCodeConfiguration.cs": {
+      "sha256": "2eecbce3745c883ed1168a4397e49e48c28e96fe3c8394da2c445754355abdab",
+      "line_count": 32
+    },
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRoleConfiguration.cs": {
+      "sha256": "4a0f5e7d79aeb00de7a38138222d574115fb9f68aca1a41fe4cb9c166cf99e5a",
+      "line_count": 33
+    },
+    "Services/CategoryApi/Planora.Category.Infrastructure/Planora.Category.Infrastructure.csproj": {
+      "sha256": "651f96a60683d594bddd281ef8884a6951f1f9a4be555392204463c0fff042f6",
+      "line_count": 29
+    },
+    "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs": {
+      "sha256": "0db80158de08141a25f170bdc4aeee876b5714a0b27b76e0466d6775750cda25",
+      "line_count": 69
+    },
+    "Services/CategoryApi/Planora.Category.Infrastructure/DesignTime/CategoryDbContextFactory.cs": {
+      "sha256": "cb0a751edf495b0566094548ec0a680745bf681c343f1b29a593e528c0490cdd",
+      "line_count": 38
+    },
+    "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/CategoryConfiguration.cs": {
+      "sha256": "8a1c7166a8eb405e470125865a8d2673e7c47ca5345d389a450651884118bfcf",
+      "line_count": 55
+    },
+    "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "d33cbb511001132504c184e86d0c47e35da68aa699cb9c97c8b590d6680a5c3b",
+      "line_count": 52
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Planora.Collaboration.Infrastructure.csproj": {
+      "sha256": "e90fc26d3dd749f1d62e15346b7f610fb73d567df5bd8e5fb3e4ccdae97ca227",
+      "line_count": 31
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs": {
+      "sha256": "897fbd794b3f31a6fce2865852edd327f4fddc4deeec6af6586c8b6bb5aa9312",
+      "line_count": 36
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DesignTime/CollaborationDbContextFactory.cs": {
+      "sha256": "d642095936adef494317b52fafa555a2786b9a3e1becb22fe6aae5b3cbff9f2b",
+      "line_count": 26
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs": {
+      "sha256": "6fe4b3cb9210a53e87f9e8748ed6e1608966a3f4ec4bec1808824062222b9b36",
+      "line_count": 77
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/InboxMessageConfiguration.cs": {
+      "sha256": "358a08d0273b6f96d1bb7238644f87fad11d8f072202ae04a32abdfda0a0f8d0",
+      "line_count": 45
+    },
+    "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "d08076ff8f372f5de6919c7946da1d8692f04c5e1df972daea7826022679f032",
+      "line_count": 40
+    },
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj": {
+      "sha256": "51e9f0f68d8c209378c57854605f0b8863f24c263c8119f9048e5027927a6964",
+      "line_count": 30
+    },
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs": {
+      "sha256": "35df84e3a369f19bf100b5048c5dde270751b1fa9bb68edb2b20267e67af2d45",
+      "line_count": 51
+    },
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs": {
+      "sha256": "f72355f5c6c3c229047c4521ef92cdfef85185f32cc74a914797489721a67ccc",
+      "line_count": 23
+    },
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "9f6c82e9a5489327b8857fb8d12caaafe3e8cb0a3faf2bfb35aa602148fc89bd",
+      "line_count": 65
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Planora.Todo.Infrastructure.csproj": {
+      "sha256": "747d2c5958f4f5f13d3d9263a1d460c4e9dd0c5725cadd457e6631685e8b10a9",
+      "line_count": 31
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs": {
+      "sha256": "fddb147f293cb1723f2590dfc6274840a1a5919edb9dc6b9a935c746d6446aa9",
+      "line_count": 35
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/DesignTime/TodoDbContextFactory.cs": {
+      "sha256": "05f079d8baae32cbc6faf4d1a4fecb6f76cb46dfe0f2bf4138919cdd53b7a71c",
+      "line_count": 24
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "2fb0df2a7b5e56a707bb0ad47e8461895dd880384c3fae93ec1adad09d6a7c4d",
+      "line_count": 40
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs": {
+      "sha256": "eed9fa3e607439871220fcceb9e1199991215887f2b6e3b565e5c881e337d72e",
+      "line_count": 131
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemShareConfiguration.cs": {
+      "sha256": "cf69717c13185954d5a193d0ae587b6636cf257655f9e1a74b9724c35d047fe7",
+      "line_count": 20
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemWorkerConfiguration.cs": {
+      "sha256": "514ae54eec3c6dabd0a9226797a28816c47c7939fd6176696dc3cdd0ff899269",
+      "line_count": 19
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs": {
+      "sha256": "cb8d96b9e827a2f8c008cbdafd34ea544372ebc8ae2e1e509ab9065188d3f8cf",
+      "line_count": 34
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj": {
+      "sha256": "d381f9a82dabba87c9916c1775607f5eef8b853f427b3f96d5da48137e845d3f",
+      "line_count": 38
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs": {
+      "sha256": "b8d057f108d6238a0a584b849f45b76b5ff7775679e56e501de1c7215e472018",
+      "line_count": 61
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/DesignTime/RealtimeDbContextFactory.cs": {
+      "sha256": "3e1a97ce1cfca904bc90a15310c879a09664e6830de71e1bd75f81c1a4c2c5e6",
+      "line_count": 54
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs": {
+      "sha256": "9a2d91e76966cc4cdb6d60f120df741df6a36b712fb25ba139a45fd7d7dbf292",
+      "line_count": 71
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationDeliveryConfiguration.cs": {
+      "sha256": "c4e4f48b9db01d2eeae5156fe6cbd4fb5f22a0f27d6cf849b99c0d72219ee401",
+      "line_count": 45
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs": {
+      "sha256": "e70dce926e3c5b3100a4a375e6ef072f5b518c173d3684398d4a546ff576d035",
+      "line_count": 50
+    },
+    "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs": {
+      "sha256": "9c559d969ff6056e5a1f3a8cb793eea1007daf79c7ed206039350df66815bc89",
+      "line_count": 54
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDatabaseStartup.cs": {
+      "sha256": "bf02ca8b4e510bfe36289269d6c74945d6d3ca91dc33e532e38ed89a2625b7bf",
+      "line_count": 102
+    },
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoSchemaCompatibility.cs": {
+      "sha256": "53a2b201813c0fa91dc5e2dfe2db3522d7f3cfd107906d33f0481ec8139836a6",
+      "line_count": 160
+    },
+    "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs": {
+      "sha256": "f47eb5e6633960e7c83f2062f05f0a8a89bc94f091aa8c06044242d94994373d",
+      "line_count": 228
+    },
+    "Services/AuthApi/Planora.Auth.Domain/Entities/Role.cs": {
+      "sha256": "fdeca173894f21a604de9e5a4951ac5e6a3377dcb9a2f5b3ff94a20f24086d96",
+      "line_count": 24
+    },
+    "BuildingBlocks/Planora.BuildingBlocks.Domain/BaseEntity.cs": {
+      "sha256": "387bcd6879b01873a494c8b9e85fbfae23e2489d7f3c4270d7e79dbf7c54478f",
+      "line_count": 99
+    },
+    "tools/Planora.Migrator/Program.cs": {
+      "sha256": "b56f912a591d6e18424e7656e2efed1d0dbe4a1b184c52ea57df50baa2e193e0",
+      "line_count": 381
+    },
+    "tools/Planora.Migrator/CollaborationRepliesUpgrade.cs": {
+      "sha256": "694340cf0e3fa3afddd11a64265ba944834ed4763a6fde31aa1c8aeab040ce78",
+      "line_count": 49
+    },
+    ".gitignore": {
+      "sha256": "311040cca08f74056fc678d2fa0a4c738929c9f2585792f53b5cfc9688281a0f",
+      "line_count": 248
+    },
+    ".dockerignore": {
+      "sha256": "a09c02262619740fc58dbac22e75c8ff857e30f6e7abaa2c1e6c1e167d530a9c",
+      "line_count": 92
+    },
+    ".config/dotnet-tools.json": {
+      "sha256": "1c78fea1cf75547edd027e55a641577ac67117dd643d16ed67fac8b21ae8512f",
+      "line_count": 20
+    },
+    ".github/workflows/migrations.yml": {
+      "sha256": "739eadd4e8dd7217a05f0631575e54f59a0b681e765d4b38e835fa02844ed8cf",
+      "line_count": 138
+    },
+    "docs/database.md": {
+      "sha256": "132e8d4a8c65e3fc37399cbfb526cc6d463bf0ee8b43b3c92150e3caaf55fe30",
+      "line_count": 500
+    }
+  },
+  "tools": {
+    "global_dotnet_ef": "10.0.8 observed via dotnet tool list --global",
+    "local_manifest_dotnet_ef": "NOT_PINNED"
+  },
+  "confirmed_source_risks": [
+    {
+      "id": "BE-007",
+      "status": "STATIC_CONFIRMED",
+      "detail": "Auth/Category/Collaboration/Messaging have zero tracked and zero ignored local migration sources; shared startup cannot upgrade existing schema."
+    },
+    {
+      "id": "T08-AUTH-SEED",
+      "status": "STATIC_CONFIRMED",
+      "detail": "RoleConfiguration.HasData calls Role.Create, whose IDs/timestamps vary; Auth suppresses pending model warnings. Preserve existing role IDs and user-role references during deterministic baseline design."
+    },
+    {
+      "id": "T08-MESSAGING-FACTORY",
+      "status": "STATIC_CONFIRMED",
+      "detail": "Messaging design factory uses DefaultConnection and lacks AddEnvironmentVariables; runtime, Migrator and workflow use MessagingDatabase. Separate narrow fix assigned by root."
+    },
+    {
+      "id": "T08-MIGRATOR-GUARD",
+      "status": "STATIC_CONFIRMED",
+      "detail": "CLI checks unknown applied IDs but uses direct MigrateAsync and returns success for an empty pending set, bypassing service schema/adoption guards."
+    }
+  ],
+  "execution": {
+    "provider_tests": "NOT_RUN_BY_THIS_REVIEWER",
+    "ef_scaffolding": "NOT_RUN",
+    "migrations_applied": "NONE",
+    "working_database_connections": "NONE",
+    "secret_values_persisted": false
+  }
+}

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "90f8341ae35a60e39fcdbabde83577a1a96bfa02",
+  "current_sha": "f12f038e7b545456f82cb6e256592a3c8544d355",
   "status": "in_progress",
   "current_task": "T08",
   "completed_tasks": [
@@ -10,9 +10,8 @@
     "T05 local transport (working topology transition and historical repair remain pending T14)"
   ],
   "in_progress_tasks": [
-    "T12",
-    "READ-014",
-    "READ-038"
+    "T08",
+    "T12"
   ],
   "pending_tasks": [
     "T08",
@@ -67,7 +66,12 @@
     "docs/audits/planora-deep-audit/results/evidence/t05-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/t05-broker-restart.json",
     "docs/audits/planora-deep-audit/results/evidence/t05-topology-transition.md",
-    "docs/audits/planora-deep-audit/results/evidence/t05-independent-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/t05-independent-review.md",
+    "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+    "tests/Planora.UnitTests/Services/Infrastructure/DesignTimeDbContextFactoryTests.cs",
+    "tests/Planora.UnitTests/Services/Infrastructure/AuthRoleModelDeterminismTests.cs",
+    "tests/Planora.UnitTests/Services/Infrastructure/VersionedDatabaseStartupPostgresTests.cs"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -82,9 +86,10 @@
     "T05 explicit logical IDs and durable per-subscription quarantine; old queues must never be deleted automatically.",
     "T05 broker and unit failures reproduced on original code; logical IDs/quorum DLQ locally verified with1334unit+94errorhandling passes,0skips.",
     "Two orchestrated broker restart tests separately passed; first post-restart verification rejected changed dynamic bindings before reconfiguration.",
-    "Root reviewed real-domain test; independent reviewer covered transport/callers/root-live/runbook source; atomic exactly-once is not claimed."
+    "Root reviewed real-domain test; independent reviewer covered transport/callers/root-live/runbook source; atomic exactly-once is not claimed.",
+    "T08 child workers interrupted by service usage limit after writing tests/inventory/reviews. Root reproduced31targeted tests:24fail/7pass; fixed named Messaging selection and stable Auth seed; prerequisite GREEN11pass0skip. Schema guard/migrations remain unimplemented."
   ],
-  "next_step": "Commit verified T05 local transport; integrate READ-014/READ-038 full source reviews; read T08 prompt and ef-migration skill, reproduce schema/provider defects on owned disposable databases only.",
+  "next_step": "T08 combined behavior RED is running: named Messaging factory, stable Auth model seed, and versioned provider startup. Finish minimal prerequisite fixes, then reviewed scaffolding/guarded adoption; working DBs forbidden.",
   "commands": [
     {
       "id": "readiness-red",
@@ -845,11 +850,13 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 79,
+    "pending_batches": 77,
     "complete": false,
-    "current_read_or_reviewed": 255,
+    "current_read_or_reviewed": 305,
     "completed_batches": [
-      "READ-011"
+      "READ-011",
+      "READ-014",
+      "READ-038"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -864,7 +871,10 @@
     "results/evidence/t05-verification.json",
     "results/evidence/t05-broker-restart.json",
     "results/evidence/t05-topology-transition.md",
-    "results/evidence/t05-independent-review.md"
+    "results/evidence/t05-independent-review.md",
+    "results/evidence/read-014-review.json",
+    "results/evidence/read-038-review.json",
+    "results/evidence/t08-schema-inventory.json"
   ],
   "local_commits": [
     {
@@ -875,6 +885,11 @@
     {
       "task": "T12 OPS-010 local fix; package partial",
       "sha": "7373c36564c72fed985020ff3fa0e5c6a6494709",
+      "pushed": false
+    },
+    {
+      "task": "T05 local transport",
+      "sha": "f12f038e7b545456f82cb6e256592a3c8544d355",
       "pushed": false
     }
   ],
@@ -900,5 +915,10 @@
     "T01": "DIST-009 authoritative deployment exclusivity closure in T14",
     "T05": "Working topology migration/historical replay pending T14+owner approval; complete erasure T02/T03/T04",
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance"
-  }
+  },
+  "new_findings": [
+    "BE-008",
+    "BE-009",
+    "BE-010"
+  ]
 }
