@@ -1,0 +1,398 @@
+[
+  {
+    "commit": "b11e73f7762b4f15910c3c634c317f4a52fb9bb7",
+    "path": "docs/testing.md",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 521
+  },
+  {
+    "commit": "99ad134a7808c9373844cabac52af3b8de272aa9",
+    "path": ".github/workflows/ci.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 50
+  },
+  {
+    "commit": "0fd486add085950450b96920466f666a6b127cfa",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthDeletionOutboxTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 34
+  },
+  {
+    "commit": "99ad134a7808c9373844cabac52af3b8de272aa9",
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres/PostgresRetention.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 18
+  },
+  {
+    "commit": "7a11a875cbddedb19a72072a143b6cf92c9e24e2",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 92
+  },
+  {
+    "commit": "7115c1c6d83c7ff4ee3833206bd7ddcabceb8c5e",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 81
+  },
+  {
+    "commit": "c9186acda024a874899a0959f3c6317191a67a8e",
+    "path": "Start-Planora-Local.ps1",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 244
+  },
+  {
+    "commit": "da090fe84f6ab35304a4c9daede3eb84ff769a75",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.Docker.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "da090fe84f6ab35304a4c9daede3eb84ff769a75",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "da090fe84f6ab35304a4c9daede3eb84ff769a75",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "da090fe84f6ab35304a4c9daede3eb84ff769a75",
+    "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DesignTime/CollaborationDbContextFactory.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 18
+  },
+  {
+    "commit": "1c0b9b16acfaf60c56771e4c7da64ce433b37d55",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 21
+  },
+  {
+    "commit": "a25999f7b90fc56d73354b31a41f785296d1fa5b",
+    "path": "deploy/fly/README.md",
+    "rule": "planora-rabbit-password",
+    "line": 53
+  },
+  {
+    "commit": "804c7a3d9db72785f016432d2045f51d33cb4a7c",
+    "path": ".github/workflows/perf-smoke.yml",
+    "rule": "planora-rabbit-password",
+    "line": 43
+  },
+  {
+    "commit": "2488c9b56e5164f4a8dcc8c419e0540dd45fab34",
+    "path": ".github/workflows/openapi.yml",
+    "rule": "planora-jwt-secret",
+    "line": 136
+  },
+  {
+    "commit": "2488c9b56e5164f4a8dcc8c419e0540dd45fab34",
+    "path": ".github/workflows/openapi.yml",
+    "rule": "planora-grpc-service-key",
+    "line": 139
+  },
+  {
+    "commit": "2488c9b56e5164f4a8dcc8c419e0540dd45fab34",
+    "path": ".github/workflows/openapi.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 150
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-grpc-service-key",
+    "line": 73
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 68
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 69
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 70
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 71
+  },
+  {
+    "commit": "f47c283e5459d196c487f42a8d32ebf70f6adb3c",
+    "path": ".github/workflows/migrations.yml",
+    "rule": "planora-jwt-secret",
+    "line": 72
+  },
+  {
+    "commit": "d4d05a034a14f3b9655b483651f26e1ba1324a47",
+    "path": "tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs",
+    "rule": "planora-generic-secret-assignment",
+    "line": 10
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": ".github/workflows/e2e.yml",
+    "rule": "planora-rabbit-password",
+    "line": 37
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Planora.ApiGateway/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 17
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/AuthApi/Planora.Auth.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/AuthApi/Planora.Auth.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 31
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/AuthApi/Planora.Auth.Api/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Planora.ApiGateway/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Planora.ApiGateway/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 30
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/AuthApi/Planora.Auth.Api/appsettings.Docker.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "README.md",
+    "rule": "planora-rabbit-password",
+    "line": 68
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Api/appsettings.Docker.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Api/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 14
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 30
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/AuthApi/Planora.Auth.Infrastructure/DesignTime/AuthDbContextFactory.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 18
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/DesignTime/CategoryDbContextFactory.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 18
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 30
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/DesignTime/MessagingDbContextFactory.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 15
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/MessagingApi/Planora.Messaging.Api/appsettings.Docker.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/TodoApi/Planora.Todo.Api/appsettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/CategoryApi/Planora.Category.Infrastructure/DependencyInjection.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 18
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/TodoApi/Planora.Todo.Api/appsettings.Docker.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 11
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/TodoApi/Planora.Todo.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 12
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/TodoApi/Planora.Todo.Api/Properties/launchSettings.json",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 30
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "Services/TodoApi/Planora.Todo.Infrastructure/DesignTime/TodoDbContextFactory.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 16
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "docs/getting-started.md",
+    "rule": "planora-rabbit-password",
+    "line": 34
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "frontend/src/test/lib/jwt.test.ts",
+    "rule": "generic-api-key",
+    "line": 7
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "frontend/src/test/lib/jwt.test.ts",
+    "rule": "planora-generic-secret-assignment",
+    "line": 7
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DesignTimeDbContextFactoryTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 91
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/TokenServiceTests.cs",
+    "rule": "generic-api-key",
+    "line": 93
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/TokenServiceTests.cs",
+    "rule": "planora-generic-secret-assignment",
+    "line": 93
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-redis-password-in-conn",
+    "line": 85
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-redis-password-in-conn",
+    "line": 129
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-redis-password-in-conn",
+    "line": 162
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 84
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 183
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 210
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "rule": "planora-postgres-connection-string-literal",
+    "line": 241
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Controllers/AuthenticationControllerTests.cs",
+    "rule": "planora-generic-secret-assignment",
+    "line": 37
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Controllers/AuthenticationControllerTests.cs",
+    "rule": "planora-generic-secret-assignment",
+    "line": 146
+  },
+  {
+    "commit": "8925bf59c4bb494ff51fdbf253af90a67994d362",
+    "path": "tests/Planora.UnitTests/Services/AuthApi/Controllers/AuthenticationControllerTests.cs",
+    "rule": "planora-generic-secret-assignment",
+    "line": 181
+  }
+]

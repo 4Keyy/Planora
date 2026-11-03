@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: gitleaks scans runtime paths and literal values without suppressing substrings
+not ok 1 - gitleaks scans runtime paths and literal values without suppressing substrings
+  ---
+  duration_ms: 701.6062
+  type: 'test'
+  location: 'F:\\Projects\\Planora\\tools\\security\\gitleaks-policy.test.mjs:13:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'rabbit-container-password.txt'
+    +   },
+    +   {
+    +     detected: true,
+    +     expected: false,
+    +     path: 'rabbit-container-reference.txt'
+    +   },
+    +   {
+    +     detected: true,
+    +     expected: false,
+    +     path: 'empty-email-setting.txt'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      path: 'rabbit-container-password.txt'
+      expected: true
+      detected: false
+    1:
+      path: 'rabbit-container-reference.txt'
+      expected: false
+      detected: true
+    2:
+      path: 'empty-email-setting.txt'
+      expected: false
+      detected: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///F:/Projects/Planora/tools/security/gitleaks-policy.test.mjs:68:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 839.233

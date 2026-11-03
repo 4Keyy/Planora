@@ -1,0 +1,4 @@
+<!-- planora:nuget-vulnerability-tracking -->
+# NuGet vulnerability scan
+
+No vulnerable packages were found in the successfully scanned solution.

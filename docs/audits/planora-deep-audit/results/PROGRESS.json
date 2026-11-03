@@ -2,17 +2,17 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "915a430547e7138027704adb976bb9394ab78ffe",
+  "current_sha": "db0d82acd35a705d903a2e121893034c2097ebe2",
   "status": "in_progress",
-  "current_task": "T12",
+  "current_task": "T05",
   "completed_tasks": [
     "T01 local contract (deployment closure remains T14)"
   ],
   "in_progress_tasks": [
-    "T12"
+    "T12",
+    "T05"
   ],
   "pending_tasks": [
-    "T05",
     "T08",
     "T09",
     "T02",
@@ -47,7 +47,10 @@
     "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
     "tests/Planora.UnitTests/Services/Infrastructure/OutboxStagingContractTests.cs",
     "tests/Planora.UnitTests/Services/Infrastructure/OutboxStagingPostgresTests.cs",
-    "tools/outbox"
+    "tools/outbox",
+    ".gitleaks.toml",
+    "tools/security/gitleaks-policy.test.mjs",
+    "tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqLiveTests.cs"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -56,9 +59,12 @@
     "T01 preserves AddAsync save-through; no PostgreSQL claims/leases before post-T08 decision.",
     "StageAsync interface handoff includes canonical Persistence repository and four service implementations; no application caller switched.",
     "T01 topology validator is a snapshot precondition only; DIST-009 operational closure remains BLOCKED until T14.",
-    "Independent T01 review was interrupted by agent service usage limit; root self-review completed, no independent approval claimed."
+    "Independent T01 review was interrupted by agent service usage limit; root self-review completed, no independent approval claimed.",
+    "T12 OPS-010 regression passed20 synthetic cases; full history scan66 old/88 new policy remains red, not waived.",
+    "Independent T01 staging/readiness review completed with26 passing tests; topology/runtime exclusivity outside review.",
+    "T05 explicit logical IDs and durable per-subscription quarantine; old queues must never be deleted automatically."
   ],
-  "next_step": "Commit verified T01 local contract and completed READ-011 evidence, then finish T12 scanner checkpoint and start T05 broker regression.",
+  "next_step": "Commit T12 OPS-010 scanner policy with partial/open security gates, then execute T05 live RED/GREEN against the verified disposable broker.",
   "commands": [
     {
       "id": "readiness-red",
@@ -415,6 +421,35 @@
   "evidence": [
     "results/evidence/t01-verification.json",
     "results/evidence/t01-topology-verification.json",
-    "results/evidence/read-011-review.json"
+    "results/evidence/read-011-review.json",
+    "results/evidence/t12-verification.json",
+    "results/evidence/t12-final-triage.json",
+    "results/evidence/t12-independent-review.md",
+    "results/evidence/t01-independent-review.md"
+  ],
+  "local_commits": [
+    {
+      "task": "T01 local contract",
+      "sha": "db0d82acd35a705d903a2e121893034c2097ebe2",
+      "pushed": false
+    }
+  ],
+  "disposable_resources": [
+    {
+      "id": "41e429499fe363d7893af73a907c71250614c9ba7dcee09abca42a62f0a80bfb",
+      "kind": "postgres-container",
+      "label": "com.planora.audit=deepaudit-t01-20261102",
+      "bind": "127.0.0.1:63450",
+      "mounts": "tmpfs, no persistent user mount"
+    },
+    {
+      "id": "a702edd4d55ddcae0e682a2565aa18cd01a6db7e8f086a5741198e00c7718f21",
+      "kind": "rabbit-container",
+      "label": "com.planora.audit=deepaudit-t05-20261103",
+      "bind": "127.0.0.1:56433 AMQP; 127.0.0.1:56432 management",
+      "volume": "planora-audit-t05-rabbit-data",
+      "network": "planora-audit-t01",
+      "fixture_credentials": "synthetic; ignored .buildcheck/deep-audit-t05/rabbit-fixture.json"
+    }
   ]
 }

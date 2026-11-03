@@ -1,0 +1,127 @@
+TAP version 13
+# Subtest: gitleaks scans runtime paths and literal values without suppressing substrings
+not ok 1 - gitleaks scans runtime paths and literal values without suppressing substrings
+  ---
+  duration_ms: 581.4767
+  type: 'test'
+  location: 'F:\\Projects\\Planora\\tools\\security\\gitleaks-policy.test.mjs:13:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'docker-compose.yml'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'docs/configuration.md'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: '.env.example'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'service.template'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'CHANGELOG.md'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'graphify-out/runtime.json'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'substring-test.txt'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'substring-dummy.txt'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'reference-suffix.txt'
+    +   },
+    +   {
+    +     detected: false,
+    +     expected: true,
+    +     path: 'reference-default.txt'
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      path: 'docker-compose.yml'
+      expected: true
+      detected: false
+    1:
+      path: 'docs/configuration.md'
+      expected: true
+      detected: false
+    2:
+      path: '.env.example'
+      expected: true
+      detected: false
+    3:
+      path: 'service.template'
+      expected: true
+      detected: false
+    4:
+      path: 'CHANGELOG.md'
+      expected: true
+      detected: false
+    5:
+      path: 'graphify-out/runtime.json'
+      expected: true
+      detected: false
+    6:
+      path: 'substring-test.txt'
+      expected: true
+      detected: false
+    7:
+      path: 'substring-dummy.txt'
+      expected: true
+      detected: false
+    8:
+      path: 'reference-suffix.txt'
+      expected: true
+      detected: false
+    9:
+      path: 'reference-default.txt'
+      expected: true
+      detected: false
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///F:/Projects/Planora/tools/security/gitleaks-policy.test.mjs:62:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 691.4267

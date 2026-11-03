@@ -1,0 +1,174 @@
+{
+  "head": "db0d82acd35a705d903a2e121893034c2097ebe2",
+  "scope": "Partial T12 checkpoint; scan matches and moderate npm gate remain open",
+  "commands": [
+    {
+      "id": "policy-green",
+      "command": "node --test tools/security/gitleaks-policy.test.mjs",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-policy-green.txt",
+      "evidence_sha256": "a0d9e02bb01912c02daa256e2b21c1df5aca047a127bf6656ec34e4b42581baa",
+      "counts": {
+        "tests": 1,
+        "scenarios": 20,
+        "skipped": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "npm-production",
+      "command": "npm --prefix frontend audit --omit=dev --audit-level=high --json",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-npm-production.json",
+      "evidence_sha256": "70bcd57ab673bd1cc617b85b2aa9221cab807c23ebfedf6b7af170e9b603d9fd",
+      "counts": {
+        "vulnerabilities": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "npm-full",
+      "command": "npm --prefix frontend audit --json",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "evidence": "results/evidence/t12-npm-full.json",
+      "evidence_sha256": "8f30baaa0384a0fd2980158419b8d455a22f1518d9995a4370316939fcf9cdf3",
+      "counts": {
+        "moderate": 16,
+        "high": 0,
+        "critical": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "npm-explain",
+      "command": "npm --prefix frontend explain minimatch --json",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-npm-explain-minimatch.json",
+      "evidence_sha256": "39365da02f7427fe7fcc412ab81218c01c8d82b1b894e84f5bc89618009ec203",
+      "counts": {},
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "docs-audit",
+      "command": "npm --prefix tools/docs audit --json",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-docs-npm-audit.json",
+      "evidence_sha256": "b874408d7c3d8d7f08ab75379f65339fac3ae3f80be0c579469fe8789d4bef35",
+      "counts": {
+        "vulnerabilities": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "nuget",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' list Planora.sln package --vulnerable --include-transitive --format json --no-restore",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-nuget.json",
+      "evidence_sha256": "490f25c44311625411cf2c41113d41ff1646e461f6b63e68fb2f7476f7a06d19",
+      "counts": {
+        "projects": 32,
+        "vulnerable_packages": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "nuget-parser",
+      "command": "node .github/scripts/nuget-vulnerability-report.mjs docs/audits/planora-deep-audit/results/evidence/t12-nuget.json --check",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-nuget-gate.txt",
+      "evidence_sha256": "269c937bd93366a47a47099c8f57cbeb77a6fc410b678852de68b3d3e572ee09",
+      "counts": {},
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "nuget-tool-tests",
+      "command": "node --test .github/scripts/nuget-vulnerability-report.test.mjs",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "evidence": "results/evidence/t12-nuget-tool-tests.txt",
+      "evidence_sha256": "e2285db78c4ae38c42ff8cf7b31770194cdf1a92044254fec2bad20c3885f0b7",
+      "counts": {
+        "passed": 15,
+        "skipped": 0
+      },
+      "provenance": "T12 worker executed; report inspected by root"
+    },
+    {
+      "id": "history-before",
+      "command": [
+        "F:\\Planora-Maintenance\\2026-11-02-repository-review\\tools\\gitleaks\\gitleaks.exe",
+        "git",
+        "F:\\Projects\\Planora",
+        "--config",
+        "F:\\Projects\\Planora\\docs\\audits\\planora-deep-audit\\results\\evidence\\t12-baseline-config.toml",
+        "--log-opts=--all",
+        "--redact=100",
+        "--no-banner",
+        "--no-color",
+        "--report-format=json",
+        "--report-path=-",
+        "--log-level=error",
+        "--timeout=180"
+      ],
+      "cwd": "F:\\Projects\\Planora",
+      "scanner_exit_code": 1,
+      "wrapper_exit_code": 0,
+      "counts": {
+        "matches": 66
+      },
+      "head": "db0d82acd35a705d903a2e121893034c2097ebe2",
+      "duration_seconds": 2.187,
+      "policy_sha256": "3fdc61d235798fa7a9b15456b93e4ce4ec8696714f20eb1ff457d9730137c009"
+    },
+    {
+      "id": "history-after",
+      "command": [
+        "F:\\Planora-Maintenance\\2026-11-02-repository-review\\tools\\gitleaks\\gitleaks.exe",
+        "git",
+        "F:\\Projects\\Planora",
+        "--config",
+        "F:\\Projects\\Planora\\.gitleaks.toml",
+        "--log-opts=--all",
+        "--redact=100",
+        "--no-banner",
+        "--no-color",
+        "--report-format=json",
+        "--report-path=-",
+        "--log-level=error",
+        "--timeout=180"
+      ],
+      "cwd": "F:\\Projects\\Planora",
+      "scanner_exit_code": 1,
+      "wrapper_exit_code": 0,
+      "counts": {
+        "matches": 88
+      },
+      "head": "db0d82acd35a705d903a2e121893034c2097ebe2",
+      "duration_seconds": 1.921,
+      "policy_sha256": "bbd66131b47c24940bce9e92b20695dc2f6bd9d4fa9ac480372c7603ccc6fde0"
+    },
+    {
+      "command": "node --test tools/security/gitleaks-policy.test.mjs",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "Root repeat: 1 passed,20scenarios,0skipped;586.0839ms",
+      "local_log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\t12-policy-root-green.txt",
+      "log_sha256": "cc39e7b8ab27507f5ca27dc86a58460cec631cc777d876b8cdd5b3aa221e176f"
+    },
+    {
+      "command": "npm --prefix tools/docs run check",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "note": "98docs1087links0broken;98linted0issues. First attempt before staging new Markdown: exit1, target absent from Git inventory. Staged own paths then reran.",
+      "local_log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t01\\t12-docs-check.txt",
+      "log_sha256": "d45f13146109f73dbc415668bc19ac98654c5a4783119cde414fbf3a51da0ab2"
+    }
+  ]
+}

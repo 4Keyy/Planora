@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "parameters": "--vulnerable --include-transitive",
+  "sources": [
+    "https://api.nuget.org/v3/index.json"
+  ],
+  "projects": [
+    {
+      "path": "F:/Projects/Planora/Planora.ApiGateway/Planora.ApiGateway.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/AuthApi/Planora.Auth.Api/Planora.Auth.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/AuthApi/Planora.Auth.Application/Planora.Auth.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/AuthApi/Planora.Auth.Domain/Planora.Auth.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/AuthApi/Planora.Auth.Infrastructure/Planora.Auth.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/BuildingBlocks/Planora.BuildingBlocks.Domain/Planora.BuildingBlocks.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/BuildingBlocks/Planora.BuildingBlocks.Application/Planora.BuildingBlocks.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Planora.BuildingBlocks.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/MessagingApi/Planora.Messaging.Domain/Planora.Messaging.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/MessagingApi/Planora.Messaging.Application/Planora.Messaging.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/RealtimeApi/Planora.Realtime.Domain/Planora.Realtime.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/RealtimeApi/Planora.Realtime.Application/Planora.Realtime.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/GrpcContracts/GrpcContracts.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/TodoApi/Planora.Todo.Application/Planora.Todo.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/TodoApi/Planora.Todo.Domain/Planora.Todo.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/TodoApi/Planora.Todo.Infrastructure/Planora.Todo.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CategoryApi/Planora.Category.Application/Planora.Category.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CategoryApi/Planora.Category.Domain/Planora.Category.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CategoryApi/Planora.Category.Infrastructure/Planora.Category.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CategoryApi/Planora.Category.Api/Planora.Category.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CollaborationApi/Planora.Collaboration.Application/Planora.Collaboration.Application.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CollaborationApi/Planora.Collaboration.Domain/Planora.Collaboration.Domain.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Planora.Collaboration.Infrastructure.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/tests/Planora.UnitTests/Planora.UnitTests.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj"
+    },
+    {
+      "path": "F:/Projects/Planora/tools/Planora.Migrator/Planora.Migrator.csproj"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "command": [
+    "F:\\Planora-Maintenance\\2026-11-02-repository-review\\tools\\gitleaks\\gitleaks.exe",
+    "dir",
+    "F:\\Projects\\Planora\\docs\\audits\\planora-deep-audit\\results\\evidence\\t12-fixtures",
+    "--config",
+    "F:\\Projects\\Planora\\.gitleaks.toml",
+    "--redact=100",
+    "--no-banner",
+    "--no-color",
+    "--report-format=json",
+    "--report-path=-",
+    "--log-level=error"
+  ],
+  "cwd": "F:\\Projects\\Planora",
+  "scanner_exit_code": 1,
+  "duration_seconds": 0.453,
+  "cases": [
+    {
+      "path": "control.txt",
+      "expected_detection": true,
+      "observed_detection": true,
+      "status": "PASS"
+    },
+    {
+      "path": "docker-compose.yml",
+      "expected_detection": true,
+      "observed_detection": false,
+      "status": "FAIL"
+    },
+    {
+      "path": "substring.txt",
+      "expected_detection": true,
+      "observed_detection": false,
+      "status": "FAIL"
+    },
+    {
+      "path": "placeholder.txt",
+      "expected_detection": false,
+      "observed_detection": false,
+      "status": "PASS"
+    }
+  ],
+  "status": "FAIL",
+  "note": "Synthetic credentials were generated in memory, never used, and fixture files removed. Source scanner policy unchanged."
+}
