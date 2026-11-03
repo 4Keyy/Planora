@@ -352,7 +352,13 @@
     "dependencies": [
       "T01"
     ],
-    "limitations": "Inventory: git ls-files Services/*/*Infrastructure/Migrations/* содержит Todo/Realtime only. Deployed schema и ignored local migration contents не исследовались; drift конкретной БД не доказан."
+    "limitations": "Inventory: git ls-files Services/*/*Infrastructure/Migrations/* содержит Todo/Realtime only. Deployed schema и ignored local migration contents не исследовались; drift конкретной БД не доказан.",
+    "local_remediation_checkpoint": {
+      "status": "PREREQUISITE_VERIFIED",
+      "report": "results/T08.md",
+      "note": "Stable Auth seed verified; missing chain and guarded schema provider failures remain open.",
+      "authority": "Local implementation only; no push/deploy/working-data operation."
+    }
   },
   {
     "id": "DIST-001",
@@ -410,7 +416,13 @@
       "T01"
     ],
     "package": "T05",
-    "limitations": "Коллизия подтверждена кодом и регистрациями. Live broker/topology и реальные данные не запрашивались; runtime reproduction не проводился."
+    "limitations": "Коллизия подтверждена кодом и регистрациями. Live broker/topology и реальные данные не запрашивались; runtime reproduction не проводился.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED_OPERATIONAL_PENDING",
+      "report": "results/T05.md",
+      "note": "Three real domains plus replicas/replay verified on disposable Rabbit/Postgres; working topology and historical repair pending T14.",
+      "authority": "Local implementation only; no push/deploy/working-data operation."
+    }
   },
   {
     "id": "DIST-002",
@@ -462,7 +474,13 @@
       "T01"
     ],
     "package": "T05",
-    "limitations": "Отсутствие деклараций подтверждено поиском исходников/compose/deploy; внешняя ручная настройка broker неизвестна. RabbitMQ semantics сверены по официальным docs."
+    "limitations": "Отсутствие деклараций подтверждено поиском исходников/compose/deploy; внешняя ручная настройка broker неизвестна. RabbitMQ semantics сверены по официальным docs.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED_OPERATIONAL_PENDING",
+      "report": "results/T05.md",
+      "note": "Quorum DLQ, poison/retry, persistent restart and unroutable outbox checked; operational rollout pending T14.",
+      "authority": "Local implementation only; no push/deploy/working-data operation."
+    }
   },
   {
     "id": "DIST-003",
@@ -1418,7 +1436,13 @@
       "Все связанные gates проходят, остаточные ограничения явно перечислены."
     ],
     "dependencies": [],
-    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T12.md",
+      "note": "20regression+12independent probes pass; full-history gate remains red and other T12 work open.",
+      "authority": "Local implementation only; no push/deploy/working-data operation."
+    }
   },
   {
     "id": "OPS-011",
@@ -1594,7 +1618,13 @@
       "Missing or blank required target never silently selects a development database."
     ],
     "dependencies": [],
-    "limitations": "Source-confirmed; initial runtime options reproduction pending in T08. See results/evidence/read-038-review.json."
+    "limitations": "Source-confirmed; initial runtime options reproduction pending in T08. See results/evidence/read-038-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T08.md",
+      "note": "Named Messaging target selection and missing/blank rejection verified; T08 schema work remains open.",
+      "authority": "Local implementation only; no push/deploy/working-data operation."
+    }
   },
   {
     "id": "BE-010",

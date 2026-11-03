@@ -2,13 +2,74 @@ using Planora.Auth.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Domain;
 using Planora.Category.Infrastructure.Persistence;
 using Planora.Todo.Infrastructure.Persistence;
+using Planora.Messaging.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Reflection;
+using System.Text.Json;
 
 namespace Planora.UnitTests.Services.Infrastructure;
 
+[CollectionDefinition("DesignTimeConfiguration", DisableParallelization = true)]
+public sealed class DesignTimeConfigurationCollection;
+
+[Collection("DesignTimeConfiguration")]
 public sealed class DesignTimeDbContextFactoryTests
 {
+    [Fact]
+    public void MessagingFactory_UsesNamedEnvironmentBeforeJsonAndLegacy()
+    {
+        using var scope = new MessagingFactoryScope(
+            new() { ["MessagingDatabase"] = Connection("named_json"), ["DefaultConnection"] = Connection("legacy_json") },
+            namedEnvironment: Connection("named_environment"), legacyEnvironment: Connection("legacy_environment"));
+        using var context = CreateMessagingContext();
+
+        Assert.Equal("named_environment", ConfiguredDatabase(context));
+    }
+
+    [Fact]
+    public void MessagingFactory_UsesNamedJsonBeforeLegacyEnvironment()
+    {
+        using var scope = new MessagingFactoryScope(
+            new() { ["MessagingDatabase"] = Connection("named_json"), ["DefaultConnection"] = Connection("legacy_json") },
+            legacyEnvironment: Connection("legacy_environment"));
+        using var context = CreateMessagingContext();
+
+        Assert.Equal("named_json", ConfiguredDatabase(context));
+    }
+
+    [Fact]
+    public void MessagingFactory_PreservesLegacyEnvironmentWhenNamedMissing()
+    {
+        using var scope = new MessagingFactoryScope(legacyEnvironment: Connection("legacy_environment"));
+        using var context = CreateMessagingContext();
+
+        Assert.Equal("legacy_environment", ConfiguredDatabase(context));
+    }
+
+    [Fact]
+    public void MessagingFactory_RejectsMissingConnectionInsteadOfUsingDevelopmentDefault()
+    {
+        using var scope = new MessagingFactoryScope();
+
+        var exception = Record.Exception(() => { using var context = CreateMessagingContext(); });
+
+        var wrapper = Assert.IsType<TargetInvocationException>(exception);
+        Assert.IsType<InvalidOperationException>(wrapper.InnerException);
+    }
+
+    [Fact]
+    public void MessagingFactory_RejectsBlankNamedConnectionInsteadOfFallingBackToLegacy()
+    {
+        using var scope = new MessagingFactoryScope(
+            new() { ["MessagingDatabase"] = " ", ["DefaultConnection"] = Connection("legacy_json") });
+
+        var exception = Record.Exception(() => { using var context = CreateMessagingContext(); });
+
+        var wrapper = Assert.IsType<TargetInvocationException>(exception);
+        Assert.IsType<InvalidOperationException>(wrapper.InnerException);
+    }
+
     [Fact]
     [Trait("TestType", "Module")]
     [Trait("TestType", "Regression")]
@@ -106,4 +167,64 @@ public sealed class DesignTimeDbContextFactoryTests
     }
 
     private sealed record SampleDomainEvent(Guid EntityId) : DomainEvent;
+
+    private static string Connection(string database)
+        => new NpgsqlConnectionStringBuilder { Host = "127.0.0.1", Database = database, Username = "synthetic" }.ConnectionString;
+
+    private static string ConfiguredDatabase(MessagingDbContext context)
+        => new NpgsqlConnectionStringBuilder(context.Database.GetConnectionString()).Database!;
+
+    private static MessagingDbContext CreateMessagingContext()
+    {
+        var factoryType = typeof(MessagingDbContext).Assembly.GetType(
+            "Planora.Messaging.Infrastructure.DesignTime.MessagingDbContextFactory", throwOnError: true)!;
+        var factory = Activator.CreateInstance(factoryType, nonPublic: true)!;
+        return Assert.IsType<MessagingDbContext>(factoryType.GetMethod("CreateDbContext")!
+            .Invoke(factory, new object[] { Array.Empty<string>() }));
+    }
+
+    private sealed class MessagingFactoryScope : IDisposable
+    {
+        private static readonly string[] Keys =
+        [
+            "ConnectionStrings__MessagingDatabase", "ConnectionStrings:MessagingDatabase",
+            "ConnectionStrings__DefaultConnection", "ConnectionStrings:DefaultConnection"
+        ];
+        private readonly string _previousDirectory = Directory.GetCurrentDirectory();
+        private readonly Dictionary<string, string?> _previousEnvironment = Keys.ToDictionary(
+            key => key, Environment.GetEnvironmentVariable);
+        private readonly string _directory = Path.Combine(Path.GetTempPath(), "planora-messaging-factory-" + Guid.NewGuid().ToString("N"));
+
+        public MessagingFactoryScope(Dictionary<string, string>? jsonConnections = null,
+            string? namedEnvironment = null, string? legacyEnvironment = null)
+        {
+            try
+            {
+                Directory.CreateDirectory(_directory);
+                if (jsonConnections is not null)
+                    File.WriteAllText(Path.Combine(_directory, "appsettings.json"),
+                        JsonSerializer.Serialize(new { ConnectionStrings = jsonConnections }));
+                Directory.SetCurrentDirectory(_directory);
+                foreach (var key in Keys)
+                    Environment.SetEnvironmentVariable(key, null);
+                Environment.SetEnvironmentVariable(Keys[0], namedEnvironment);
+                Environment.SetEnvironmentVariable(Keys[2], legacyEnvironment);
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            Directory.SetCurrentDirectory(_previousDirectory);
+            foreach (var (key, value) in _previousEnvironment)
+                Environment.SetEnvironmentVariable(key, value);
+            File.Delete(Path.Combine(_directory, "appsettings.json"));
+            if (Directory.Exists(_directory))
+                Directory.Delete(_directory);
+        }
+    }
 }

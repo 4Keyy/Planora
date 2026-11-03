@@ -1,0 +1,391 @@
+{
+  "source_head": "91e09353c3ef9bfe100141f8a9c2a46b423a3958",
+  "status": "Prerequisites verified; schema-chain provider failures remain unresolved",
+  "provider": "Owned PostgreSQL tmpfs container41e429499fe3,loopback63450; unique synthetic databases only",
+  "new_dependencies_installed": false,
+  "commands": [
+    {
+      "id": "prerequisites-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~VersionedDatabaseStartupPostgresTests|FullyQualifiedName~AuthRoleModelDeterminismTests|FullyQualifiedName~DesignTimeDbContextFactoryTests' --logger 'trx;LogFileName=prerequisites-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "counts": {
+        "total": 31,
+        "executed": 31,
+        "passed": 7,
+        "failed": 24,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "classes": {
+        "Planora.UnitTests.Services.Infrastructure.VersionedDatabaseStartupPostgresTests": {
+          "Failed": 16,
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.Infrastructure.AuthRoleModelDeterminismTests": {
+          "Failed": 4
+        },
+        "Planora.UnitTests.Services.Infrastructure.DesignTimeDbContextFactoryTests": {
+          "Passed": 3,
+          "Failed": 4
+        }
+      },
+      "times": {
+        "creation": "2026-11-03T22:50:07.5049165+03:00",
+        "queuing": "2026-11-03T22:50:07.5049175+03:00",
+        "start": "2026-11-03T22:49:55.9340426+03:00",
+        "finish": "2026-11-03T22:50:16.5596843+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\prerequisites-red.txt",
+      "log_sha256": "6c9b69b4585f50f961871dd54f994cb507c0e1c9c200901e9a945fc874eaa1b8",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\prerequisites-red.trx",
+      "trx_sha256": "c40bb9716ef6f183075169fe47bb3af13a621afddcfd0a00814f66fb34f82c08"
+    },
+    {
+      "id": "prerequisites-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~AuthRoleModelDeterminismTests|FullyQualifiedName~DesignTimeDbContextFactoryTests' --logger 'trx;LogFileName=prerequisites-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 11,
+        "executed": 11,
+        "passed": 11,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "classes": {
+        "Planora.UnitTests.Services.Infrastructure.DesignTimeDbContextFactoryTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.Infrastructure.AuthRoleModelDeterminismTests": {
+          "Passed": 4
+        }
+      },
+      "times": {
+        "creation": "2026-11-03T22:51:45.8066249+03:00",
+        "queuing": "2026-11-03T22:51:45.8066254+03:00",
+        "start": "2026-11-03T22:51:42.0161107+03:00",
+        "finish": "2026-11-03T22:51:49.1432218+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\prerequisites-green.txt",
+      "log_sha256": "1fc998f898508bf45f3da8d34266790808b90edee289796ad06c97f4c851ff66",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\prerequisites-green.trx",
+      "trx_sha256": "bb072261f3c8e84f707e110907c9944ac382ca290c1d799c306e9566b01734f0"
+    },
+    {
+      "id": "prerequisites-auth-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~Auth|FullyQualifiedName~DesignTimeDbContextFactoryTests' --logger 'trx;LogFileName=prerequisites-auth-broad.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "counts": {
+        "total": 508,
+        "executed": 508,
+        "passed": 508,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "classes": {
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserSecurityHandlerTests": {
+          "Passed": 17
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSupportServicesTests": {
+          "Passed": 12
+        },
+        "Planora.UnitTests.Services.AuthApi.Friendships.FriendshipHandlerTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarDecodeBoundaryTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthRepositoryPersistenceTests": {
+          "Passed": 15
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Handlers.AuthLifecycleHandlerTests": {
+          "Passed": 14
+        },
+        "Planora.UnitTests.Services.AuthApi.Controllers.FriendshipsControllerTests": {
+          "Passed": 5
+        },
+        "Planora.UnitTests.Services.AuthApi.Controllers.ClientErrorsControllerTests": {
+          "Passed": 12
+        },
+        "Planora.UnitTests.Services.AuthApi.Configuration.AuthApiConfigurationTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.PasswordValidatorTests": {
+          "Passed": 30
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.Enable2FACommandHandlerTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Validators.AuthValidatorTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.Infrastructure.DesignTimeDbContextFactoryTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.RealtimeApi.Grpc.TaskBranchAuthorizerTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Controllers.AnalyticsControllerTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.BuildingBlocks.Retention.Postgres.AuthRetentionPostgresTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserCommandHandlerTests": {
+          "Passed": 12
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Handlers.LoginCommandHandlerTests": {
+          "Passed": 11
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.RefreshTokenDomainTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.PasswordResetTokenServiceTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.UserDomainTests": {
+          "Passed": 16
+        },
+        "Planora.UnitTests.Services.TodoApi.Handlers.TodoCommandHandlerExpandedTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.TodoApi.Handlers.AllFriendsSnapshotHandlersTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.SkiaImageProcessorTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.Infrastructure.DependencyInjectionContractTests": {
+          "Passed": 3
+        },
+        "Planora.UnitTests.Services.AuthApi.Controllers.AuthenticationControllerTests": {
+          "Passed": 21
+        },
+        "Planora.UnitTests.Services.AuthApi.Grpc.AuthGrpcServiceTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Grpc.AuthAcceptedFriendshipsCanonicalizationTests": {
+          "Passed": 5
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.TwoFactorCommandValidatorTests": {
+          "Passed": 6
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.RabbitMqStartupHostedServiceTests": {
+          "Passed": 6
+        },
+        "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipSnapshotGrpcTests": {
+          "Passed": 3
+        },
+        "Planora.UnitTests.Services.Infrastructure.EfModelConfigurationTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.Infrastructure.RateLimitPolicyTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.AuthDomainExceptionTests": {
+          "Passed": 8
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.VerifyEmailCommandHandlerTests": {
+          "Passed": 9
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.TokenServiceTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.UpdateUserCommandValidatorTests": {
+          "Passed": 39
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.FriendshipDomainTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Quality.RuntimeContractTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Grpc.AuthFriendshipsSnapshotContractTests": {
+          "Passed": 6
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.EmailTests": {
+          "Passed": 10
+        },
+        "Planora.UnitTests.Services.RealtimeApi.Controllers.NotificationsControllerTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserQueryHandlerTests": {
+          "Passed": 5
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalFileStorageServiceTests": {
+          "Passed": 5
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Handlers.RequestPasswordResetCommandHandlerTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.UploadAvatarCommandHandlerTests": {
+          "Passed": 8
+        },
+        "Planora.UnitTests.Services.TodoApi.Handlers.GetUserTodosRevealHiddenTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.TodoApi.Infrastructure.AllFriendsSnapshotBackfillTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthJwtStampWiringTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Common.Security.OpaqueTokenTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.RealtimeApi.Infrastructure.NotificationInfrastructureTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.CollaborationApi.Domain.CommentTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.PasswordHasherTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.CollaborationApi.Handlers.CommentCommandHandlerTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Filters.AuthApiFilterTests": {
+          "Passed": 9
+        },
+        "Planora.UnitTests.Services.AuthApi.Controllers.UsersControllerTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Handlers.AuthSessionHandlerTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.Infrastructure.AuthRoleModelDeterminismTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Handlers.ResetPasswordCommandHandlerTests": {
+          "Passed": 8
+        },
+        "Planora.UnitTests.Services.CollaborationApi.IntegrationEvents.IntegrationEventConsumerTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.Infrastructure.CurrentUserServiceTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.GetUsersQueryHandlerTests": {
+          "Passed": 3
+        },
+        "Planora.UnitTests.Services.AuthApi.Common.Security.FrontendLinkBuilderTests": {
+          "Passed": 7
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.RabbitMqHealthCheckTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.PasswordHistoryDomainTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Domain.LoginHistoryDomainTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.TodoApi.Infrastructure.TodoGrpcClientTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthAuditAndBlacklistServiceTests": {
+          "Passed": 4
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Handlers.Confirm2FACommandHandlerTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.DomainEventContractTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Friendships.GetFriendsPagingTests": {
+          "Passed": 3
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.ChangeEmailCommandValidatorTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.Infrastructure.UnitOfWorkTransactionTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.CategoryApi.Handlers.GetUserCategoriesQueryHandlerTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.GetLoginHistoryQueryValidatorTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Authentication.Validators.LogoutCommandValidatorTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.TodoApi.Validators.DirectSharingLimitTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.GetUsersQueryValidatorTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.Infrastructure.RepositoryBehaviorTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Api.OpenTelemetryExtensionsTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.SecurityStampUsageContractTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.AuthApi.Users.Validators.UserAccountCommandValidatorTests": {
+          "Passed": 2
+        },
+        "Planora.UnitTests.BuildingBlocks.Grpc.ServiceKeyInterceptorTests": {
+          "Passed": 1
+        },
+        "Planora.UnitTests.Services.CategoryApi.Handlers.GetCategoryByIdQueryHandlerTests": {
+          "Passed": 1
+        }
+      },
+      "times": {
+        "creation": "2026-11-03T22:53:11.3137080+03:00",
+        "queuing": "2026-11-03T22:53:11.3137085+03:00",
+        "start": "2026-11-03T22:53:09.8339862+03:00",
+        "finish": "2026-11-03T22:53:38.4275301+03:00"
+      },
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\prerequisites-auth-broad.txt",
+      "log_sha256": "e3b9a939d2bbe4a3f10a53e8026aa8844c144fdc2940af71ed50a0e18fac307d",
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\prerequisites-auth-broad.trx",
+      "trx_sha256": "1a55ba656de9361541368eead5c8861e7060679924ec406916ae880dd6560439"
+    }
+  ]
+}

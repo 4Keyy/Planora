@@ -7,12 +7,14 @@ namespace Planora.Messaging.Infrastructure.DesignTime
             var basePath = Directory.GetCurrentDirectory();
             var builder = new ConfigurationBuilder()
                 .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json", optional: true);
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddEnvironmentVariables();
 
             var configuration = builder.Build();
-            var conn = configuration.GetConnectionString("DefaultConnection")
-                       ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-                       ?? "Host=localhost;Port=5432;Database=planora_messaging;Username=postgres;Password=postgres";
+            var conn = configuration.GetConnectionString("MessagingDatabase")
+                       ?? configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(conn))
+                throw new InvalidOperationException("Design-time MessagingDatabase connection string is required.");
 
             var optionsBuilder = new DbContextOptionsBuilder<MessagingDbContext>();
             optionsBuilder.UseNpgsql(conn);
