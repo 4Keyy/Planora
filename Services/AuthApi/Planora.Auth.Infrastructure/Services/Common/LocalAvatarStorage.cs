@@ -23,6 +23,30 @@ public sealed class LocalAvatarStorage : IAvatarStorage
         _logger = logger;
     }
 
+    public async Task<IAsyncDisposable> AcquireMutationLockAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var lockFolder = Path.Combine(ResolveUploadsRoot(), RootFolder, ".locks");
+        Directory.CreateDirectory(lockFolder);
+        // A fixed set of lock files avoids retaining user IDs or deleting a file another process has opened.
+        var stripe = userId.ToString("N")[..2];
+        var lockPath = Path.Combine(lockFolder, $"{stripe}.lock");
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex) when (IsLockContention(ex))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+            }
+        }
+    }
+
     public async Task<AvatarManifest> PutAsync(
         Guid userId,
         ProcessedAvatar avatar,
@@ -35,6 +59,7 @@ public sealed class LocalAvatarStorage : IAvatarStorage
 
         var uploadsRoot = ResolveUploadsRoot();
         var userFolder = Path.Combine(uploadsRoot, RootFolder, userId.ToString("N"), avatar.ContentHash);
+        EnsureWithinRoot(uploadsRoot, userFolder);
         Directory.CreateDirectory(userFolder);
 
         var urls = new Dictionary<AvatarSize, string>();
@@ -44,14 +69,20 @@ public sealed class LocalAvatarStorage : IAvatarStorage
             var fullPath = Path.Combine(userFolder, fileName);
             EnsureWithinRoot(uploadsRoot, fullPath);
 
-            await using var fs = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            await fs.WriteAsync(variant.Data, cancellationToken);
+            // Stage each variant in the same directory so a failed write cannot truncate a published file.
+            var stagedPath = Path.Combine(userFolder, $"{Guid.NewGuid():N}.tmp");
+            try
+            {
+                await File.WriteAllBytesAsync(stagedPath, variant.Data, cancellationToken);
+                File.Move(stagedPath, fullPath, overwrite: true);
+            }
+            finally
+            {
+                TryDeleteStagedFile(stagedPath, userId);
+            }
 
             urls[variant.Size] = $"/{RootFolder}/{userId:N}/{avatar.ContentHash}/{fileName}";
         }
-
-        // Best-effort cleanup of older hash directories for this user — keep only the latest.
-        TryPruneOldRevisions(userId, keepHash: avatar.ContentHash);
 
         return new AvatarManifest(
             SmallUrl: urls[AvatarSize.Small],
@@ -60,13 +91,14 @@ public sealed class LocalAvatarStorage : IAvatarStorage
             ContentHash: avatar.ContentHash);
     }
 
-    public Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
         {
-            return Task.CompletedTask;
+            return;
         }
 
+        await using var mutationLock = await AcquireMutationLockAsync(userId, cancellationToken);
         var uploadsRoot = ResolveUploadsRoot();
         var userFolder = Path.Combine(uploadsRoot, RootFolder, userId.ToString("N"));
         EnsureWithinRoot(uploadsRoot, userFolder);
@@ -76,10 +108,9 @@ public sealed class LocalAvatarStorage : IAvatarStorage
             Directory.Delete(userFolder, recursive: true);
             _logger.LogInformation("Deleted avatar tree for user {UserId}", userId);
         }
-        return Task.CompletedTask;
     }
 
-    private void TryPruneOldRevisions(Guid userId, string keepHash)
+    public void PruneOldRevisions(Guid userId, string keepHash)
     {
         try
         {
@@ -101,6 +132,23 @@ public sealed class LocalAvatarStorage : IAvatarStorage
             _logger.LogWarning(ex, "Failed to prune old avatar revisions for {UserId}", userId);
         }
     }
+
+    private void TryDeleteStagedFile(string path, Guid userId)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Failed to remove staged avatar file for {UserId}", userId);
+        }
+    }
+
+    private static bool IsLockContention(IOException exception) =>
+        // FileShare.None reports a Windows sharing violation or Unix EWOULDBLOCK.
+        OperatingSystem.IsWindows() ? exception.HResult == unchecked((int)0x80070020) :
+        OperatingSystem.IsMacOS() ? exception.HResult == 35 : exception.HResult == 11;
 
     private string ResolveUploadsRoot()
     {

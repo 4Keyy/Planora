@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "2f2352fda2f402d959a203dfb93ba574d822bd73",
+  "current_sha": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -161,7 +161,17 @@
     "docs/audits/planora-deep-audit/results/evidence/read-036-review.json",
     "docs/audits/planora-deep-audit/results/evidence/read-036-review.md",
     "docs/audits/planora-deep-audit/results/evidence/read-037-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-037-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-037-review.md",
+    "Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IAvatarStorage.cs",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/DeleteUser/DeleteUserCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/UploadAvatar/UploadAvatarCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthDeletionOutboxTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AvatarReplacementPersistenceTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LocalAvatarStorageTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t02-avatar-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -185,9 +195,10 @@
     "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending.",
     "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips.",
     "READ-036 completed 25 paths and 1067 source lines. OPS-014 Redis endpoint parity, BE-021 derived reply erasure and BE-022 author-note count are static findings pending runtime. Coverage 455/1558, 71 batches pending.",
-    "READ-037 completed 25 paths and 1291 source lines. DIST-012 ordering, BE-023 author width and BE-024 Unicode preview await runtime. Coverage 480/1558, 70 batches pending."
+    "READ-037 completed 25 paths and 1291 source lines. DIST-012 ordering, BE-023 author width and BE-024 Unicode preview await runtime. Coverage 480/1558, 70 batches pending.",
+    "BE-016 preserves the old avatar through profile save. Filesystem coordination, staged account deletion and independent bounded cleanup passed 55 targeted and 1464 broad tests without skips."
   ],
-  "next_step": "Verify BE-016 avatar publication and lock behavior. Reproduce persisted refresh survival in ChangePassword and RevokeAllSessions.",
+  "next_step": "Finish ChangePassword/RevokeAllSessions provider checks and lock-order review. Record the independent READ-039 evidence.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2200,6 +2211,84 @@
       "log_sha256": "bf2f66a65c1a697280f29dee3cf6dbd56758b40623cf94e1d76f0439beb4fe0e",
       "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-errors.trx",
       "trx_sha256": "244396ad2493a83c4525e5f1bc1153b315ed02a66f464cfb16e44899af2f7424"
+    },
+    {
+      "id": "t02-avatar-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar' --logger 'trx;LogFileName=t02-avatar-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 41,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 4,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green.txt",
+      "log_sha256": "a86deb2debf2ec204276c7ca1c90e01c4ad5ade69615d69c5c321b1f7bc15f31",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green.trx",
+      "trx_sha256": "39902a223ca9c04681ca5d2848ceb8b5695cd4941cb76b0896801e3b2532c725"
+    },
+    {
+      "id": "t02-avatar-and-revocation-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-avatar-and-revocation-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 44,
+      "passed": 41,
+      "failed": 3,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-and-revocation-red.txt",
+      "log_sha256": "6c9b58de9c7303b48124d67f77ab5005dc89549ec00c6ad9486b843df085d550",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-and-revocation-red.trx",
+      "trx_sha256": "4f90eddfd9751d019952adadf58a94b118760ddd5b249e915a755961a67572a4"
+    },
+    {
+      "id": "t02-avatar-green-provider",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests' --logger 'trx;LogFileName=t02-avatar-green-provider.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 46,
+      "passed": 45,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-provider.txt",
+      "log_sha256": "477f236add984dbe3e0d4d33eacb52ebb61b6c83d54e7afc2f11d2515fdeb890",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-provider.trx",
+      "trx_sha256": "2b1f2969177bcf2e4a7349db515010dd88037f6cc821d6daa05c02941f0dfed5"
+    },
+    {
+      "id": "t02-avatar-green-final",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests|FullyQualifiedName~UserCommandHandlerTests' --logger 'trx;LogFileName=t02-avatar-green-final.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 55,
+      "passed": 54,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-final.txt",
+      "log_sha256": "f086148b6a70e9b36e5afe2b26fe10e28252bedc29467631da119e3562a077b4",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-final.trx",
+      "trx_sha256": "44de79cc6012efea8f2b625f90b70abcf2afe314c91b782ad0dcacccd0f4b903"
+    },
+    {
+      "id": "t02-avatar-green-rerun",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests|FullyQualifiedName~UserCommandHandlerTests' --logger 'trx;LogFileName=t02-avatar-green-rerun.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-rerun.txt",
+      "log_sha256": "4f63d53976519e1fd7b87ec35ae3f2561df9b51e0f4750f30ff88a20bc98fb46",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-rerun.trx",
+      "trx_sha256": "822f4166454430cf918c130bb7efc855b989479631f1622d19d3871aaba9421e"
+    },
+    {
+      "id": "t02-avatar-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AuthSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-avatar-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1464,
+      "passed": 1464,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-broad.txt",
+      "log_sha256": "9c9c24ab3d183fe4d48f6b94a1d25baee71aea6f76b7a3552994e6fb2d5c8f4f",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-broad.trx",
+      "trx_sha256": "8f04f2d218068e73a7c3d8cc4fbaec22187f313c58470dd5fd71987b3ddd7f24"
     }
   ],
   "audit_coverage": {
@@ -2268,7 +2357,8 @@
     "results/evidence/read-036-review.json",
     "results/evidence/read-036-review.md",
     "results/evidence/read-037-review.json",
-    "results/evidence/read-037-review.md"
+    "results/evidence/read-037-review.md",
+    "results/evidence/t02-avatar-verification.json"
   ],
   "local_commits": [
     {
@@ -2330,6 +2420,11 @@
       "task": "READ-036 Category and Collaboration runtime boundaries",
       "sha": "2f2352fda2f402d959a203dfb93ba574d822bd73",
       "pushed": false
+    },
+    {
+      "task": "READ-037 Collaboration event ordering and bounds",
+      "sha": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2356,7 +2451,7 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "Authenticated ChangePassword/RevokeAllSessions PostgreSQL revocation gates, BE-016 avatar publish/cleanup, outgoing email invitation privacy, erasure and T14 key-ring deployment."
+    "T02": "Authenticated ChangePassword/RevokeAllSessions PostgreSQL GREEN, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment."
   },
   "new_findings": [
     "BE-008",

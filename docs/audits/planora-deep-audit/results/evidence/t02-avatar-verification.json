@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "head": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Disposable PostgreSQL 16.13 and RabbitMQ with owner/endpoint checks. Windows temporary WebRoot. Unbound Redis test endpoint verified.",
+  "commands": [
+    {
+      "id": "t02-avatar-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AvatarReplacementPersistenceTests",
+      "exit_code": 1,
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-red.txt",
+      "log_sha256": "474bddbf6c64d0f8585fdd4622aa9775450676ef6b0f6940a76e51d8f4487134",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-red.trx",
+      "trx_sha256": "a594be6ea38aa49bd53a0c5642cec75ba2c16b381b9fd074a47e8c49d437e912"
+    },
+    {
+      "id": "t02-avatar-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar' --logger 'trx;LogFileName=t02-avatar-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 41,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 4,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green.txt",
+      "log_sha256": "a86deb2debf2ec204276c7ca1c90e01c4ad5ade69615d69c5c321b1f7bc15f31",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green.trx",
+      "trx_sha256": "39902a223ca9c04681ca5d2848ceb8b5695cd4941cb76b0896801e3b2532c725"
+    },
+    {
+      "id": "t02-avatar-and-revocation-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-avatar-and-revocation-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 44,
+      "passed": 41,
+      "failed": 3,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-and-revocation-red.txt",
+      "log_sha256": "6c9b58de9c7303b48124d67f77ab5005dc89549ec00c6ad9486b843df085d550",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-and-revocation-red.trx",
+      "trx_sha256": "4f90eddfd9751d019952adadf58a94b118760ddd5b249e915a755961a67572a4"
+    },
+    {
+      "id": "t02-avatar-green-provider",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests' --logger 'trx;LogFileName=t02-avatar-green-provider.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 46,
+      "passed": 45,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-provider.txt",
+      "log_sha256": "477f236add984dbe3e0d4d33eacb52ebb61b6c83d54e7afc2f11d2515fdeb890",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-provider.trx",
+      "trx_sha256": "2b1f2969177bcf2e4a7349db515010dd88037f6cc821d6daa05c02941f0dfed5"
+    },
+    {
+      "id": "t02-avatar-green-final",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests|FullyQualifiedName~UserCommandHandlerTests' --logger 'trx;LogFileName=t02-avatar-green-final.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 55,
+      "passed": 54,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-final.txt",
+      "log_sha256": "f086148b6a70e9b36e5afe2b26fe10e28252bedc29467631da119e3562a077b4",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-final.trx",
+      "trx_sha256": "44de79cc6012efea8f2b625f90b70abcf2afe314c91b782ad0dcacccd0f4b903"
+    },
+    {
+      "id": "t02-avatar-green-rerun",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthDeletionOutboxTests|FullyQualifiedName~UserCommandHandlerTests' --logger 'trx;LogFileName=t02-avatar-green-rerun.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-green-rerun.txt",
+      "log_sha256": "4f63d53976519e1fd7b87ec35ae3f2561df9b51e0f4750f30ff88a20bc98fb46",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-green-rerun.trx",
+      "trx_sha256": "822f4166454430cf918c130bb7efc855b989479631f1622d19d3871aaba9421e"
+    },
+    {
+      "id": "t02-avatar-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AuthSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-avatar-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1464,
+      "passed": 1464,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-broad.txt",
+      "log_sha256": "9c9c24ab3d183fe4d48f6b94a1d25baee71aea6f76b7a3552994e6fb2d5c8f4f",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-broad.trx",
+      "trx_sha256": "8f04f2d218068e73a7c3d8cc4fbaec22187f313c58470dd5fd71987b3ddd7f24"
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.BuildingBlocks.Retention.Postgres.AuthRetentionPostgresTests.DeletedAccounts_ArePurgedPastGrace_WithEveryDependentRow_AndTheirAvatars",
+      "outcome": "NotExecuted"
+    },
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.BuildingBlocks.Retention.Postgres.AuthRetentionPostgresTests.DeletedAccount_AvatarFailurePreservesDependents_AndTheNextPassRetries",
+      "outcome": "NotExecuted"
+    },
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests.DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.BuildingBlocks.Retention.Postgres.AuthRetentionPostgresTests.DeletedAccount_CancelledAvatarCleanupDoesNotPurgeTheAccount",
+      "outcome": "NotExecuted"
+    },
+    {
+      "command": "t02-avatar-green",
+      "test": "Planora.UnitTests.BuildingBlocks.Retention.Postgres.AuthRetentionPostgresTests.DeletedAccount_LockedAvatarDoesNotBlockOtherAccounts_AcrossBatches",
+      "outcome": "NotExecuted"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests.DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-green-provider",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-provider",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserCommandHandlerTests.DeleteUser_WhenPersistenceFails_DoesNotDeleteAvatarOrRotateStamp",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-green-provider",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests.DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-provider",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserCommandHandlerTests.DeleteUser_ShouldSoftDeleteDeactivateAndPersistCleanupEventBeforeExternalCalls",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests.DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-avatar-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LocalAvatarStorageTests.DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "friendship_review",
+    "result": "Reviewed lock lifetime, cancellation and storage contention, preserving the active file across failed save, and post-commit deletion boundary.",
+    "limits": "Windows same-volume tests and source review. No Linux process, cross-volume rollout, power-loss or mixed-binary runtime verification. Failed or uncertain publish can leave an unreferenced revision for the next replacement or erasure."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IAvatarStorage.cs": "d9ca32b64ad26640a28326fae500960a56289e2cda408258d473c510f57ad441",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/DeleteUser/DeleteUserCommandHandler.cs": "a4f77e0356b03679f3d7f510b36d33c5d574b20cdc022c68a1ca616cc0046a5f",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/UploadAvatar/UploadAvatarCommandHandler.cs": "9b7102a54c8356817060505f444f1fbda745f6b0e193f7e652e66f826858910f",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs": "2e308ae53fbf26ff51b1fdfab46552580a69a4f4c31f9afcbc4cdc1b9dfd6011",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthDeletionOutboxTests.cs": "78cd05a7823524c30e2be48f3a16aeeaf99777e97118842dbcbb09161309ff12",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AvatarReplacementPersistenceTests.cs": "3b75f2d12c61fe8bb9713df9e5d0f54fccb87bab771eb8205a380180b2605e11",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LocalAvatarStorageTests.cs": "5ece84e91738dab556c702157cadc50adc559ff3ba41e615d29ad44ab589600f",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs": "aba2ccf47ddf73aac8f95965bacbc9950009cc0be9641b0cea1116a280c7313a",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs": "45f2a52b7609c1e0cc952d31b80213fee4eb0c47ee3b31eddeef869d53849c09"
+  }
+}

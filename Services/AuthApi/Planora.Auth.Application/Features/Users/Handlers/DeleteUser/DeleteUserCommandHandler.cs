@@ -63,11 +63,11 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
 
             _unitOfWork.Users.Update(user);
 
-            // The canonical outbox shares this unit of work's context: AddAsync commits
-            // the tracked deletion and its cleanup event together. A Redis or broker outage
+            // The canonical outbox shares this unit of work's context. Save the tracked
+            // deletion and its staged cleanup event together. A Redis or broker outage
             // after this commit must not leave other services with an unrepeatable deletion.
             var integrationEvent = new UserDeletedIntegrationEvent(user.Id, user.Email.Value);
-            await _outbox.AddAsync(new OutboxMessage(
+            await _outbox.StageAsync(new OutboxMessage(
                 typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName!,
                 JsonSerializer.Serialize(integrationEvent),
                 DateTime.UtcNow), cancellationToken);
@@ -89,7 +89,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
                 // a stamp failure itself still propagates rather than reporting success.
                 try
                 {
-                    await _avatarStorage.DeleteAsync(user.Id, cancellationToken);
+                    // Deletion already committed. Give cleanup its own bounded time to take the avatar lock.
+                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await _avatarStorage.DeleteAsync(user.Id, cleanup.Token);
                 }
                 catch (Exception ex)
                 {

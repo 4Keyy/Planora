@@ -116,7 +116,7 @@ public sealed class UserCommandHandlerTests
         Assert.True(invalidPasswordResult.IsFailure);
         Assert.Equal("INVALID_PASSWORD", invalidPasswordResult.Error!.Code);
         invalidPassword.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        invalidPassword.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        invalidPassword.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -127,20 +127,21 @@ public sealed class UserCommandHandlerTests
     {
         var user = CreateUser("delete-success@example.com", "Delete", "Success");
         var fixture = CreateDeleteFixture(user.Id);
-        OutboxMessage? persistedMessage = null;
+        OutboxMessage? stagedMessage = null;
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
         fixture.Outbox
-            .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
-            .Callback<OutboxMessage, CancellationToken>((message, _) => persistedMessage = message)
+            .Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<OutboxMessage, CancellationToken>((message, _) => stagedMessage = message)
             .Returns(Task.CompletedTask);
         fixture.UnitOfWork
             .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => Assert.NotNull(persistedMessage))
+            .Callback(() => Assert.NotNull(stagedMessage))
             .ReturnsAsync(1);
         fixture.SecurityStamp
             .Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
-            .Callback(() => Assert.NotNull(persistedMessage))
+            .Callback(() => fixture.UnitOfWork.Verify(
+                x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once))
             .Returns(Task.CompletedTask);
 
         var result = await fixture.Handler.Handle(
@@ -153,10 +154,10 @@ public sealed class UserCommandHandlerTests
         Assert.Equal(user.Id, user.DeletedBy);
         fixture.Users.Verify(x => x.Update(user), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        Assert.NotNull(persistedMessage);
-        Assert.Equal(OutboxMessageStatus.Pending, persistedMessage.Status);
-        Assert.Equal(typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName, persistedMessage.Type);
-        var cleanupEvent = JsonSerializer.Deserialize<UserDeletedIntegrationEvent>(persistedMessage.Content)!;
+        Assert.NotNull(stagedMessage);
+        Assert.Equal(OutboxMessageStatus.Pending, stagedMessage.Status);
+        Assert.Equal(typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName, stagedMessage.Type);
+        var cleanupEvent = JsonSerializer.Deserialize<UserDeletedIntegrationEvent>(stagedMessage.Content)!;
         Assert.Equal(user.Id, cleanupEvent.UserId);
         Assert.Equal(user.Email.Value, cleanupEvent.Email);
 
@@ -195,7 +196,7 @@ public sealed class UserCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.True(user.IsDeleted);
         fixture.Outbox.Verify(
-            x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()),
+            x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -216,7 +217,7 @@ public sealed class UserCommandHandlerTests
             new DeleteUserCommand { Password = "Password123!" }, CancellationToken.None));
 
         Assert.True(user.IsDeleted);
-        fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         fixture.AvatarStorage.Verify(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }

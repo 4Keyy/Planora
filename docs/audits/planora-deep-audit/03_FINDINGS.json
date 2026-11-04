@@ -2051,11 +2051,16 @@
       "Сохранить аватар A, вызвать загрузку B с инъекцией ошибки SaveChangesAsync после PutAsync, проверить сохранённый URL и существование файлов A. Конкурентный вариант требует отдельного теста."
     ],
     "dependencies": [],
-    "limitations": "Static source evidence CONT034001; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json.",
+    "limitations": "Verified on one local WebRoot under Windows. Linux cross-process, shared volume policy, mixed deployment and cross-volume behavior remain open. See results/T02.md.",
     "local_remediation_checkpoint": {
       "status": "RUNTIME_REPRODUCED",
       "report": "results/T02.md",
       "note": "Isolated temporary-directory RED confirmed previous avatar bytes are removed on failed profile save. Remediation open."
+    },
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/t02-avatar-verification.json",
+      "note": "Failed-save RED reversed on actual local storage; Windows lock contention and PostgreSQL deletion/outbox and cancellation controls passed."
     }
   },
   {

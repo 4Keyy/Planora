@@ -49,18 +49,46 @@ public sealed class LocalAvatarStorageTests : IDisposable
 
     [Fact]
     [Trait("TestType", "Functional")]
-    public async Task PutAsync_ShouldPruneOlderRevisionsForSameUser()
+    public async Task PruneOldRevisions_ShouldKeepTheCommittedHashForSameUser()
     {
         var sut = CreateService();
         var userId = Guid.NewGuid();
+        await using var mutationLock = await sut.AcquireMutationLockAsync(userId);
 
         await sut.PutAsync(userId, MakeProcessed("hash-old"), CancellationToken.None);
         await sut.PutAsync(userId, MakeProcessed("hash-new"), CancellationToken.None);
 
         var userFolder = Path.Combine(_root, "avatars", userId.ToString("N"));
+        Assert.Equal(2, Directory.GetDirectories(userFolder).Length);
+        sut.PruneOldRevisions(userId, "hash-new");
+
         var remaining = Directory.GetDirectories(userFolder).Select(Path.GetFileName).ToList();
         Assert.Single(remaining);
         Assert.Equal("hash-new", remaining[0]);
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteAsync_WaitsForAnUploadLeaseAcrossStorageInstances()
+    {
+        var uploader = CreateService();
+        var deleter = CreateService();
+        var userId = Guid.NewGuid();
+        var manifest = await uploader.PutAsync(userId, MakeProcessed("current"));
+        var file = Path.Combine(_root, manifest.CanonicalUrl.TrimStart('/'));
+
+        using var cancelledDelete = new CancellationTokenSource();
+        await using (await uploader.AcquireMutationLockAsync(userId))
+        {
+            var deletion = deleter.DeleteAsync(userId, cancelledDelete.Token);
+            Assert.False(deletion.IsCompleted);
+            cancelledDelete.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => deletion);
+            Assert.True(File.Exists(file));
+        }
+
+        await deleter.DeleteAsync(userId);
+        Assert.False(File.Exists(file));
     }
 
     [Fact]

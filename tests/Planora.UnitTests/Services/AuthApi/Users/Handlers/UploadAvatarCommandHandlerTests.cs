@@ -148,6 +148,8 @@ public sealed class UploadAvatarCommandHandlerTests
             .Setup(x => x.PutAsync(user.Id, processed, It.IsAny<CancellationToken>()))
             .ReturnsAsync(manifest);
         fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        fixture.AvatarStorage.Setup(x => x.PruneOldRevisions(user.Id, manifest.ContentHash))
+            .Callback(() => fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once));
         fixture.Mapper.Setup(x => x.Map<UserDto>(user))
             .Returns(new UserDto { Id = user.Id, Email = user.Email.Value, ProfilePictureUrl = manifest.CanonicalUrl });
 
@@ -159,6 +161,7 @@ public sealed class UploadAvatarCommandHandlerTests
         Assert.Equal(manifest.MediumUrl, result.Value!.ProfilePictureUrl);
         Assert.Equal(manifest.MediumUrl, user.ProfilePictureUrl);
         fixture.AvatarStorage.Verify(x => x.PutAsync(user.Id, processed, It.IsAny<CancellationToken>()), Times.Once);
+        fixture.AvatarStorage.Verify(x => x.PruneOldRevisions(user.Id, manifest.ContentHash), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

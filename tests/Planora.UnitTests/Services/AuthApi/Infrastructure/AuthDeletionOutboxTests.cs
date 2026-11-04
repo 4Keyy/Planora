@@ -77,6 +77,34 @@ public sealed class AuthDeletionOutboxTests
     }
 
     [PostgresFact]
+    public async Task CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        using var request = new CancellationTokenSource();
+        fixture.SecurityStamp.Setup(x => x.SetStampAsync(fixture.UserId, request.Token))
+            .Callback(request.Cancel)
+            .ThrowsAsync(new OperationCanceledException(request.Token));
+        bool? cleanupCancelled = null;
+        fixture.Avatars.Setup(x => x.DeleteAsync(fixture.UserId, It.IsAny<CancellationToken>()))
+            .Callback<Guid, CancellationToken>((_, token) => cleanupCancelled = token.IsCancellationRequested)
+            .Returns(Task.CompletedTask);
+
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Handler(scope.ServiceProvider).Handle(
+                new DeleteUserCommand { Password = "valid-test-password" }, request.Token));
+        }
+
+        await using var verification = fixture.Services.CreateAsyncScope();
+        var saved = verification.ServiceProvider.GetRequiredService<AuthDbContext>();
+        Assert.True(await saved.Users.IgnoreQueryFilters()
+            .Where(x => x.Id == fixture.UserId).Select(x => x.IsDeleted).SingleAsync());
+        Assert.Single(await saved.OutboxMessages.ToListAsync());
+        fixture.Avatars.Verify(x => x.DeleteAsync(fixture.UserId, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(cleanupCancelled);
+    }
+
+    [PostgresFact]
     public async Task BrokerFailure_DoesNotFailDeletion_AndProcessorRetriesPersistedCleanupEvent()
     {
         await using var fixture = await Fixture.CreateAsync();

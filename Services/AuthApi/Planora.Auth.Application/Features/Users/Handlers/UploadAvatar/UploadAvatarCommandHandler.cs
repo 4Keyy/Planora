@@ -46,9 +46,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
                     Planora.BuildingBlocks.Domain.Error.Unauthorized("NOT_AUTHENTICATED", "User not authenticated"));
             }
 
-            var user = await _unitOfWork.Users.GetByIdAsync(
-                _currentUserService.UserId.Value,
-                cancellationToken);
+            var userId = _currentUserService.UserId.Value;
+            await using var mutationLock = await _avatarStorage.AcquireMutationLockAsync(userId, cancellationToken);
+            var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
 
             if (user == null)
             {
@@ -80,6 +80,11 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
 
             var manifest = await _avatarStorage.PutAsync(user.Id, processed.Value!, cancellationToken);
 
+            // The user is tracked. Save the avatar and audit fields without writing a stale user snapshot.
+            user.UpdateProfile(user.FirstName, user.LastName, manifest.CanonicalUrl, user.Id);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _avatarStorage.PruneOldRevisions(user.Id, manifest.ContentHash);
+
             foreach (var variant in processed.Value!.Variants)
             {
                 _metrics.RecordVariantBytes(
@@ -87,10 +92,6 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
                     variant.Data.LongLength);
             }
             _metrics.RecordOutcome("success");
-
-            user.UpdateProfile(user.FirstName, user.LastName, manifest.CanonicalUrl, user.Id);
-            _unitOfWork.Users.Update(user);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
                 "Avatar updated: UserId={UserId} Hash={Hash} CanonicalUrl={Url}",

@@ -2,10 +2,15 @@ namespace Planora.Auth.Application.Common.Interfaces;
 
 public interface IAvatarStorage
 {
+    /// <summary>Serializes a user's upload through profile persistence and revision cleanup.</summary>
+    Task<IAsyncDisposable> AcquireMutationLockAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<AvatarManifest> PutAsync(
         Guid userId,
         ProcessedAvatar avatar,
         CancellationToken cancellationToken = default);
+
+    void PruneOldRevisions(Guid userId, string keepHash);
 
     Task DeleteAsync(Guid userId, CancellationToken cancellationToken = default);
 }
