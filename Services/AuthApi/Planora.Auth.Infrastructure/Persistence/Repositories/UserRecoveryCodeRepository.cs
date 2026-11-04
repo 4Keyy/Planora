@@ -15,8 +15,27 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             CancellationToken cancellationToken = default)
         {
             return await _context.Set<UserRecoveryCode>()
+                .AsNoTracking()
                 .Where(rc => rc.UserId == userId && !rc.IsUsed && !rc.IsDeleted)
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<bool> TryConsumeAsync(
+            Guid userId,
+            Guid codeId,
+            string expectedHash,
+            CancellationToken cancellationToken = default)
+        {
+            var usedAt = DateTime.UtcNow;
+            var changed = await _context.Set<UserRecoveryCode>()
+                .Where(code => code.UserId == userId && code.Id == codeId &&
+                    code.CodeHash == expectedHash && !code.IsUsed && !code.IsDeleted)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(code => code.IsUsed, true)
+                    .SetProperty(code => code.UsedAt, usedAt)
+                    .SetProperty(code => code.UpdatedAt, usedAt)
+                    .SetProperty(code => code.UpdatedBy, userId), cancellationToken);
+            return changed == 1;
         }
 
         public async Task DeleteAllForUserAsync(

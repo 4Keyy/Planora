@@ -1592,7 +1592,13 @@
       "Normal pagination, ownership and cancellation remain intact; invalid-input behavior is covered."
     ],
     "dependencies": [],
-    "limitations": "Source-confirmed arithmetic/validation path. Node signed-Int32 diagnostic only; C# endpoint and Npgsql reproduction pending. See results/evidence/read-011-review.json."
+    "limitations": "Source-confirmed arithmetic/validation path. Node signed-Int32 diagnostic only; C# endpoint and Npgsql reproduction pending. See results/evidence/read-011-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "Real PostgreSQL RED/GREEN. See t02-one-time-verification.json.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-009",
@@ -1686,7 +1692,7 @@
   {
     "id": "BE-011",
     "title": "One recovery code can pass concurrent redemption checks",
-    "confidence": "LIKELY",
+    "confidence": "CONFIRMED",
     "priority": "P1",
     "severity": "high",
     "likelihood": "condition-dependent",
@@ -1731,12 +1737,18 @@
       "Used, wrong-owner and cancellation controls. Test token/session outcomes independently."
     ],
     "dependencies": [],
-    "limitations": "Source review CONT033-001; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+    "limitations": "Source review CONT033-001; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "Real PostgreSQL RED/GREEN. See t02-one-time-verification.json.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-012",
     "title": "Password reset validation and token clearing are separate concurrency steps",
-    "confidence": "LIKELY",
+    "confidence": "CONFIRMED",
     "priority": "P1",
     "severity": "high",
     "likelihood": "condition-dependent",
@@ -1781,7 +1793,13 @@
       "Expired-token clearing must not erase a newly issued token. Preserve normal and sequential replay responses."
     ],
     "dependencies": [],
-    "limitations": "Source review CONT033-002; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+    "limitations": "Source review CONT033-002; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "Real PostgreSQL RED/GREEN. See t02-one-time-verification.json.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-013",
@@ -2018,7 +2036,12 @@
       "Сохранить аватар A, вызвать загрузку B с инъекцией ошибки SaveChangesAsync после PutAsync, проверить сохранённый URL и существование файлов A. Конкурентный вариант требует отдельного теста."
     ],
     "dependencies": [],
-    "limitations": "Static source evidence CONT034001; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json."
+    "limitations": "Static source evidence CONT034001; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "RUNTIME_REPRODUCED",
+      "report": "results/T02.md",
+      "note": "Isolated temporary-directory RED confirmed previous avatar bytes are removed on failed profile save. Remediation open."
+    }
   },
   {
     "id": "BE-017",

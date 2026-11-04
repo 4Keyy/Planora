@@ -67,7 +67,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RequestPassw
                 var resetTokenHash = _tokenService.HashToken(resetToken);
                 user.SetPasswordResetToken(resetTokenHash, DateTime.UtcNow.Add(_tokenService.TokenLifetime));
 
-                _unitOfWork.Users.Update(user);
+                // GetByEmailAsync tracks this user. Persist only the changed reset and audit fields.
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 var resetLink = FrontendLinkBuilder.PasswordReset(_frontendOptions.Value, resetToken);

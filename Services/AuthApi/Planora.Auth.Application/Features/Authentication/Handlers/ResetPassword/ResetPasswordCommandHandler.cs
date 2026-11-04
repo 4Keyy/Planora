@@ -42,19 +42,15 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
                 if (user == null)
                 {
                     _logger.LogWarning("Invalid password reset token");
-                    return Result.Failure(
-                        Error.Unauthorized("INVALID_TOKEN", "Password reset token is invalid or expired"));
+                    return InvalidToken();
                 }
 
                 if (!_tokenService.IsTokenValid(command.ResetToken, user.PasswordResetToken, user.PasswordResetTokenExpiry))
                 {
-                    user.ClearPasswordResetToken(user.Id);
-                    _unitOfWork.Users.Update(user);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _unitOfWork.ClearExpiredPasswordResetAsync(user.Id, tokenHash, cancellationToken);
 
                     _logger.LogWarning("Expired password reset token for user: {UserId}", user.Id);
-                    return Result.Failure(
-                        Error.Unauthorized("INVALID_TOKEN", "Password reset token is invalid or expired"));
+                    return InvalidToken();
                 }
 
                 if (!_passwordValidator.IsStrongPassword(command.NewPassword))
@@ -87,32 +83,32 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
                 }
 
                 var newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
-                user.ChangePassword(newPasswordHash, user.Id);
-
-                _unitOfWork.Users.Update(user);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                var changedUser = await _unitOfWork.TryResetPasswordAsync(
+                    user.Id, tokenHash, newPasswordHash, cancellationToken);
+                if (changedUser is null)
+                    return InvalidToken();
 
                 // Invalidate all access tokens issued before this point
-                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+                await _securityStamp.SetStampAsync(changedUser.Id, cancellationToken);
 
                 await _emailService.SendPasswordChangedNotificationAsync(
-                    user.Email.Value,
-                    user.FirstName,
+                    changedUser.Email.Value,
+                    changedUser.FirstName,
                     cancellationToken);
 
-                _logger.LogInformation(
-                    "Password reset successfully: {UserId}, Email: {Email}",
-                    user.Id,
-                    user.Email.Value);
+                _logger.LogInformation("Password reset successfully for user {UserId}", changedUser.Id);
 
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error resetting password");
                 return Result.Failure(
                     Error.InternalServer("RESET_PASSWORD_ERROR", "An error occurred while resetting password"));
             }
         }
+
+        private static Result InvalidToken() =>
+            Result.Failure(Error.Unauthorized("INVALID_TOKEN", "Password reset token is invalid or expired"));
     }
 }

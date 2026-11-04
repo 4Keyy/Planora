@@ -45,7 +45,7 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
         public async Task<User?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default)
         {
             return await _context.Users
-                .Include(u => u.RefreshTokens)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.PasswordResetToken == tokenHash, cancellationToken);
         }
 

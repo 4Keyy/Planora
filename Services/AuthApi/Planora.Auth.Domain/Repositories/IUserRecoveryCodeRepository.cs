@@ -8,6 +8,12 @@ namespace Planora.Auth.Domain.Repositories
             Guid userId,
             CancellationToken cancellationToken = default);
 
+        Task<bool> TryConsumeAsync(
+            Guid userId,
+            Guid codeId,
+            string expectedHash,
+            CancellationToken cancellationToken = default);
+
         Task DeleteAllForUserAsync(
             Guid userId,
             CancellationToken cancellationToken = default);

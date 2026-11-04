@@ -34,10 +34,16 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                 .Where(lh => lh.UserId == userId);
 
             var totalCount = await baseQuery.CountAsync(cancellationToken);
+            var offset = Math.Max(0L, ((long)pageNumber - 1) * pageSize);
+            if (offset > int.MaxValue)
+            {
+                // The offset exceeds both Skip's range and the exact count returned above.
+                return (Array.Empty<LoginHistory>(), totalCount);
+            }
 
             var items = await baseQuery
                 .OrderByDescending(lh => lh.LoginAt)
-                .Skip(Math.Max(0, (pageNumber - 1) * pageSize))
+                .Skip((int)offset)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 

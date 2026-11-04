@@ -88,12 +88,17 @@ public sealed class AuthDbContext : DbContext, IApplicationDbContext
         domainEntities.ForEach(entity => entity.ClearDomainEvents());
 
         var result = await base.SaveChangesAsync(cancellationToken);
+        await DispatchDomainEventsAsync(domainEvents, cancellationToken);
+        return result;
+    }
 
+    internal async Task DispatchDomainEventsAsync(
+        IEnumerable<IDomainEvent> domainEvents,
+        CancellationToken cancellationToken)
+    {
         foreach (var domainEvent in domainEvents)
         {
             await _domainEventDispatcher.DispatchAsync(domainEvent, cancellationToken);
         }
-
-        return result;
     }
 }

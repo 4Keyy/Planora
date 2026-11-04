@@ -31,7 +31,7 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                     _context,
                     async (context, token) =>
                     {
-                        await LockRefreshChainAsync(context, current.UserId, token);
+                        await AuthSessionLock.AcquireAsync(context, current.UserId, token);
                         var now = DateTime.UtcNow;
                         var consumed = await context.RefreshTokens
                             .Where(row => row.Id == current.Id && row.Token == current.Token &&
@@ -67,7 +67,8 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             _context.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync(token);
-                await LockRefreshChainAsync(_context, userId, token);
+                // Take the active-row snapshot after any in-flight rotation commits.
+                await AuthSessionLock.AcquireAsync(_context, userId, token);
                 var now = DateTime.UtcNow;
                 await _context.RefreshTokens
                     .Where(row => row.UserId == userId && row.RevokedAt == null && row.ExpiresAt > now)
@@ -78,14 +79,6 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                         .SetProperty(row => row.ReplacedByToken, (string?)null), token);
                 await transaction.CommitAsync(token);
             }, cancellationToken);
-
-        // The active-row scan must take its snapshot after any in-flight rotation commits.
-        private static Task<int> LockRefreshChainAsync(AuthDbContext context, Guid userId, CancellationToken token)
-        {
-            var lockName = $"planora.auth.refresh:{userId:N}";
-            return context.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended({lockName}, 0))", token);
-        }
 
         public async Task<IReadOnlyList<RefreshToken>> GetActiveTokensByUserIdAsync(
             Guid userId,

@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "head": "7592ce407bfba976db922f3686b259d95836d06b",
+  "sdk": "10.0.300",
+  "commands": [
+    {
+      "id": "t02-login-history-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "LoginHistoryPaginationTests",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount_OnPostgres": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-red.txt",
+      "log_sha256": "24a67120727093222617e630c85d9836db008715b57c1f6c78745801faecaca7",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-red.trx",
+      "trx_sha256": "dd87d01f2427174e4780a7591b6744746a07bee5aec886ef49488608fcab15e3"
+    },
+    {
+      "id": "t02-login-history-green",
+      "action": "dotnet test Release --no-restore",
+      "selection": "LoginHistoryPaginationTests",
+      "exit_code": 0,
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-green.txt",
+      "log_sha256": "ca68c97490637c6f30776b6ed5a56a78969fd8ca47d5f028ade1d7cd01308b5b",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-green.trx",
+      "trx_sha256": "c4a604de17badc74899db9480a4adc67321700f2a4b15896a7270709b525ba4f"
+    },
+    {
+      "id": "t02-login-history-related",
+      "action": "dotnet test Release --no-restore",
+      "selection": "login history validators, controller, handlers, repositories and disposable PostgreSQL",
+      "exit_code": 0,
+      "total": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-related.txt",
+      "log_sha256": "af441770845b6394cbbc4fe33e68df08650a82ef07579b11c023c25d75178db3",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-related.trx",
+      "trx_sha256": "9b92e2cef118260c553a9130828627268569e4c0da79f8d3d29180cb5e6ca52f"
+    },
+    {
+      "id": "t02-recovery-reset-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AuthRecoveryCodePostgresTests|AuthPasswordResetPostgresTests",
+      "exit_code": 1,
+      "total": 5,
+      "passed": 1,
+      "failed": 4,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ExpiredSnapshotCannotClearNewlyIssuedToken": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ValidSnapshotCannotConsumeNewlyIssuedToken": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthRecoveryCodePostgresTests.ConcurrentConsume_SameRecoveryCodeHasOneWinner": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ConcurrentValidRequests_CommitOnePasswordAndNotifyOnce": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-recovery-reset-red.txt",
+      "log_sha256": "8abc725a100b178a4c96423a3b0f25494f90d30daeea7a40c86d9cb0b335cdc2",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-recovery-reset-red.trx",
+      "trx_sha256": "42943471b02c9cee660671291f26bfa5c391755f87a428219f485ac8503e84cc"
+    },
+    {
+      "id": "t02-one-time-and-readiness",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AuthRecoveryCodePostgresTests|AuthPasswordResetPostgresTests|ResetPasswordCommandHandlerTests|AuthJwtStampWiringTests|DependencyInjectionContractTests",
+      "exit_code": 1,
+      "total": 22,
+      "passed": 20,
+      "failed": 2,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthJwtStampWiringTests.AuthDatabaseProbe_ParticipatesInReadinessOnly": 1,
+        "Planora.UnitTests.Services.Infrastructure.DependencyInjectionContractTests.AddAuthInfrastructure_ShouldRegisterSecurityPersistenceMessagingAndHealthServices": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-and-readiness.txt",
+      "log_sha256": "3b54b15725366859a08cc09ce9147f12c112072ade530331a7380372b848cc3d",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-and-readiness.trx",
+      "trx_sha256": "aae871461b04cc2091e50d3d1f31136c1932131ebebe8af81d3787127fd3ba88"
+    },
+    {
+      "id": "t02-one-time-auth-green-retry",
+      "action": "dotnet test Release --no-restore",
+      "selection": "(Planora.UnitTests.Services.AuthApi|DependencyInjectionContractTests|ReadinessContractTests)&!AvatarReplacementPersistenceTests&!AuthFriendshipPostgresTests",
+      "exit_code": 0,
+      "total": 471,
+      "passed": 471,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-auth-green-retry.txt",
+      "log_sha256": "af34ecef91295d27654b927e1b9f2fce95bd21fd0713f913c8932af619c6d7e1",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-auth-green-retry.trx",
+      "trx_sha256": "d61b4c91399117e814c946fc29b75859d39e1399160d497f39f49b390622ac06"
+    },
+    {
+      "id": "t02-one-time-broad",
+      "action": "dotnet test Release --no-restore",
+      "selection": "!RestartSeed&!RestartVerify&!AvatarReplacementPersistenceTests&!AuthFriendshipPostgresTests",
+      "exit_code": 0,
+      "total": 1453,
+      "passed": 1453,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-broad.txt",
+      "log_sha256": "1d5cecc9b460afa5433aa50e3210f5da777fa10ba7aa4f593845a0475dc84a7c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-broad.trx",
+      "trx_sha256": "661f19e51b97d154d6beca7f8edfa83dde6ff5763b37b9fe97dc281233c70fbb"
+    },
+    {
+      "id": "t02-one-time-errors",
+      "action": "dotnet test Release --no-restore",
+      "selection": "Planora.ErrorHandlingTests, full project",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-errors.txt",
+      "log_sha256": "712eb6e8376344d0d10a86db84896233a60e26bf5385263694ede11942dd886c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-errors.trx",
+      "trx_sha256": "cae98c2c28d348b677b90d4d61b7ef39c2c4b0064b4975f7aa055eecfe9395e9"
+    },
+    {
+      "id": "t02-avatar-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AvatarReplacementPersistenceTests",
+      "exit_code": 1,
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-red.txt",
+      "log_sha256": "474bddbf6c64d0f8585fdd4622aa9775450676ef6b0f6940a76e51d8f4487134",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-red.trx",
+      "trx_sha256": "a594be6ea38aa49bd53a0c5642cec75ba2c16b381b9fd074a47e8c49d437e912"
+    },
+    {
+      "id": "t02-one-time-auth-green",
+      "exit_code": 1,
+      "test_executed": 0,
+      "reason": "CS0104 in concurrently prepared untracked avatar RED fixture",
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-auth-green.txt",
+      "log_sha256": "ced3012bbaf26980fd1bba50139b7f6ecead835cfafda3574ddca983032dd087"
+    }
+  ],
+  "focused_green": [
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ConcurrentValidRequests_CommitOnePasswordAndNotifyOnce",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthJwtStampWiringTests.AuthDatabaseProbe_ParticipatesInReadinessOnly",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_StillCurrentExpiredTokenIsCleared",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthRecoveryCodePostgresTests.Consume_RejectsWrongOwnerWrongCodeUsedCodeAndCancellation",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthRecoveryCodePostgresTests.ConcurrentConsume_SameRecoveryCodeHasOneWinner",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount_OnPostgres",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthJwtStampWiringTests.AuthApi_BearerOptions_MustWireSecurityStampCheckOnTokenValidated",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.IssueAsync_StaleUserSnapshotCannotRestoreTheOldPassword",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ValidSnapshotCannotConsumeNewlyIssuedToken",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ExpiredSnapshotCannotClearNewlyIssuedToken",
+      "outcome": "Passed"
+    }
+  ],
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RequestPasswordReset/RequestPasswordResetCommandHandler.cs": "4025117d27ac4e1564e01a066c355c13a0d1ba487353884f5cdbfcc962d8487a",
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/ResetPassword/ResetPasswordCommandHandler.cs": "809bb94a878fbbf4dee1d1241b80a87f619f5f62ed189a8bcff732fe99afdf9d",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IAuthUnitOfWork.cs": "5a5a83edbd36be7db239f1a41ce595343a1bdb0193139a1bd0b4b7946ec8e380",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IUserRecoveryCodeRepository.cs": "9a86e5a58c414113eb27b53cc5a48a2976e561e4bed7ff9b64ae5d519f52a0c6",
+    "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs": "c78a6d767f23a8bb4c1bc00c15f0c4f695c430c40ade92e665141e47a3ce2005",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs": "c0c32d96a16a631f9f3d5c19db9c112869ead1db4a31cbe4f63abe6514a01030",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs": "9a5af2d7c3ac701c0a4777b26c213db614dbd6d3146691976217d19fde3b0a33",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/LoginHistoryRepository.cs": "b3f2b3ce6d8374ee1f963de21f59dfa3d7a74e5bb3f987d737a58ba6ac51b620",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs": "8709775554c7b9c613e0e215574e221a05ddc7f6a54112d8a98824befd209411",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRecoveryCodeRepository.cs": "b6500711f87aedc68e9242f9982a15033a74033acad6c3d2fb71f0c7066050d7",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs": "89f3ae945e674be23b9ee3e0b4c1060444ede4409f76f231d2ba0b67415edfee",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs": "cf703b8c5c8553228fa49cede68a9b8977ea721b8d42f85252117f5ec8e7e37a",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/RequestPasswordResetCommandHandlerTests.cs": "b2cbbc47ba4eb2b2b05fffeb58faa346bc83617a5c3d4799227f7c54b04da3d3",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/ResetPasswordCommandHandlerTests.cs": "19e11ac61c6b5e8f111b3496d3932a2c524355ae6a95c8da9ffe04fbc667d6bb",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs": "7f9f918e9103aa515bbdcff65ac622672df5cf47242f80158c45f4dfeb65d268",
+    "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs": "54561e5327683d02d33a58390c0cebcbc5e59b0b69132730530115b5c0d5708a",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthSessionLock.cs": "86f15bd1c2cbad09fff4b5b531ca43bd54eae9358cbe48bd7bbdc79de33633fc",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthPasswordResetPostgresTests.cs": "34caafbfe12fe1bea6cafe515942e146091a1528ca0df127716eb542a0fdfdc4",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthRecoveryCodePostgresTests.cs": "9b13e8f1fc00dc317bdc8231a5260ddd7d2a9b84e4bd62df175a9f2c4ce921c8",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LoginHistoryPaginationTests.cs": "986142490db4be7579d360ebb2d99796008a052762eb9ca5fd5bb5eac7a385cf"
+  },
+  "limits": [
+    "Only owned disposable PostgreSQL and RabbitMQ for provider checks.",
+    "Old Auth wiring test contained localhost:6379 and eager multiplexer setup may have contacted the working Redis during earlier broad runs. No key reads/writes established. Replaced with verified unbound loopback port before the final run.",
+    "BE-014 and BE-016 new uncommitted tests excluded from this bounded GREEN. Avatar RED reproduced separately."
+  ]
+}

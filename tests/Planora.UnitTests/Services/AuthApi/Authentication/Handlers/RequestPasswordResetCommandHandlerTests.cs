@@ -101,7 +101,7 @@ public sealed class RequestPasswordResetCommandHandlerTests
         Assert.Equal("token-hash", user.PasswordResetToken);
         Assert.True(user.PasswordResetTokenExpiry > DateTime.UtcNow.AddMinutes(29));
         Assert.Equal("https://app.example.com/auth/reset-password?token=token%20with%20space", resetLink);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
+        fixture.Users.Verify(x => x.Update(user), Times.Never);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -108,6 +108,66 @@ namespace Planora.Auth.Infrastructure.Persistence
             return await _context.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task<User?> TryResetPasswordAsync(
+            Guid userId,
+            string expectedTokenHash,
+            string passwordHash,
+            CancellationToken cancellationToken = default)
+        {
+            User? changedUser = null;
+            var committed = await _context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
+                _context,
+                async (context, token) =>
+                {
+                    // Each attempt reloads the reset target and its sessions from the database.
+                    context.ChangeTracker.Clear();
+                    await AuthSessionLock.AcquireAsync(context, userId, token);
+                    var now = DateTime.UtcNow;
+                    changedUser = await context.Users.FromSqlInterpolated($"""
+                        SELECT * FROM public."Users"
+                        WHERE "Id" = {userId}
+                          AND "PasswordResetToken" = {expectedTokenHash}
+                          AND "PasswordResetTokenExpiry" > {now}
+                          AND NOT "IsDeleted"
+                        FOR NO KEY UPDATE
+                        """).SingleOrDefaultAsync(token);
+                    if (changedUser is null)
+                        return false;
+
+                    await context.Entry(changedUser).Collection(user => user.RefreshTokens).LoadAsync(token);
+                    changedUser.ChangePassword(passwordHash, userId);
+                    await context.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
+                    return true;
+                },
+                (context, token) => context.Users.AsNoTracking()
+                    .AnyAsync(user => user.Id == userId && user.PasswordHash == passwordHash, token),
+                cancellationToken);
+
+            if (!committed || changedUser is null)
+                return null;
+
+            _context.ChangeTracker.AcceptAllChanges();
+            var events = changedUser.DomainEvents.ToArray();
+            changedUser.ClearDomainEvents();
+            await _context.DispatchDomainEventsAsync(events, cancellationToken);
+            return changedUser;
+        }
+
+        public Task ClearExpiredPasswordResetAsync(
+            Guid userId,
+            string expectedTokenHash,
+            CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.UtcNow;
+            return _context.Users.Where(user => user.Id == userId && user.PasswordResetToken == expectedTokenHash &&
+                    (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry <= now))
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(user => user.PasswordResetToken, (string?)null)
+                    .SetProperty(user => user.PasswordResetTokenExpiry, (DateTime?)null)
+                    .SetProperty(user => user.UpdatedAt, now)
+                    .SetProperty(user => user.UpdatedBy, userId), cancellationToken);
+        }
+
         public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
             if (_currentTransaction != null)

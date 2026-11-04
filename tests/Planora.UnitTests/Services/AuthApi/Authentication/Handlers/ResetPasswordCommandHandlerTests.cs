@@ -49,8 +49,10 @@ public class ResetPasswordCommandHandlerTests
             .Returns(true);
 
         unitOfWorkMock.SetupGet(x => x.Users).Returns(userRepoMock.Object);
-        unitOfWorkMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        unitOfWorkMock.Setup(x => x.TryResetPasswordAsync(
+                user.Id, OpaqueToken.Hash(resetToken), newPasswordHash, It.IsAny<CancellationToken>()))
+            .Callback<Guid, string, string, CancellationToken>((id, _, hash, _) => user.ChangePassword(hash, id))
+            .ReturnsAsync(user);
 
         userRepoMock.Setup(x => x.GetByPasswordResetTokenAsync(
                 OpaqueToken.Hash(resetToken),
@@ -94,8 +96,8 @@ public class ResetPasswordCommandHandlerTests
         Assert.Null(user.PasswordResetTokenExpiry);
         Assert.False(refreshToken.IsActive);
 
-        userRepoMock.Verify(x => x.Update(user), Times.Once);
-        unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        unitOfWorkMock.Verify(x => x.TryResetPasswordAsync(
+            user.Id, OpaqueToken.Hash(resetToken), newPasswordHash, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -128,8 +130,10 @@ public class ResetPasswordCommandHandlerTests
             .Returns(() => user.PasswordResetToken == tokenHash);
 
         unitOfWorkMock.SetupGet(x => x.Users).Returns(userRepoMock.Object);
-        unitOfWorkMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        unitOfWorkMock.Setup(x => x.TryResetPasswordAsync(
+                user.Id, tokenHash, "new-password-hash", It.IsAny<CancellationToken>()))
+            .Callback<Guid, string, string, CancellationToken>((id, _, hash, _) => user.ChangePassword(hash, id))
+            .ReturnsAsync(user);
         userRepoMock.Setup(x => x.GetByPasswordResetTokenAsync(
                 tokenHash,
                 It.IsAny<CancellationToken>()))
@@ -172,7 +176,8 @@ public class ResetPasswordCommandHandlerTests
         Assert.Null(user.PasswordResetToken);
         Assert.Null(user.PasswordResetTokenExpiry);
 
-        unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        unitOfWorkMock.Verify(x => x.TryResetPasswordAsync(
+            user.Id, tokenHash, "new-password-hash", It.IsAny<CancellationToken>()), Times.Once);
         emailServiceMock.Verify(x => x.SendPasswordChangedNotificationAsync(
                 user.Email.Value,
                 user.FirstName,
@@ -219,7 +224,6 @@ public class ResetPasswordCommandHandlerTests
         fixture.TokenService.Setup(x => x.HashToken(resetToken)).Returns(tokenHash);
         fixture.TokenService.Setup(x => x.IsTokenValid(resetToken, tokenHash, user.PasswordResetTokenExpiry)).Returns(false);
         fixture.Users.Setup(x => x.GetByPasswordResetTokenAsync(tokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var result = await fixture.Handler.Handle(
             new ResetPasswordCommand { ResetToken = resetToken, NewPassword = "NewPassword123!" },
@@ -227,10 +231,8 @@ public class ResetPasswordCommandHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("INVALID_TOKEN", result.Error!.Code);
-        Assert.Null(user.PasswordResetToken);
-        Assert.Null(user.PasswordResetTokenExpiry);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.ClearExpiredPasswordResetAsync(
+            user.Id, tokenHash, It.IsAny<CancellationToken>()), Times.Once);
         fixture.PasswordValidator.Verify(x => x.IsStrongPassword(It.IsAny<string>()), Times.Never);
     }
 

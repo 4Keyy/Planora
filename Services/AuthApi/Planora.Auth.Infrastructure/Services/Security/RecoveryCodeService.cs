@@ -58,18 +58,19 @@ public sealed class RecoveryCodeService : IRecoveryCodeService
             return false;
 
         var unused = await _unitOfWork.RecoveryCodes.GetUnusedByUserIdAsync(userId, cancellationToken);
+        var normalizedCode = code.ToUpperInvariant();
 
         foreach (var rc in unused)
         {
-            if (_passwordHasher.VerifyPassword(code.ToUpperInvariant(), rc.CodeHash))
-            {
-                rc.MarkAsUsed();
-                _unitOfWork.RecoveryCodes.Update(rc);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!_passwordHasher.VerifyPassword(normalizedCode, rc.CodeHash))
+                continue;
 
-                _logger.LogWarning("Recovery code consumed for user {UserId}", userId);
-                return true;
-            }
+            if (!await _unitOfWork.RecoveryCodes.TryConsumeAsync(userId, rc.Id, rc.CodeHash, cancellationToken))
+                return false;
+
+            _logger.LogWarning("Recovery code consumed for user {UserId}", userId);
+            return true;
         }
 
         return false;

@@ -239,7 +239,8 @@ public static class DependencyInjection
         // The broker (rabbitmq) check is registered once for every service in
         // AddBuildingBlocksInfrastructure; Auth must not add a second one under the same name.
         services.AddHealthChecks()
-            .AddDbContextCheck<Persistence.AuthDbContext>("auth-dbcontext")
+            .AddDbContextCheck<Persistence.AuthDbContext>(
+                "auth-dbcontext", tags: new[] { HealthCheckExtensions.ReadyTag })
             .AddRedis(
                 configuration.GetConnectionString("Redis")!,
                 name: "redis-blacklist",

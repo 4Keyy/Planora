@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "1f8ef5d403f3f2957bc8b4d5764b3095d58fdc99",
+  "current_sha": "7592ce407bfba976db922f3686b259d95836d06b",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -131,7 +131,23 @@
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordHasherTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSessionPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t02-session-verification.json",
-    "docs/audits/planora-deep-audit/results/T02.md"
+    "docs/audits/planora-deep-audit/results/T02.md",
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RequestPasswordReset/RequestPasswordResetCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/ResetPassword/ResetPasswordCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IUserRecoveryCodeRepository.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/LoginHistoryRepository.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRecoveryCodeRepository.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/RequestPasswordResetCommandHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/ResetPasswordCommandHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs",
+    "tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthSessionLock.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthPasswordResetPostgresTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthRecoveryCodePostgresTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LoginHistoryPaginationTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t02-one-time-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -149,9 +165,10 @@
     "Root reviewed real-domain test; independent reviewer covered transport/callers/root-live/runbook source; atomic exactly-once is not claimed.",
     "T08 child workers interrupted by service usage limit after writing tests/inventory/reviews. Root reproduced31targeted tests:24fail/7pass; fixed named Messaging selection and stable Auth seed; prerequisite GREEN11pass0skip. Schema guard/migrations remain unimplemented.",
     "T08 implemented after the prerequisite checkpoint; final broad tests and all ten Migrator/restore cases pass in owned fixtures.",
-    "T02 session and hash slice: BE-003/BE-004/BE-013 verified, with per-user PostgreSQL rotate/replay lock and bounded PBKDF2 metadata."
+    "T02 session and hash slice: BE-003/BE-004/BE-013 verified, with per-user PostgreSQL rotate/replay lock and bounded PBKDF2 metadata.",
+    "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open."
   ],
-  "next_step": "T02 remains partial. Prepare RED/GREEN for BE-011 recovery and BE-012 reset, then pagination, friendship, avatar, readiness and cross-service erasure gates.",
+  "next_step": "BE-014 provider RED and shared unordered-pair serialization. BE-016 RED retained; preserve old URL until committed replacement and review pruning/erasure boundary.",
   "commands": [
     {
       "id": "readiness-red",
@@ -1900,6 +1917,170 @@
       "documents": 114,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t02-login-history-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "LoginHistoryPaginationTests",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount_OnPostgres": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.LoginHistoryPaginationTests.LargeAcceptedPages_ReturnEmptyWithCurrentOwnerCount": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-red.txt",
+      "log_sha256": "24a67120727093222617e630c85d9836db008715b57c1f6c78745801faecaca7",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-red.trx",
+      "trx_sha256": "dd87d01f2427174e4780a7591b6744746a07bee5aec886ef49488608fcab15e3"
+    },
+    {
+      "id": "t02-login-history-green",
+      "action": "dotnet test Release --no-restore",
+      "selection": "LoginHistoryPaginationTests",
+      "exit_code": 0,
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-green.txt",
+      "log_sha256": "ca68c97490637c6f30776b6ed5a56a78969fd8ca47d5f028ade1d7cd01308b5b",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-green.trx",
+      "trx_sha256": "c4a604de17badc74899db9480a4adc67321700f2a4b15896a7270709b525ba4f"
+    },
+    {
+      "id": "t02-login-history-related",
+      "action": "dotnet test Release --no-restore",
+      "selection": "login history validators, controller, handlers, repositories and disposable PostgreSQL",
+      "exit_code": 0,
+      "total": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-login-history-related.txt",
+      "log_sha256": "af441770845b6394cbbc4fe33e68df08650a82ef07579b11c023c25d75178db3",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-history-related.trx",
+      "trx_sha256": "9b92e2cef118260c553a9130828627268569e4c0da79f8d3d29180cb5e6ca52f"
+    },
+    {
+      "id": "t02-recovery-reset-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AuthRecoveryCodePostgresTests|AuthPasswordResetPostgresTests",
+      "exit_code": 1,
+      "total": 5,
+      "passed": 1,
+      "failed": 4,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ExpiredSnapshotCannotClearNewlyIssuedToken": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ValidSnapshotCannotConsumeNewlyIssuedToken": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthRecoveryCodePostgresTests.ConcurrentConsume_SameRecoveryCodeHasOneWinner": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.ResetAsync_ConcurrentValidRequests_CommitOnePasswordAndNotifyOnce": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-recovery-reset-red.txt",
+      "log_sha256": "8abc725a100b178a4c96423a3b0f25494f90d30daeea7a40c86d9cb0b335cdc2",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-recovery-reset-red.trx",
+      "trx_sha256": "42943471b02c9cee660671291f26bfa5c391755f87a428219f485ac8503e84cc"
+    },
+    {
+      "id": "t02-one-time-and-readiness",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AuthRecoveryCodePostgresTests|AuthPasswordResetPostgresTests|ResetPasswordCommandHandlerTests|AuthJwtStampWiringTests|DependencyInjectionContractTests",
+      "exit_code": 1,
+      "total": 22,
+      "passed": 20,
+      "failed": 2,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthJwtStampWiringTests.AuthDatabaseProbe_ParticipatesInReadinessOnly": 1,
+        "Planora.UnitTests.Services.Infrastructure.DependencyInjectionContractTests.AddAuthInfrastructure_ShouldRegisterSecurityPersistenceMessagingAndHealthServices": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-and-readiness.txt",
+      "log_sha256": "3b54b15725366859a08cc09ce9147f12c112072ade530331a7380372b848cc3d",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-and-readiness.trx",
+      "trx_sha256": "aae871461b04cc2091e50d3d1f31136c1932131ebebe8af81d3787127fd3ba88"
+    },
+    {
+      "id": "t02-one-time-auth-green-retry",
+      "action": "dotnet test Release --no-restore",
+      "selection": "(Planora.UnitTests.Services.AuthApi|DependencyInjectionContractTests|ReadinessContractTests)&!AvatarReplacementPersistenceTests&!AuthFriendshipPostgresTests",
+      "exit_code": 0,
+      "total": 471,
+      "passed": 471,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-auth-green-retry.txt",
+      "log_sha256": "af34ecef91295d27654b927e1b9f2fce95bd21fd0713f913c8932af619c6d7e1",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-auth-green-retry.trx",
+      "trx_sha256": "d61b4c91399117e814c946fc29b75859d39e1399160d497f39f49b390622ac06"
+    },
+    {
+      "id": "t02-one-time-broad",
+      "action": "dotnet test Release --no-restore",
+      "selection": "!RestartSeed&!RestartVerify&!AvatarReplacementPersistenceTests&!AuthFriendshipPostgresTests",
+      "exit_code": 0,
+      "total": 1453,
+      "passed": 1453,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-broad.txt",
+      "log_sha256": "1d5cecc9b460afa5433aa50e3210f5da777fa10ba7aa4f593845a0475dc84a7c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-broad.trx",
+      "trx_sha256": "661f19e51b97d154d6beca7f8edfa83dde6ff5763b37b9fe97dc281233c70fbb"
+    },
+    {
+      "id": "t02-one-time-errors",
+      "action": "dotnet test Release --no-restore",
+      "selection": "Planora.ErrorHandlingTests, full project",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-errors.txt",
+      "log_sha256": "712eb6e8376344d0d10a86db84896233a60e26bf5385263694ede11942dd886c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-one-time-errors.trx",
+      "trx_sha256": "cae98c2c28d348b677b90d4d61b7ef39c2c4b0064b4975f7aa055eecfe9395e9"
+    },
+    {
+      "id": "t02-avatar-red",
+      "action": "dotnet test Release --no-restore",
+      "selection": "AvatarReplacementPersistenceTests",
+      "exit_code": 1,
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AvatarReplacementPersistenceTests.UploadAvatar_SaveFailurePreservesBytesAtPersistedUrl": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-red.txt",
+      "log_sha256": "474bddbf6c64d0f8585fdd4622aa9775450676ef6b0f6940a76e51d8f4487134",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-red.trx",
+      "trx_sha256": "a594be6ea38aa49bd53a0c5642cec75ba2c16b381b9fd074a47e8c49d437e912"
+    },
+    {
+      "id": "t02-one-time-auth-green",
+      "exit_code": 1,
+      "test_executed": 0,
+      "reason": "CS0104 in concurrently prepared untracked avatar RED fixture",
+      "log": ".buildcheck/deep-audit-t02/t02-one-time-auth-green.txt",
+      "log_sha256": "ced3012bbaf26980fd1bba50139b7f6ecead835cfafda3574ddca983032dd087"
+    },
+    {
+      "id": "t02-session-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 115,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -1956,7 +2137,8 @@
     "results/evidence/t09-redis-policy-verification.json",
     "results/evidence/read-034-review.json",
     "results/evidence/read-034-review.md",
-    "results/evidence/t02-session-verification.json"
+    "results/evidence/t02-session-verification.json",
+    "results/evidence/t02-one-time-verification.json"
   ],
   "local_commits": [
     {
@@ -1988,6 +2170,11 @@
       "task": "T09 local cache and Redis policy verification",
       "sha": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
       "pushed": false
+    },
+    {
+      "task": "T02 refresh/session and password-hash checkpoint",
+      "sha": "7592ce407bfba976db922f3686b259d95836d06b",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2014,7 +2201,7 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "BE-008, BE-011, BE-012, BE-014, BE-016, Auth DbContext readiness tag, privacy/erasure and T14 key-ring deployment."
+    "T02": "BE-014 active pair, BE-016 avatar publish/cleanup, privacy/erasure and T14 key-ring deployment."
   },
   "new_findings": [
     "BE-008",

@@ -79,6 +79,7 @@ public class DependencyInjectionContractTests
     [Trait("TestType", "Security")]
     public void AddAuthInfrastructure_ShouldRegisterSecurityPersistenceMessagingAndHealthServices()
     {
+        const string redisEndpoint = "127.0.0.1:1,abortConnect=false,connectRetry=0,connectTimeout=100,syncTimeout=100";
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(Mock.Of<AuthDomainEventDispatcher>());
@@ -86,7 +87,7 @@ public class DependencyInjectionContractTests
         services.AddAuthInfrastructure(CreateConfiguration(new Dictionary<string, string?>
         {
             ["ConnectionStrings:AuthDatabase"] = "Host=postgres;Port=5432;Database=auth;Username=postgres;Password=secret",
-            ["ConnectionStrings:Redis"] = "redis:6379,password=secret,abortConnect=false",
+            ["ConnectionStrings:Redis"] = redisEndpoint,
             ["JwtSettings:Secret"] = new string('a', 48),
             ["JwtSettings:Issuer"] = "Planora.Auth",
             ["JwtSettings:Audience"] = "Planora.Clients",
@@ -130,7 +131,7 @@ public class DependencyInjectionContractTests
             provider.GetRequiredService<IApplicationDbContext>());
 
         var redisOptions = provider.GetRequiredService<IOptions<RedisCacheOptions>>().Value;
-        Assert.Equal("redis:6379,password=secret,abortConnect=false", redisOptions.Configuration);
+        Assert.Equal(redisEndpoint, redisOptions.Configuration);
         Assert.Equal("PlanoraAuth:TokenBlacklist:", redisOptions.InstanceName);
 
         var grpcOptions = provider.GetRequiredService<IOptions<GrpcServiceOptions>>().Value;
