@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "24c9b070faea68685e0616692b76ab8cf03cfb8b",
+  "current_sha": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -136,7 +136,7 @@
     "T08 child workers interrupted by service usage limit after writing tests/inventory/reviews. Root reproduced31targeted tests:24fail/7pass; fixed named Messaging selection and stable Auth seed; prerequisite GREEN11pass0skip. Schema guard/migrations remain unimplemented.",
     "T08 implemented after the prerequisite checkpoint; final broad tests and all ten Migrator/restore cases pass in owned fixtures."
   ],
-  "next_step": "T02.1: reproduce refresh-token consume race with two Npgsql contexts and null/non-null fingerprints. T02.2: expired same-device login with real unique index. Then cover new Auth findings.",
+  "next_step": "T02.1/T02.2/BE-013: finish final Auth/provider checks, independent review and scoped commit. Then remaining Auth readiness and regressions.",
   "commands": [
     {
       "id": "readiness-red",
@@ -1717,21 +1717,30 @@
       "command": "python -X utf8 .buildcheck/deep-audit-t09/verify_redis_policy.py",
       "exit_code": 0,
       "policies_verified": 2
+    },
+    {
+      "id": "t09-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 113,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 74,
+    "pending_batches": 73,
     "complete": false,
-    "current_read_or_reviewed": 380,
+    "current_read_or_reviewed": 405,
     "completed_batches": [
       "READ-011",
       "READ-014",
       "READ-038",
       "READ-033",
       "READ-040",
-      "READ-012"
+      "READ-012",
+      "READ-034"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -1769,7 +1778,9 @@
     "results/evidence/read-012-review.md",
     "results/evidence/read-012-review.json",
     "results/evidence/t09-verification.json",
-    "results/evidence/t09-redis-policy-verification.json"
+    "results/evidence/t09-redis-policy-verification.json",
+    "results/evidence/read-034-review.json",
+    "results/evidence/read-034-review.md"
   ],
   "local_commits": [
     {
@@ -1795,6 +1806,11 @@
     {
       "task": "T08 local guarded schema and CLI",
       "sha": "d9c98b8c9acba95eeb10f61b48ca9394872d942e",
+      "pushed": false
+    },
+    {
+      "task": "T09 local cache and Redis policy verification",
+      "sha": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
       "pushed": false
     }
   ],
@@ -1833,6 +1849,8 @@
     "BE-014",
     "DIST-011",
     "BE-015",
-    "OPS-013"
+    "OPS-013",
+    "BE-016",
+    "BE-017"
   ]
 }

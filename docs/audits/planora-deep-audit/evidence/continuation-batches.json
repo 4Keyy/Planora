@@ -697,8 +697,10 @@
       "Services/CategoryApi/Planora.Category.Api/appsettings.Docker.json",
       "Services/CategoryApi/Planora.Category.Api/appsettings.json"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-034-review.json",
+    "notes": "Full semantic review with exact snapshot hashes. Runtime repro is pending for the two new findings."
   },
   {
     "batch_id": "READ-035",

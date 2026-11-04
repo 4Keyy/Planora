@@ -1972,5 +1972,65 @@
       "T09"
     ],
     "limitations": "Compose source and synthetic Redis runtime only. Deployed Redis policy, actual keys and real TOTP are outside verification."
+  },
+  {
+    "id": "BE-016",
+    "title": "Загрузка аватара удаляет прежнюю ревизию до сохранения нового URL",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs",
+        "lines": "37–60, 82–101"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/UploadAvatar/UploadAvatarCommandHandler.cs",
+        "lines": "81–96",
+        "supplemental": true
+      }
+    ],
+    "trigger": "У пользователя сохранён URL прежней ревизии. Новый PutAsync успешно завершает prune, затем запись профиля отклонена или отменена до commit.",
+    "impact": "В БД остаётся прежний URL, файлы прежней ревизии уже удалены. Конкурентные загрузки тоже не синхронизируют порядок prune и commit.",
+    "root_cause": "Filesystem pruning commits independently and before the profile URL write.",
+    "fix": "Привязать очистку к фактически подтверждённой ревизии профиля и сериализовать очистку с обновлениями этого владельца.",
+    "tests": [
+      "Сохранить аватар A, вызвать загрузку B с инъекцией ошибки SaveChangesAsync после PutAsync, проверить сохранённый URL и существование файлов A. Конкурентный вариант требует отдельного теста."
+    ],
+    "dependencies": [],
+    "limitations": "Static source evidence CONT034001; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json."
+  },
+  {
+    "id": "BE-017",
+    "title": "Category startup создаёт БД с фиксированным именем вместо настроенной",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T04",
+    "evidence": [
+      {
+        "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+        "lines": "110–117"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+        "lines": "23–53, 63–101",
+        "supplemental": true
+      }
+    ],
+    "trigger": "В ConnectionStrings:CategoryDatabase указана отсутствующая БД с отличающимся именем и запускается обычный startup.",
+    "impact": "Startup сначала проверяет или создаёт planora_category. Затем соединяется с исходной настроенной БД, которую первый шаг не создал. При отсутствии прав возможен отказ на попытке создать постороннее имя.",
+    "root_cause": "Startup provisions a hardcoded database name before opening the configured target.",
+    "fix": "Извлечь имя из той же строки соединения, проверить его до startup waiter и передать точное имя.",
+    "tests": [
+      "В разрешённом отдельном PostgreSQL fixture задать уникальную отсутствующую CategoryDatabase, запустить обычный startup и проверить фактический create target и исход соединения."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "limitations": "Static source evidence CONT034002; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json."
   }
 ]

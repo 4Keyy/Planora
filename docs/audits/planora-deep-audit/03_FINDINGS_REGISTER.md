@@ -977,3 +977,13 @@ The `noeviction` control kept the list and rejected writes under memory pressure
 Deployment policy, working key availability and real TOTP decryption remain
 unverified. T02/T14 own the dedicated durable store and migration rehearsal.
 [T09 evidence](results/T09.md)
+
+## READ-034 — Avatar replacement and Category startup
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| BE-016 | P2 | CONFIRMED, static | Avatar replacement prunes the previous files before saving the new URL. T02 injects a failed profile save and verifies that the previously committed URL still resolves. |
+| BE-017 | P2 | CONFIRMED, static | Category startup uses a fixed provisioned database name with a separately configured connection. T04 exercises an absent database with a unique test name and verifies the provisioning target. |
+
+The reviewed paths establish the ordering and configuration mismatch. Provider
+and filesystem regressions remain open. [READ-034](results/evidence/read-034-review.md)

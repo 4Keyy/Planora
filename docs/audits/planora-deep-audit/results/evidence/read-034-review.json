@@ -1,0 +1,498 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-034",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "t05_transport",
+  "source_head": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 1953,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          208
+        ]
+      ],
+      "line_count": 208,
+      "sha256": "12836aa06830c06b70f4e9f89890d158e9bb7c604c1f5ac97e929a45b29b5e1f",
+      "purpose_and_callers": "Password policy, HIBP range check and reuse guard. ResetPassword/ChangePassword call compromise check; ChangePassword calls history check.",
+      "trust_state_errors_concurrency": "Configurable strength limits, SHA-1 prefix sent to remote API, suffix checked locally. Remote error returns not-compromised. Repository/hasher error returns different-from-history. Both broad catches also absorb cancellation. History limit uses config in place of method argument.",
+      "test_evidence": "PasswordValidatorTests.cs:64–143 establishes fail-open and matching using mocks. No external HIBP/DB calls or cancellation scenario executed.",
+      "conclusion": "Record fail-open policy and cancellation as review boundaries.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/TokenService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          99
+        ]
+      ],
+      "line_count": 99,
+      "sha256": "3d836acfd3a07016d0078688749067872e995f56f8b6cd58b6b66d487db9581a",
+      "purpose_and_callers": "ITokenService issues access and refresh tokens and parses signed access claims.",
+      "trust_state_errors_concurrency": "Signed HMAC access claims include subject, JTI, PII and roles. Refresh generation uses 64 random bytes. Normal validation checks lifetime; separate principal extraction allows expired tokens but validates issuer, audience and signature. No public production caller found for expired extraction.",
+      "test_evidence": "TokenServiceTests.cs:16–83 covers generated/invalid/expired/wrong-issuer cases by source. Existing session races BE-003/004 depend on handlers/repositories.",
+      "conclusion": "Cryptographic issuance and durable session state have separate boundaries.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/TwoFactorService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          86
+        ]
+      ],
+      "line_count": 86,
+      "sha256": "f470a605e44b913c0dae430f451760a71ffd149f5e894815df0d93cd730793e3",
+      "purpose_and_callers": "2FA secret/QR production and TOTP verification used by Auth setup/login flows.",
+      "trust_state_errors_concurrency": "Random key, ±2 step validation, per-user/step Redis SET NX and TTL. Redis error denies. Accepted-code Redis side effect can outlive caller cancellation because token is unused by the method. No Redis values were accessed.",
+      "test_evidence": "AuthSupportServicesTests.cs:158–191 uses a mock. Redis replay/concurrent requests and cancellation not reproduced.",
+      "conclusion": "Single-step atomic replay gate visible in source.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/AuditService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          62
+        ]
+      ],
+      "line_count": 62,
+      "sha256": "0944f0047a11e80fbf92bf4c7b62982600a08d34b2ddeb643487951487f5faf7",
+      "purpose_and_callers": "IAuditService adapter stores security audit event and severity in AuthDbContext.",
+      "trust_state_errors_concurrency": "Adds tracked audit record and saves with token; logs all failures and returns. Shared context can persist other tracked changes during this call. No application callsite found beyond interface and implementation by symbol search.",
+      "test_evidence": "AuthAuditAndBlacklistServiceTests.cs:19–56 checks successful and swallowed failures. Provider effects untested.",
+      "conclusion": "Adapter is best-effort in the observed contract.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/AvatarMetrics.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          17
+        ]
+      ],
+      "line_count": 17,
+      "sha256": "8930fc44b91173899ac7c255352cea7b8187d4e434d28bc019d98c6752c8bf22",
+      "purpose_and_callers": "IAvatarMetrics bridges UploadAvatarCommandHandler to shared PlanoraMetrics.",
+      "trust_state_errors_concurrency": "Records outcome and variant-size tags. Caller chooses finite outcome values. Handler emits success before profile save. No I/O or user-specific tag at this boundary.",
+      "test_evidence": "UploadAvatarCommandHandler.cs:66–96 traced; exporter and failure telemetry unverified.",
+      "conclusion": "Success metric measures processing/storage stage, before profile commit.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/CurrentUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          40
+        ]
+      ],
+      "line_count": 40,
+      "sha256": "13ee78fcd916ba5ae310fc08cf9ef71d01a6dfd684b76a871a63e2dac8e1552a",
+      "purpose_and_callers": "Scoped ICurrentUserService reads HttpContext principal and request metadata for Auth handlers.",
+      "trust_state_errors_concurrency": "NameIdentifier must parse as Guid. Auth flag separate. Remote address and User-Agent are context metadata. Roles permits repeats, Claims dictionary throws for repeated type. No external Claims getter callsite found in Auth by scoped search.",
+      "test_evidence": "DependencyInjection.cs:140 and UploadAvatarCommandHandler.cs:49–51 traced; multi-role Claims getter not exercised.",
+      "conclusion": "Identity trust comes from authenticated principal supplied by middleware.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/DateTimeService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          7
+        ]
+      ],
+      "line_count": 7,
+      "sha256": "5408df56641f521675e7a32fba2979ea592a43d437ea1790f99bd95577ad1bb7",
+      "purpose_and_callers": "IDateTime adapter registered in Auth DI.",
+      "trust_state_errors_concurrency": "Returns current UTC from system clock. Stateless, no cancellation/I/O.",
+      "test_evidence": "DependencyInjection.cs:141 traced; no wall-clock or timing experiment.",
+      "conclusion": "Simple clock boundary.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          125
+        ]
+      ],
+      "line_count": 125,
+      "sha256": "a9272d3a2f61242320c7b5ec606c09adfc95c41e1afbd08058231be9d23f986f",
+      "purpose_and_callers": "Content-addressed avatar variants written by UploadAvatarCommandHandler, tree removed in retention/deletion paths.",
+      "trust_state_errors_concurrency": "Writes live path with FileMode.Create, verifies lexical containment, then prunes other hashes. Put cancellation can interrupt a multi-file write. Prune precedes DB profile save, with no atomic link between filesystem and DB. No per-user lock.",
+      "test_evidence": "LocalAvatarStorageTests.cs:22–95 verifies layout, sequential prune, delete and empty owner. Handler save failure and concurrent upload absent from reviewed evidence.",
+      "conclusion": "Filesystem/database ordering yields a static integrity defect.",
+      "finding_ids": [
+        "CONT034001"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalFileStorageService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          147
+        ]
+      ],
+      "line_count": 147,
+      "sha256": "5932316bc1dccb6afb3bdbd7f3eb0d955cdbc282d7840eb2ac8da12e00204e63",
+      "purpose_and_callers": "Generic local file storage DI adapter with no application save/delete callsites found by direct symbol search.",
+      "trust_state_errors_concurrency": "Normalizes one folder segment, sanitizes base and adds GUID unless already suffixed. Extension taken from name. Containment is lexical and case-insensitive. Uses direct writes with token, cancellation may leave incomplete file. Delete synchronously removes existing file.",
+      "test_evidence": "Scoped search finds only interface/implementation for these methods. No active upload reachability or symlink test claimed.",
+      "conclusion": "Current avatar upload uses IAvatarStorage.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/SkiaImageProcessor.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          81
+        ]
+      ],
+      "line_count": 81,
+      "sha256": "540dd6d09a691f6582cc40eb42473c2e129fb7601db33422b856514d78545bc1",
+      "purpose_and_callers": "UploadAvatar image processor validates bytes, then generates small/medium/large WebP.",
+      "trust_state_errors_concurrency": "Bounds actual reads and dimensions before bitmap allocation. Signature and codec checks. Re-encode from fresh pixels and derive SHA-256 hash prefix. Cancellation checked at read/decode/variant boundaries. Each request owns buffers.",
+      "test_evidence": "AvatarDecodeBoundaryTests covers actual length, dimensions, truncation, cancellation, crop and EXIF stripping by source. Native decode not run.",
+      "conclusion": "Bounds verified in source and existing test cases.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/EmailMessage.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          8
+        ]
+      ],
+      "line_count": 8,
+      "sha256": "3e5702d1ffe5b42e09cacbcc3d449bccb1c0ee5f4f044e10362a1bfb4f8bef4e",
+      "purpose_and_callers": "Message record for EmailService to IEmailMessageSender.",
+      "trust_state_errors_concurrency": "Carries recipient PII and potentially action credential in HTML/text. Record has no delivery policy. Default record formatting would expose data if caller logged the full value; reviewed log calls log subject/provider.",
+      "test_evidence": "AuthSupportServicesTests captures synthetic message. No SMTP or mail logging experiment.",
+      "conclusion": "Keep message contents in sender boundary.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/EmailOptions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          37
+        ]
+      ],
+      "line_count": 37,
+      "sha256": "3cea5fa619a8d48dc1fe2cea35d7648b4da6b554acb86462672d9cf142671693",
+      "purpose_and_callers": "Email section options, SMTP/log mode detection and effective From fallback.",
+      "trust_state_errors_concurrency": "Default Log, SMTP defaults include TLS. Credentials only via configured fields. Invalid config checked at send. Mutable options captured by EmailService. No runtime config read.",
+      "test_evidence": "AuthSupportServicesTests.cs:55–131 covers test provider selection and missing credential.",
+      "conclusion": "Configuration source and production overrides unverified.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/EmailService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          263
+        ]
+      ],
+      "line_count": 263,
+      "sha256": "f4e0f64578fe20e75d4c4f3bd7e1a5e2980a789e6e5d85b228a80902b6851430",
+      "purpose_and_callers": "Builds Auth verification/reset/change/lock/2FA notifications and delegates to SMTP or Log sink.",
+      "trust_state_errors_concurrency": "Encodes HTML recipient name/body/links, trust of link scheme assigned to producers. Log mode emits fixed subject only. Sender cancellation passed; SMTP exceptions propagate to caller. Side-effect retry/idempotency outside adapter.",
+      "test_evidence": "AuthSupportServicesTests.cs:30–131 covers log sink, mock SMTP and invalid config; no mailbox/network test.",
+      "conclusion": "Secret-bearing links not written by reviewed service log calls.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/IEmailMessageSender.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          6
+        ]
+      ],
+      "line_count": 6,
+      "sha256": "de94fbf5aa2a4174dea9e9cf2c0c439ba6b36cf55574e64e19272822d6082cef",
+      "purpose_and_callers": "Sender seam between email construction and SMTP transport.",
+      "trust_state_errors_concurrency": "Explicit token and full EmailMessage/EmailOptions. Interface provides no durable queue, retry, or acknowledgement beyond returned Task.",
+      "test_evidence": "Mock sender in AuthSupportServicesTests.cs:294 onward, no provider execution.",
+      "conclusion": "Implementations own cancellation and transport guarantees.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/RabbitMqStartupHostedService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          65
+        ]
+      ],
+      "line_count": 65,
+      "sha256": "186cd7710c1a6c3840bd6d38b7dfa071d10d8b0f90b8836411ca3583cbc7462f",
+      "purpose_and_callers": "Auth hosted service obtains/rechecks broker connection immediately and on a periodic timer.",
+      "trust_state_errors_concurrency": "Calls connection manager with stopping token. Broad probe catch logs and continues; loop awaits serially, finally disposes timer. Connection ownership belongs to manager. This does not register the consumer binding itself.",
+      "test_evidence": "RabbitMqStartupHostedServiceTests.cs:16–124 covers mocked connection states, exception, tick, and cancelled stop. No broker exercised.",
+      "conclusion": "Startup probing distinct from T05 topology.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Messaging/SmtpEmailMessageSender.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          46
+        ]
+      ],
+      "line_count": 46,
+      "sha256": "85401a690d81c5ab381c3140fa1c0290bb179589e7e65e0f3d4ecd1b89009e76",
+      "purpose_and_callers": "SMTP sender builds MailMessage/alternate MIME views and per-call SmtpClient.",
+      "trust_state_errors_concurrency": "Credentials and TLS determined by configured options. Mail and client disposed. Passes caller token to send. Delivery latency and effective async timeout not tested.",
+      "test_evidence": "Mock sender tests validate EmailService wiring. SMTP protocol not executed.",
+      "conclusion": "Async delivery guarantee depends on transport.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          86
+        ]
+      ],
+      "line_count": 86,
+      "sha256": "abd72e3f1772995060f19a7d084e606da3893478d5bfdace957266bfd7b813f8",
+      "purpose_and_callers": "Generates ten random recovery codes, hashes for storage, validates and consumes during Auth flow.",
+      "trust_state_errors_concurrency": "Repository operations receive token. Original snapshot enumerates unused codes, verifies then marks and saves. No atomic compare-and-set in reviewed service. Plaintext returned once by method for display.",
+      "test_evidence": "BE-011 already records concurrent redemption. Root work in other files is excluded from this finding status.",
+      "conclusion": "Existing BE-011, no new duplicate finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/TokenBlacklistService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          84
+        ]
+      ],
+      "line_count": 84,
+      "sha256": "f29cc41c6acc7126b555c152f1c8824a72a2a1ed9cfeb5a50c3cac79fb9ea5dc",
+      "purpose_and_callers": "Auth token blacklist IDistributedCache adapter read by global TokenBlacklistFilter.",
+      "trust_state_errors_concurrency": "TTL based on expiry. Redis key includes raw input token. Write failures rethrow. Read failures, including cancellation, return false, so filter continues to security-stamp logic. No live producer found for blacklist writes in current source search.",
+      "test_evidence": "AuthAuditAndBlacklistServiceTests.cs:58–96 covers TTL/write error and asserts false on read error despite test name. TokenBlacklistFilter.cs:24–57 inspected.",
+      "conclusion": "Source behavior recorded. Production revoke effectiveness remains unverified.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/Dockerfile",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          43
+        ]
+      ],
+      "line_count": 43,
+      "sha256": "de58bfb265ea163e8d35231863cca49f83508357abd7ca21ffc18884b74b9bba",
+      "purpose_and_callers": "Category Docker image builds from repo-root context and publishes API for Linux.",
+      "trust_state_errors_concurrency": "Separate REST/gRPC exposed ports, non-root app user, HTTP health probe on 80. Package/image retrieval and listener wiring are environment-dependent.",
+      "test_evidence": "Dockerfile compared to appsettings.Docker.json and Program health mapping. No image built.",
+      "conclusion": "Configured ports align in these files.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          25
+        ]
+      ],
+      "line_count": 25,
+      "sha256": "a248f9b1017108d6edc07d912dc00708b2e55137912b8e26e61f88c82d9f70cf",
+      "purpose_and_callers": "Category API compile-time imports for validators, mediator, JWT, MVC, tracing, Serilog and JSON.",
+      "trust_state_errors_concurrency": "No auth/policy/connection setup via imports. Runtime pipeline defined in Program.",
+      "test_evidence": "Program.cs:40–98,167–209 traced; no compilation in batch.",
+      "conclusion": "Imports describe compilation scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/Planora.Category.Api.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          41
+        ]
+      ],
+      "line_count": 41,
+      "sha256": "32e79bfe4e0c9f855a0805c6dddd9ad07ad5696ab651527e44c625219f1a0e3a",
+      "purpose_and_callers": "Category Web project references GrpcContracts, shared BuildingBlocks and service layers.",
+      "trust_state_errors_concurrency": "net10.0 Linux project, design package private assets, UserSecretsId names a store. No secret store access or restore.",
+      "test_evidence": "Static dependency read and Dockerfile COPY comparison.",
+      "conclusion": "Project boundaries recorded.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          226
+        ]
+      ],
+      "line_count": 226,
+      "sha256": "eb28084e86d82215b4d0857b45c29ae4718d94752b65b4a509177a7f1abde7ce",
+      "purpose_and_callers": "Category startup wires DB/Redis/transport, JWT, CORS, service-key gRPC, controllers and health routes.",
+      "trust_state_errors_concurrency": "Startup waits for dependencies, validates schema with retry, subscribes to user deletion, then runs host. DB create target literal differs from configured connection target. Cancellation forwarded to wait/schema/subscribe; Redis ConnectAsync call itself has no token. User-keyed rate limiting follows auth.",
+      "test_evidence": "DependencyWaiter.cs:23–53,63–101 and shared DI 42–43,88–89 checked. CategoryDatabaseStartup checked via callsite only; no host launch.",
+      "conclusion": "Static database target mismatch.",
+      "finding_ids": [
+        "CONT034002"
+      ]
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/Properties/launchSettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          60
+        ]
+      ],
+      "line_count": 60,
+      "sha256": "0c3a21a88740fdc9ec0e182623e4b9862665bf19c524d649cfe37afd80eadccb",
+      "purpose_and_callers": "Launch profiles for Development/Staging/Production and local environment variables.",
+      "trust_state_errors_concurrency": "Profiles declare URL and config keys. Kestrel endpoint sections and env providers determine effective listeners and values. Credential-like literals masked. Local profile configuration not used as proof of deployment.",
+      "test_evidence": "Compared names to Program and RabbitMqConnectionManager.cs:33. No profile launched.",
+      "conclusion": "OPS-003/010 are separate scanner evidence.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/appsettings.Docker.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          38
+        ]
+      ],
+      "line_count": 38,
+      "sha256": "e7a181feb8c4cbdf82019f9b796cbb3f18711dd53a23965b60aa5fda6c34157d",
+      "purpose_and_callers": "Docker-specific Category logging/DB/broker/JWT/listener settings.",
+      "trust_state_errors_concurrency": "REST HTTP/1 on 80, gRPC HTTP/2 on 81, blank JWT/broker credential placeholders and configuration overrides. Sensitive values masked.",
+      "test_evidence": "Dockerfile and Program matched by source. No compose substitution or runtime configuration read.",
+      "conclusion": "Effective deploy settings outside scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Api/appsettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          53
+        ]
+      ],
+      "line_count": 53,
+      "sha256": "bf97952231c946806bb8e0d00e033fb9a6e9a5c1f8568aef63bb44684f227646",
+      "purpose_and_callers": "Base Category logging, CORS, connection/cache defaults, JWT and Kestrel settings.",
+      "trust_state_errors_concurrency": "REST 5281, gRPC 5282, explicit local CORS, blank JWT and broker credential placeholders. Redis:Configuration vs startup connection-string fallback are separate paths. Sensitive values masked.",
+      "test_evidence": "Program.cs:61–80,110–125 and shared DI 42–43,88–89 compared. No active settings loaded.",
+      "conclusion": "Source defaults only.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT034001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Загрузка аватара удаляет прежнюю ревизию до сохранения нового URL",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs",
+          "lines": "37–60, 82–101"
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/UploadAvatar/UploadAvatarCommandHandler.cs",
+          "lines": "81–96",
+          "supplemental": true
+        }
+      ],
+      "trigger": "У пользователя сохранён URL прежней ревизии. Новый PutAsync успешно завершает prune, затем запись профиля отклонена или отменена до commit.",
+      "impact": "В БД остаётся прежний URL, файлы прежней ревизии уже удалены. Конкурентные загрузки тоже не синхронизируют порядок prune и commit.",
+      "repro": "Сохранить аватар A, вызвать загрузку B с инъекцией ошибки SaveChangesAsync после PutAsync, проверить сохранённый URL и существование файлов A. Конкурентный вариант требует отдельного теста.",
+      "fix": "Привязать очистку к фактически подтверждённой ревизии профиля и сериализовать очистку с обновлениями этого владельца."
+    },
+    {
+      "id": "CONT034002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Category startup создаёт БД с фиксированным именем вместо настроенной",
+      "evidence": [
+        {
+          "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+          "lines": "110–117"
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+          "lines": "23–53, 63–101",
+          "supplemental": true
+        }
+      ],
+      "trigger": "В ConnectionStrings:CategoryDatabase указана отсутствующая БД с отличающимся именем и запускается обычный startup.",
+      "impact": "Startup сначала проверяет или создаёт planora_category. Затем соединяется с исходной настроенной БД, которую первый шаг не создал. При отсутствии прав возможен отказ на попытке создать постороннее имя.",
+      "repro": "В разрешённом отдельном PostgreSQL fixture задать уникальную отсутствующую CategoryDatabase, запустить обычный startup и проверить фактический create target и исход соединения.",
+      "fix": "Извлечь имя из той же строки соединения, проверить его до startup waiter и передать точное имя."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Охват включает только 25 manifest paths. Supplemental caller/test traces в счётчик не входят.",
+    "Чтение относится к указанному HEAD. SHA-256 вычислены по байтам рабочего дерева, diff по scope к HEAD пуст.",
+    "В конфигурационных файлах чувствительные значения скрыты. Активные env-файлы, secret stores и auth/credentials не загружались.",
+    "Build, unit/provider tests, Auth/Category hosts, Docker, PostgreSQL, Redis, SMTP и HIBP не запускались.",
+    "Новые находки предварительные. BE-003, BE-004, BE-011, OPS-003, OPS-007 и OPS-010 уже ведутся отдельно."
+  ]
+}
