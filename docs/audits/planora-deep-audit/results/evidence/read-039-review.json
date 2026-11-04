@@ -1,0 +1,510 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-039",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read035",
+  "source_head": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 713,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/UnitOfWork.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 52"
+      ],
+      "line_count": 52,
+      "sha256": "c740badb9ea1e5d167ee96cf0dee657d91bf0044e9392690c68dfc4b9317f4dc",
+      "purpose_and_callers": "Scoped Messaging EF unit of work, registered in Messaging Infrastructure DI.",
+      "trust_state_errors_concurrency": "Supports optional explicit transaction, SaveChanges and disposal. Commit/rollback clear the handle after success. The live SendMessage handler uses repository tracking plus save-through outbox for one atomic save. No current explicit Begin caller found outside this class.",
+      "test_evidence": "SendMessage tests and T01 outbox evidence cover the live save path separately. No explicit Npgsql transaction test was run.",
+      "conclusion": "Preserve the single-save message/outbox boundary.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Planora.Messaging.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 30"
+      ],
+      "line_count": 30,
+      "sha256": "418160399734c9b6648b8b6c3b2afa1d36ff2b740a67bda3574be6982acbc898",
+      "purpose_and_callers": "Messaging Infrastructure net10.0 dependency and project manifest.",
+      "trust_state_errors_concurrency": "Declares EF/Npgsql, gRPC clients, Redis and EF health checks. EF Design is private tooling. References service layers, shared libraries and GrpcContracts.",
+      "test_evidence": "T08 tracked Messaging schema/migrator evidence. No build or dependency scan repeated.",
+      "conclusion": "T12/T14 own dependency provenance and image reproducibility.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Retention/MessageRetentionPurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 43"
+      ],
+      "line_count": 43,
+      "sha256": "6e02d46bb40583cda3d2d15660b018bd236b358d93a019eb1a43f4e2ae74a747",
+      "purpose_and_callers": "Opt-in permanent deletion of old direct messages, registered by Messaging Infrastructure DI.",
+      "trust_state_errors_concurrency": "Eligibility is strictly CreatedAt before cutoff. PurgeMessages defaults false. Shared RetentionExecutor supplies lock, tripwire, batch delete and cancellation. The count-then-batches race remains BE-010.",
+      "test_evidence": "ContentRetentionPostgresTests.cs:147 onward and ExtraCleanupPolicyTests.cs:129 onward exercise this policy in existing suites. Tests were not run for READ-039.",
+      "conclusion": "Keep content purge opt-in. T08 applied schema and T14 runtime policy remain separate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/Dockerfile",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 45"
+      ],
+      "line_count": 45,
+      "sha256": "da9f75ae53de643bd269992f5f7007f6ff297e24c0b3aeecb4bbc175ad6f51d6",
+      "purpose_and_callers": "Multi-stage Linux .NET 10 image for Realtime API.",
+      "trust_state_errors_concurrency": "Copies shared/Realtime/Messaging Domain projects, restores, builds and publishes. Final process runs as appuser and probes aggregate /health on port 80. Effective Compose/Fly probe and listener are deployment properties.",
+      "test_evidence": "Compared Dockerfile inputs with API project and T08 COPY-only proof. No Realtime image build executed.",
+      "conclusion": "Verify HTTP/gRPC parity and immutable image in T07/T14.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 25"
+      ],
+      "line_count": 25,
+      "sha256": "fc327f6fed3e95cfe7c10d27bdc7e56da79de189192c47bb1d213d1bc41ee754",
+      "purpose_and_callers": "Realtime API global imports for messaging, middleware, auth, MVC, SignalR and logging.",
+      "trust_state_errors_concurrency": "Compile-time scope only. HTTP/gRPC/SignalR auth are configured in Program and endpoints.",
+      "test_evidence": "Compared use in Program and endpoint sources. Build not run.",
+      "conclusion": "No independent runtime behavior.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/Grpc/RealtimeGrpcService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 42"
+      ],
+      "line_count": 42,
+      "sha256": "56fc3da5b53c17fc58059c2c1ab61d342018cbcb41c75afc0a3139b9be0818d9",
+      "purpose_and_callers": "Realtime internal gRPC endpoint for ad-hoc user and all-client notification pushes.",
+      "trust_state_errors_concurrency": "Service-key interceptor gates RPC. The service forwards the call cancellation token and signals success after push dispatch; this path does not persist notifications. Both methods log complete caller-supplied message at Information before dispatch.",
+      "test_evidence": "RealtimeGrpcServiceTests.cs and RealtimeGrpcServiceLoadTests.cs use service mocks. No generated Realtime client production callsite found by source search.",
+      "conclusion": "Keep service-key trust boundary and remove body text from routine telemetry.",
+      "finding_ids": [
+        "CONT039003"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 42"
+      ],
+      "line_count": 42,
+      "sha256": "e989a932bef27596762bc21a5dba2ed33b47b0877816c435580fca99d37aad88",
+      "purpose_and_callers": "Realtime API Web SDK project for .NET 10 and Linux Docker.",
+      "trust_state_errors_concurrency": "References gRPC, JWT, SignalR Redis, direct centrally pinned MessagePack, telemetry and local projects. UserSecretsId names a developer store without embedding its values.",
+      "test_evidence": "T12 dependency findings and T08 schema evidence are separate. No restore, build or secrets lookup.",
+      "conclusion": "Do not infer dependency status from the project comment alone.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/Properties/launchSettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 57"
+      ],
+      "line_count": 57,
+      "sha256": "6cf5ec275fbb21d64b146ba890d46dbc0f101594863e75b8b67cdf261a8d516a",
+      "purpose_and_callers": "Development, Staging and Production launch profiles for Realtime.",
+      "trust_state_errors_concurrency": "Declares listener and Redis/Rabbit/JWT keys. String values masked. Profile keys can influence REDIS_CONNECTION fallback in Program. Profiles do not prove runtime exposure or listener binding.",
+      "test_evidence": "Compared key names against Program precedence. Launch profiles were not executed.",
+      "conclusion": "T14 should measure effective config on authorized isolated deployment.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/appsettings.Docker.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 32"
+      ],
+      "line_count": 32,
+      "sha256": "cc4d2904ad5941787fdbe233c4e703501ad303b1df8223794d48a687ed000f61",
+      "purpose_and_callers": "Docker appsettings overlay for Realtime logging, Redis, broker, JWT and Kestrel.",
+      "trust_state_errors_concurrency": "Values masked. Rabbit credentials are intended to be overridden by Compose configuration. Listener choice and Redis come from composed settings, not this file in isolation.",
+      "test_evidence": "Compared key structure with Program and Compose source. No config substitution or image execution.",
+      "conclusion": "T14 verifies effective Redis host, listener and health surface.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Api/appsettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 40"
+      ],
+      "line_count": 40,
+      "sha256": "912cc8f527f9ede43fba0ad1ea5c3d7580710bb7543095e033f386aad0dd3550",
+      "purpose_and_callers": "Base Realtime host configuration for Redis, RabbitMQ, JWT, logging and listener.",
+      "trust_state_errors_concurrency": "Redis:Configuration supplies fallback for backplane and stamp multiplexer. ConnectionStrings:RealtimeDatabase is external to this base file, so default selection depends on actual config. Values masked.",
+      "test_evidence": "Compared Program and Infrastructure DI. T08 documents optional persistence path separately.",
+      "conclusion": "Use durable and null-store cases as separate integration controls.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/TaskDeletedNotificationCleanupHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 32"
+      ],
+      "line_count": 32,
+      "sha256": "44c480048bf52d0743213b3f0888a1d43332de8486d0b223cf0f6e94a89b317f",
+      "purpose_and_callers": "Realtime subscriber for Todo TaskDeleted, delegates removal to INotificationStore.",
+      "trust_state_errors_concurrency": "Program subscribes with stable T05 ID. Store removes existing deliveries and notifications scoped to task. Hard delete removes event dedup anchor. Same-ID redelivery and delayed first delivery can reinsert and push after cleanup.",
+      "test_evidence": "Existing notification tests cover dedup with a retained row and provider schema. No cleanup/replay sequence was run.",
+      "conclusion": "T03 deletion fan-out should prove completion in Realtime as well as Collaboration.",
+      "finding_ids": [
+        "CONT039001"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/UserDeletedNotificationCleanupHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 31"
+      ],
+      "line_count": 31,
+      "sha256": "f68e0f9345bc7176cda9636d1aef0b1fed78f7a714905c859b95a8bc2c1ee094",
+      "purpose_and_callers": "Realtime subscriber for Auth UserDeleted, delegates recipient cleanup to store.",
+      "trust_state_errors_concurrency": "Program uses stable T05 ID. Scope is recipient UserId. Existing rows are deleted and a subsequent NotificationEvent can restore recipient data because no durable deletion marker gates ingress.",
+      "test_evidence": "T05 establishes routing identifiers and separate synthetic three-domain cleanup. No dedicated Realtime recipient replay proof in READ-039.",
+      "conclusion": "T02/T06 should separately test the recipient cleanup and replay boundary.",
+      "finding_ids": [
+        "CONT039001"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 17"
+      ],
+      "line_count": 17,
+      "sha256": "21d2f570b3dd493e7d35e5985c581e71059586e269bed1c02fe14959522c254f",
+      "purpose_and_callers": "Realtime Application global imports for shared events, SignalR and logs.",
+      "trust_state_errors_concurrency": "Compile-time scope. NotificationEventHandler and concrete hub clients remain separate DI components.",
+      "test_evidence": "Compared interfaces, handler and DI sources. Build not run.",
+      "conclusion": "No independent runtime behavior.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationReadStore.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 34"
+      ],
+      "line_count": 34,
+      "sha256": "5e7a7d9a658972ea77b8b7c2683c0957be2def7a499707444dc575728cf03327",
+      "purpose_and_callers": "Recipient-scoped read store contract for summary, list and mark-read.",
+      "trust_state_errors_concurrency": "Controller derives recipient from JWT claims. Summary total is exact while per-task entries use capped rows. List's timestamp-only cursor remains DIST-006. Mark-read store updates only matching unread rows with selector precedence.",
+      "test_evidence": "NotificationsControllerTests.cs and NotificationReadStoreTests.cs cover recipient forwarding, selectors and summary shape. No capped-summary plus frontend read test found.",
+      "conclusion": "Missing per-task summary entry can reflect a capped view, not zero durable unread.",
+      "finding_ids": [
+        "CONT039002"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 21"
+      ],
+      "line_count": 21,
+      "sha256": "614b59774b4754901452f30d8a83843dadc081120194057380d590134767ea4d",
+      "purpose_and_callers": "Notification delivery interface for persisted payload and legacy ad-hoc sends.",
+      "trust_state_errors_concurrency": "Persisted event sends target user groups. gRPC and manual actions use transient methods and one shared wire shape. Recipients for trusted internal calls are supplied by the RPC caller.",
+      "test_evidence": "NotificationWireShapeTests.cs checks ad-hoc and durable shape. No SignalR backplane or production ingress proof.",
+      "conclusion": "DIST-005 owns persist/send retry gap; keep transient pushes separate from durable erasure.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationStore.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 36"
+      ],
+      "line_count": 36,
+      "sha256": "34037646d9cf1efd7abe15569de15fb3843470ba3d47472968cdc64fef8206b7",
+      "purpose_and_callers": "Durable notification write contract with SourceEventId dedup and task/user hard-delete operations.",
+      "trust_state_errors_concurrency": "TryAdd checks existing rows, backed by unique index in Npgsql. Cleanup hard-deletes those rows, so that index cannot reject a later replay of the same event. No deletion tombstone is consulted.",
+      "test_evidence": "NotificationEventHandlerTests.cs:63 onward covers duplicate delivery with a retained record. T08 validates schema compatibility, not replay after hard delete.",
+      "conclusion": "Treat dedup lifetime and deletion completion as explicit parts of the delivery contract.",
+      "finding_ids": [
+        "CONT039001"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/IRealtimeBroadcaster.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 33"
+      ],
+      "line_count": 33,
+      "sha256": "3753b85f97968a02c63b48d3ec37941ac64d923658c0e98c29e621cfbab29a51",
+      "purpose_and_callers": "Realtime data-sync broadcaster contract for feed and branch signals.",
+      "trust_state_errors_concurrency": "Feed targets personal groups. Branch signals target task group and carry action/IDs. Group membership freshness remains DIST-004. Content is fetched via authorized REST path after signal.",
+      "test_evidence": "Realtime broadcaster and branch tests cover direct calls. No two-instance revoke or hub scenario executed.",
+      "conclusion": "Preserve thin signal payload while fixing current audience authorization in T06.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/ITaskBranchAuthorizer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 13"
+      ],
+      "line_count": 13,
+      "sha256": "2c21854fccc2de342ceffa893c1f49e246a8762743b21ff07b04d5a70d895452",
+      "purpose_and_callers": "Todo-backed branch authorization contract used by the hub on join.",
+      "trust_state_errors_concurrency": "CanAccessBranchAsync delegates to Todo and fails closed. First join checks do not cover subsequent expiry or revocation (DIST-004).",
+      "test_evidence": "TaskBranchAuthorizerTests.cs tests denied/missing task and RPC failure. No runtime stale-room scenario here.",
+      "conclusion": "Keep join and ongoing authorization gates separate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Planora.Realtime.Application.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 28"
+      ],
+      "line_count": 28,
+      "sha256": "7bd790e3d6251eef96225bc1d29db9d8c09bb2549b2451e55d9a5bd82e5e5c92",
+      "purpose_and_callers": "Realtime Application net10.0 manifest with ASP.NET shared framework and CQRS/map/validation packages.",
+      "trust_state_errors_concurrency": "References shared libraries and Realtime Domain. No runtime config values in the manifest.",
+      "test_evidence": "Compared source references. No build or restore.",
+      "conclusion": "No independent runtime gate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/BroadcastNotificationRequest.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 8"
+      ],
+      "line_count": 8,
+      "sha256": "6c64113fd5ff51f040cd4b7b072f3fd13e27a88bd6dc4eb8894b319afb32aacb",
+      "purpose_and_callers": "REST request DTO for manual broadcast. Defaults Message empty and Type info.",
+      "trust_state_errors_concurrency": "Controller is Admin-only and passes both fields without self-send allowlist. That difference is documented in API.md and security-idor-coverage.md. The gRPC request type is generated separately.",
+      "test_evidence": "NotificationsControllerTests.cs:74 onward covers action behavior with mock service. No role authorization HTTP test run.",
+      "conclusion": "Do not infer persistence or service-key privileges from this DTO.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/MarkNotificationsReadRequest.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 19"
+      ],
+      "line_count": 19,
+      "sha256": "2956759188eb632b4aa711d61174f3af7503d07bbff887a73b815dc5d777e83c",
+      "purpose_and_callers": "REST body for mark-read selectors All, TaskId or Ids.",
+      "trust_state_errors_concurrency": "Controller passes current JWT user ID and uses request selectors only inside that user's unread scope. Store accepts a task missing from summary. Frontend may skip sending it due to local per-task optimization.",
+      "test_evidence": "NotificationsControllerTests.cs:159 onward and NotificationReadStoreTests cover forwarding/recipient isolation. Capped summary client interaction is untested here.",
+      "conclusion": "Exercise card/branch mark-read when the summary omits that task.",
+      "finding_ids": [
+        "CONT039002"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/SendNotificationRequest.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 8"
+      ],
+      "line_count": 8,
+      "sha256": "b5c0f11c8a2e39d51cfb6b8b01b409b2f201493f10ca624ca6ec6a1bdc4345dc",
+      "purpose_and_callers": "REST request DTO for admin self-notify. Defaults Message empty and Type info.",
+      "trust_state_errors_concurrency": "Controller resolves recipient from JWT and enforces self-send type allowlist, then emits ad-hoc push. gRPC request with recipient field is a separate contract.",
+      "test_evidence": "NotificationsControllerTests.cs:22–64 covers success and rejection of security-spoof types. No HTTP role test run.",
+      "conclusion": "Preserve separation between caller-scoped REST and trusted internal RPC.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ActiveConnectionsResponse.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 9"
+      ],
+      "line_count": 9,
+      "sha256": "c2fd040007fdb11a836f0c71319f85cea4f749b598fcd296aa131c9aa7700f19",
+      "purpose_and_callers": "Response from authenticated caller's active-connections endpoint.",
+      "trust_state_errors_concurrency": "Controller derives the caller from sub/NameIdentifier and returns current instance's connection inventory. Redis backplane does not aggregate this process-local manager.",
+      "test_evidence": "ConnectionsControllerTests.cs:26 onward verifies caller IDs and returned connection count. Docs/API.md:1566 documents local scope.",
+      "conclusion": "Treat as local diagnostics.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionInfo.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 8"
+      ],
+      "line_count": 8,
+      "sha256": "614cbe1dad96354554162eb84c0e72e71f656fe3cf2f9002900f5cec334e86f5",
+      "purpose_and_callers": "Wire DTO for connection ID and ConnectedAt.",
+      "trust_state_errors_concurrency": "Controller currently assigns response-generation UTC time, which API.md explicitly documents. It is not measured connection age.",
+      "test_evidence": "ConnectionsControllerTests covers caller inventory with a stub. No contract change or live telemetry run.",
+      "conclusion": "Known documented semantics, no new finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionStatsResponse.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 8"
+      ],
+      "line_count": 8,
+      "sha256": "c7cd4bfe519b309f95e4dd2c453aa6d0bc6185aae381fa98fd872cd44ccfe8d5",
+      "purpose_and_callers": "Admin-only connection stats DTO containing instance count and current timestamp.",
+      "trust_state_errors_concurrency": "Controller uses process-local manager and DateTime.UtcNow. Scope is the responding instance, even with Redis backplane.",
+      "test_evidence": "ConnectionsControllerTests.cs:75 onward verifies count. Admin role boundary observed by source.",
+      "conclusion": "Keep local inventory distinct from deployment metrics.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT039001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "После hard-delete уведомления тот же event восстанавливает строку и повторяет push",
+      "evidence": [
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/TaskDeletedNotificationCleanupHandler.cs",
+          "lines": "26–30"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/UserDeletedNotificationCleanupHandler.cs",
+          "lines": "25–29"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationStore.cs",
+          "lines": "13–35"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+          "lines": "168–174",
+          "supplemental": true
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs",
+          "lines": "47–66",
+          "supplemental": true
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs",
+          "lines": "24–39, 63–92",
+          "supplemental": true
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+          "lines": "32–60",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Сначала доставить NotificationEvent для задачи или пользователя, затем обработать TaskDeleted/UserDeleted cleanup. Повторно доставить тот же NotificationEvent с прежним ID. Для нового сообщения возможен также порядок cleanup перед первым получением.",
+      "impact": "Hard-delete убирает строку с SourceEventId и уникальное ограничение больше не блокирует replay. Новый durable row снова учитывается в unread. Для task case действующий получатель снова получает уведомление о несуществующей задаче, для удалённого получателя восстанавливается orphan history. Фактическая доставка push до клиента зависит от активного подключения.",
+      "repro": "В disposable Npgsql и RabbitMQ обработать NotificationEvent, отдельно завершить TaskDeleted/UserDeleted, затем повторить тот же payload/ID. Проверить persisted count, summary и вызов push. Добавить контроль разных получателей, delayed first delivery и оба порядка подписок.",
+      "fix": "В T03/T06 определить durable инвариант для закрытых task/recipient scopes и retention дедупликации, затем сериализовать ingest с удалением. DIST-012 описывает аналогичную доставку в Collaboration, здесь отдельно проверяются resurrection dedup и видимый unread."
+    },
+    {
+      "id": "CONT039002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Задача, пропущенная ограниченной unread-сводкой, не помечается прочитанной из ветки",
+      "evidence": [
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationReadStore.cs",
+          "lines": "5–13, 22–33"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/MarkNotificationsReadRequest.cs",
+          "lines": "3–17"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs",
+          "lines": "16–40, 77–109",
+          "supplemental": true
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+          "lines": "82–93",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/store/notifications.ts",
+          "lines": "122–130, 192–212",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/components/todos/todo-card.tsx",
+          "lines": "531–538",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+          "lines": "409–414",
+          "supplemental": true
+        }
+      ],
+      "trigger": "У действующего получателя есть 1000 более новых task-scoped unread rows и одна старая unread row для другой задачи. Загрузить summary и открыть именно старую задачу.",
+      "impact": "Сервер возвращает totalUnread=1001, но perTask не содержит старую задачу. Клиент трактует отсутствие записи как отсутствие unread и не выполняет POST /notifications/read. Старое уведомление остаётся unread после просмотра карточки/ветки.",
+      "repro": "Посеять более 1000 unread rows на двух задачах в disposable PostgreSQL, проверить exact total и усечённый perTask. В frontend test открыть старую задачу и проверить запрос mark-read, снижение durable total и сохранение unread другой задачи.",
+      "fix": "Согласовать контракт T06/T10/T11: отсутствующий task в ограниченной сводке должен быть отличим от подтверждённого нуля либо не блокировать идемпотентную отметку задачи. Сохранить ограничение скана и caller scope."
+    },
+    {
+      "id": "CONT039003",
+      "severity": "P3",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Realtime gRPC записывает полное тело уведомления на уровне Information",
+      "evidence": [
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Grpc/RealtimeGrpcService.cs",
+          "lines": "19–35"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+          "lines": "44–49, 219–221",
+          "supplemental": true
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+          "lines": "142–150, 159–167",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LogSanitizer.cs",
+          "lines": "16–34",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Доверенный сервис вызывает SendNotification или BroadcastNotification с текстом сообщения. Полный текст, включая CR/LF, передаётся как свойство log record до отправки.",
+      "impact": "Содержимое уведомления попадает в журнал независимо от доставки. Поведение конкретного sink при рендеринге управляющих символов и доступ операторов к нему требуют проверки. Production caller в checkout не найден.",
+      "repro": "Вызвать обе RPC в изолированном host с синтетическим service key, capture logger и harmless marker с CR/LF. Проверить отсутствие полного текста в итоговых записях при успешной и неуспешной отправке, сохранить метаданные результата.",
+      "fix": "Ограничить routine logging метаданными события и результата. Сохранить текущий RPC auth и payload."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Охват включает только 25 manifest paths. Дополнительные пути вызова, тесты и документы в счётчик не входят.",
+    "SHA-256 вычислены по байтам рабочего дерева. Diff по READ-039 к снимку пуст.",
+    "Конфигурационные строковые значения в выводе скрыты, за исключением безвредных локальных адресов и названий компонентов. Рабочие env-файлы, user secrets и auth/credentials не загружались.",
+    "Build, provider tests, Docker image, host, RabbitMQ, PostgreSQL, Redis, SignalR и браузер не запускались.",
+    "T03/DIST-012 и CONT039001 пересекаются по порядку событий, но требуют разных доказательств. T08 подтверждает versioned schema, но не сохранение дедупликации после hard-delete. T05 устанавливает отдельные subscription IDs и at-least-once, без порядка между подписками.",
+    "BE-010, BE-015, DIST-003/004/005/006, OPS-014 и FE-002 уже ведутся отдельно. Effective deployment, ports и authorization runtime остаются воротами T06/T07/T14."
+  ]
+}

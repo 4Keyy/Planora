@@ -2475,18 +2475,58 @@
         "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
         "lines": "37–49",
         "observation": "CONT037001"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/TaskDeletedNotificationCleanupHandler.cs",
+        "lines": "26–30",
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Features/IntegrationEvents/UserDeletedNotificationCleanupHandler.cs",
+        "lines": "25–29",
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationStore.cs",
+        "lines": "13–35",
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "lines": "168–174",
+        "supplemental": true,
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs",
+        "lines": "47–66",
+        "supplemental": true,
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs",
+        "lines": "24–39, 63–92",
+        "supplemental": true,
+        "observation": "CONT039001 Realtime replay extension"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+        "lines": "32–60",
+        "supplemental": true,
+        "observation": "CONT039001 Realtime replay extension"
       }
     ],
     "trigger": "TaskDeleted полностью обработан, затем Collaboration получает более раннее TaskCreated или TaskActivity для того же TaskId через отдельную подписку. Порядок может разойтись при повторе или временной задержке одного consumer.",
     "impact": "Cascade меняет только имеющиеся на момент обработки строки. Поздний consumer добавляет новый system comment с IsDeleted=false. Обычный GET закрыт проверкой существования задачи в Todo, а retention выбирает только soft-deleted строки. В данных остаётся недоступная ветка, включая имя из payload создания.",
     "fix": "Согласовать в T03/T05 durable состояние удаления ветки и атомарную проверку записи системных строк с delete cascade. Проверить границу хранения этого состояния и сохранение изоляции сервисов.",
     "tests": [
-      "В Npgsql fixture обработать TaskDeleted перед TaskCreated и перед TaskActivity. Проверить отсутствие активных строк по этому TaskId. Добавить обратный порядок, разные IDs событий, повтор и overlap после чтения delete cascade."
+      "В Npgsql fixture обработать TaskDeleted перед TaskCreated и перед TaskActivity. Проверить отсутствие активных строк по этому TaskId. Добавить обратный порядок, разные IDs событий, повтор и overlap после чтения delete cascade.",
+      "В disposable Npgsql и RabbitMQ обработать NotificationEvent, отдельно завершить TaskDeleted/UserDeleted, затем повторить тот же payload/ID. Проверить persisted count, summary и вызов push. Добавить контроль разных получателей, delayed first delivery и оба порядка подписок."
     ],
     "dependencies": [
       "T05"
     ],
-    "limitations": "Static review CONT037001; runtime NOT_VERIFIED. See results/evidence/read-037-review.json."
+    "limitations": "Static review CONT037001; runtime NOT_VERIFIED. See results/evidence/read-037-review.json. READ-039 adds Realtime deduplication and unread replay as a separate runtime gate."
   },
   {
     "id": "BE-023",
@@ -2625,5 +2665,111 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT037003; runtime NOT_VERIFIED. See results/evidence/read-037-review.json."
+  },
+  {
+    "id": "BE-025",
+    "title": "Capped Realtime summary can suppress mark-read for a task",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T06",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Interfaces/INotificationReadStore.cs",
+        "lines": "5–13, 22–33",
+        "observation": "CONT039002"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Application/Requests/MarkNotificationsReadRequest.cs",
+        "lines": "3–17",
+        "observation": "CONT039002"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs",
+        "lines": "16–40, 77–109",
+        "supplemental": true,
+        "observation": "CONT039002"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+        "lines": "82–93",
+        "supplemental": true,
+        "observation": "CONT039002"
+      },
+      {
+        "path": "frontend/src/store/notifications.ts",
+        "lines": "122–130, 192–212",
+        "supplemental": true,
+        "observation": "CONT039002"
+      },
+      {
+        "path": "frontend/src/components/todos/todo-card.tsx",
+        "lines": "531–538",
+        "supplemental": true,
+        "observation": "CONT039002"
+      },
+      {
+        "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+        "lines": "409–414",
+        "supplemental": true,
+        "observation": "CONT039002"
+      }
+    ],
+    "trigger": "У действующего получателя есть 1000 более новых task-scoped unread rows и одна старая unread row для другой задачи. Загрузить summary и открыть именно старую задачу.",
+    "impact": "Сервер возвращает totalUnread=1001, но perTask не содержит старую задачу. Клиент трактует отсутствие записи как отсутствие unread и не выполняет POST /notifications/read. Старое уведомление остаётся unread после просмотра карточки/ветки.",
+    "fix": "Согласовать контракт T06/T10/T11: отсутствующий task в ограниченной сводке должен быть отличим от подтверждённого нуля либо не блокировать идемпотентную отметку задачи. Сохранить ограничение скана и caller scope.",
+    "tests": [
+      "Посеять более 1000 unread rows на двух задачах в disposable PostgreSQL, проверить exact total и усечённый perTask. В frontend test открыть старую задачу и проверить запрос mark-read, снижение durable total и сохранение unread другой задачи."
+    ],
+    "dependencies": [
+      "T10",
+      "T11"
+    ],
+    "limitations": "Static review CONT039002; runtime NOT_VERIFIED. See results/evidence/read-039-review.json."
+  },
+  {
+    "id": "OPS-015",
+    "title": "Realtime gRPC logs full notification text",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "condition-dependent",
+    "package": "T06",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Grpc/RealtimeGrpcService.cs",
+        "lines": "19–35",
+        "observation": "CONT039003"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "lines": "44–49, 219–221",
+        "supplemental": true,
+        "observation": "CONT039003"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs",
+        "lines": "142–150, 159–167",
+        "supplemental": true,
+        "observation": "CONT039003"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LogSanitizer.cs",
+        "lines": "16–34",
+        "supplemental": true,
+        "observation": "CONT039003"
+      }
+    ],
+    "trigger": "Доверенный сервис вызывает SendNotification или BroadcastNotification с текстом сообщения. Полный текст, включая CR/LF, передаётся как свойство log record до отправки.",
+    "impact": "Содержимое уведомления попадает в журнал независимо от доставки. Поведение конкретного sink при рендеринге управляющих символов и доступ операторов к нему требуют проверки. Production caller в checkout не найден.",
+    "fix": "Ограничить routine logging метаданными события и результата. Сохранить текущий RPC auth и payload.",
+    "tests": [
+      "Вызвать обе RPC в изолированном host с синтетическим service key, capture logger и harmless marker с CR/LF. Проверить отсутствие полного текста в итоговых записях при успешной и неуспешной отправке, сохранить метаданные результата."
+    ],
+    "dependencies": [
+      "T07"
+    ],
+    "limitations": "Static review CONT039003; runtime NOT_VERIFIED. See results/evidence/read-039-review.json."
   }
 ]

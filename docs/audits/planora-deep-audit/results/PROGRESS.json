@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
+  "current_sha": "e40a8716682eb0648cbe5f61dfc8d85fbb638280",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -171,7 +171,9 @@
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LocalAvatarStorageTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t02-avatar-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-avatar-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-039-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-039-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -196,9 +198,10 @@
     "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips.",
     "READ-036 completed 25 paths and 1067 source lines. OPS-014 Redis endpoint parity, BE-021 derived reply erasure and BE-022 author-note count are static findings pending runtime. Coverage 455/1558, 71 batches pending.",
     "READ-037 completed 25 paths and 1291 source lines. DIST-012 ordering, BE-023 author width and BE-024 Unicode preview await runtime. Coverage 480/1558, 70 batches pending.",
-    "BE-016 preserves the old avatar through profile save. Filesystem coordination, staged account deletion and independent bounded cleanup passed 55 targeted and 1464 broad tests without skips."
+    "BE-016 preserves the old avatar through profile save. Filesystem coordination, staged account deletion and independent bounded cleanup passed 55 targeted and 1464 broad tests without skips.",
+    "READ-039 completed 25 Realtime paths and 713 lines. Extended DIST-012 with Realtime deduplication after cleanup and added BE-025/OPS-015 with separate runtime gates. Coverage 505/1558, 69 batches pending."
   ],
-  "next_step": "Finish ChangePassword/RevokeAllSessions provider checks and lock-order review. Record the independent READ-039 evidence.",
+  "next_step": "Finish the independent ChangePassword/RevokeAllSessions review and exact verification. T02 remaining erasure/privacy and deployment gates remain open.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2294,9 +2297,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 70,
+    "pending_batches": 69,
     "complete": false,
-    "current_read_or_reviewed": 480,
+    "current_read_or_reviewed": 505,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2307,7 +2310,8 @@
       "READ-034",
       "READ-035",
       "READ-036",
-      "READ-037"
+      "READ-037",
+      "READ-039"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2358,7 +2362,9 @@
     "results/evidence/read-036-review.md",
     "results/evidence/read-037-review.json",
     "results/evidence/read-037-review.md",
-    "results/evidence/t02-avatar-verification.json"
+    "results/evidence/t02-avatar-verification.json",
+    "results/evidence/read-039-review.json",
+    "results/evidence/read-039-review.md"
   ],
   "local_commits": [
     {
@@ -2425,6 +2431,11 @@
       "task": "READ-037 Collaboration event ordering and bounds",
       "sha": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
       "pushed": false
+    },
+    {
+      "task": "T02 avatar publication and deletion boundary",
+      "sha": "e40a8716682eb0648cbe5f61dfc8d85fbb638280",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2474,6 +2485,8 @@
     "BE-022",
     "DIST-012",
     "BE-023",
-    "BE-024"
+    "BE-024",
+    "BE-025",
+    "OPS-015"
   ]
 }

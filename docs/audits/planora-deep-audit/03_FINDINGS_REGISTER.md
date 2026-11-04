@@ -1029,3 +1029,13 @@ and Int32 pagination offsets. Runtime verification remains open.
 
 The review traced existing inbox and outbox findings separately.
 [READ-037](results/evidence/read-037-review.md)
+
+## READ-039 — Realtime cleanup, unread state and logging
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| DIST-012 | P2 | CONFIRMED, static extension | Realtime hard deletion removes the source event deduplication record. Verify replay after task and account cleanup, including unread state. |
+| BE-025 | P2 | CONFIRMED, static | A task missing from the capped unread summary can skip mark-read in the client. Verify the request and persisted count with a summary above its cap. |
+| OPS-015 | P3 | CONFIRMED, static | Realtime gRPC logs full notification text. Verify routine logs retain metadata and omit message content. |
+
+Runtime verification remains open. [READ-039](results/evidence/read-039-review.md)

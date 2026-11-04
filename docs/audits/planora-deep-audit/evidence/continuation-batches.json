@@ -872,8 +872,10 @@
       "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionInfo.cs",
       "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionStatsResponse.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-039-review.json",
+    "notes": "25 full files and 713 lines. Realtime event replay, capped summary and logging checks await runtime verification."
   },
   {
     "batch_id": "READ-040",
