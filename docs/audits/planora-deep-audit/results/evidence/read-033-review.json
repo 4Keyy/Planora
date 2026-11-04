@@ -1,0 +1,912 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-033",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "t12_reconcile",
+  "source_head": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "source_head_at_start": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 1510,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          260
+        ]
+      ],
+      "line_count": 260,
+      "sha256": "6c37ccb0bea029904d53c8d350223f4757fdf11b55b9881139ba2445fe0f4743",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Auth host composition for scoped DbContext/repositories/auth and storage services, Redis, JWT, gRPC, health and background workers.",
+      "trust_state_errors_concurrency": "AuthDatabase is required. One scoped context is shared by UoW, retention and canonical outbox. Data Protection optionally persists keys to configured Redis. JWT checks issuer, audience, signature and expiry, then security stamp. Redis/broker wiring and readiness depend on deployment configuration. No secrets or actual connections were retrieved.",
+      "test_evidence": "AuthDeletionOutboxTests and DI contract test source locations were checked. AuthDbContext mapping trace was read. Key-ring recovery and hosted startup remain external verification.",
+      "conclusion": "No new DI finding. T01 canonical outbox, T05 delivery and T08 startup are separate gates.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/DesignTime/AuthDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          49
+        ]
+      ],
+      "line_count": 49,
+      "sha256": "631d8017c36fa663a097874c8edb33eedb40e6a9b145ed9f0cc6bfc8d89d98be",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "EF design-time Auth factory and inert current-user/domain-dispatch stubs.",
+      "trust_state_errors_concurrency": "Reads optional current-directory JSON and named environment configuration. A development fallback remains when the named target is absent. The factory constructs Npgsql options and uses no authenticated caller. Explicit target verification is needed for an actual database operation.",
+      "test_evidence": "DesignTimeDbContextFactoryTests15-32 include Auth provider construction. No EF tool or connection executed here.",
+      "conclusion": "Named Auth key differs from the prior Messaging factory mismatch. Development-default provenance remains T12/T08 scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          44
+        ]
+      ],
+      "line_count": 44,
+      "sha256": "4cf56f58a45b382d0ceb03755bed8b9b42e5e1059e0dbc801236910d0d2cc026",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Infrastructure namespace imports for Auth layers, EF, Redis, JWT, crypto and messaging.",
+      "trust_state_errors_concurrency": "Compile-time glue with no runtime state, permission check or cancellation behavior.",
+      "test_evidence": "All44 lines inspected. Compilation remains root verification.",
+      "conclusion": "No new defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/FriendshipConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          53
+        ]
+      ],
+      "line_count": 53,
+      "sha256": "fd3cd56d007c2d12d09ee24fd2ceabf80821f892ccf8b03fc06cd2327d6b1d20",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Maps Friendship rows, two endpoint indexes, status string, timestamps, RESTRICT FKs and soft-delete visibility.",
+      "trust_state_errors_concurrency": "Pair indexes are nonunique. Visible terminal rows can coexist with active rows. Existing-row xmin protects transitions but cannot arbitrate concurrent insertion of different row IDs.",
+      "test_evidence": "Both send handlers and repository lookup traced. Mock friendship tests cover one returned row. No provider race executed.",
+      "conclusion": "CONT033-004. Enforce and query the active unordered-pair invariant while retaining terminal history.",
+      "finding_ids": [
+        "CONT033-004"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/InboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          42
+        ]
+      ],
+      "line_count": 42,
+      "sha256": "6f980bffcf0440030ea5f2d1c6737eee8270e2bda4b7e702ef5e7e492d08ff2a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Maps InboxMessages with unique MessageId, required payload/type/receive time, status and cleanup indexes.",
+      "trust_state_errors_concurrency": "Uniqueness protects the stored identity but does not make a separate check/handle/store sequence atomic. Payload remains sensitive at rest. Persistence constraints surface through SaveChanges.",
+      "test_evidence": "Inbox repository and Auth retention test locations inspected. No production Auth inbox registration found in reviewed DI.",
+      "conclusion": "No new model defect. Runtime dedup/consumer ownership is T05 scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/LoginHistoryConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          30
+        ]
+      ],
+      "line_count": 30,
+      "sha256": "4f83105f4fbcf13a554f31507286ed5c048f7e16f03af03b31c5cbb354fb4f1e",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Maps login forensic records and indexes by user, time, outcome and deletion flag.",
+      "trust_state_errors_concurrency": "IP and agent lengths bounded in schema. Global visibility requires both active row and nondeleted User. The filter is not an authorization substitute for owner-scoped endpoints.",
+      "test_evidence": "LoginHistoryRepository and owner handler source locations traced. No index plan or live data reviewed.",
+      "conclusion": "Preserve forensic privacy and BE-008 paging scope.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          46
+        ]
+      ],
+      "line_count": 46,
+      "sha256": "26c4b26f6c30b0edf1672747cb5669b3b7cc12813d14a858d72fbc3da4b538f7",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Maps Auth outbox type/payload/time/status/error/retry fields and active polling indexes.",
+      "trust_state_errors_concurrency": "Status stored as text. Partial index covers Pending/Failed, with retry due-time predicate supplied by the repository. No lease or single-processor guarantee follows from an index.",
+      "test_evidence": "Canonical outbox DI and adapter traced. T01/T08 provider tests are separate evidence.",
+      "conclusion": "No new mapping defect. DIST-009 remains an operational topology concern.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/PasswordHistoryConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          33
+        ]
+      ],
+      "line_count": 33,
+      "sha256": "c00a744e1b6a515930a72c9dd7ad1311b8a7430a05ce65e08d9ded188c8c59bb",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Maps password-reuse history by owner/time with bounded stored hash and no declared FK to User.",
+      "trust_state_errors_concurrency": "Sensitive hashes remain internal. Orphan prevention requires explicit owner cleanup. The mapping itself has no query filter despite the base adapter comment. No externally reachable soft-delete history mutation was established.",
+      "test_evidence": "PasswordValidator reuse check and UserSoftDeletePurgePolicy cleanup traced. No retention failure experiment executed.",
+      "conclusion": "No new confirmed finding. Preserve explicit account purge and restrict hash exposure.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          51
+        ]
+      ],
+      "line_count": 51,
+      "sha256": "f7b1aa9e1a2e11acb2e7df74ebf3d30d415b1eef7844193a5e2dd545bbc7e192",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Role key/name uniqueness, grant relation, visible roles and model-managed Admin/User seeds.",
+      "trust_state_errors_concurrency": "Seed IDs and UTC creation timestamp are fixed metadata in commit 05dab9c. Guarded adoption retains existing row identities by recording a compatible baseline rather than recreating the role data. No authorization grant is performed by this review.",
+      "test_evidence": "AuthRoleModelDeterminismTests25-64 source controls identified. Root owns executed model/migration evidence.",
+      "conclusion": "Current source uses deterministic T08 seeds. The prior nondeterminism is historical at this hash.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRecoveryCodeConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          32
+        ]
+      ],
+      "line_count": 32,
+      "sha256": "2eecbce3745c883ed1168a4397e49e48c28e96fe3c8394da2c445754355abdab",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Recovery-code storage with owner, hash, use flag/time and lookup indexes.",
+      "trust_state_errors_concurrency": "CodeHash is required and bounded. IsUsed is not a concurrency token. The reviewed model adds xmin only to Friendship. A stored-use marker alone cannot arbitrate independent contexts.",
+      "test_evidence": "RecoveryCodeService52-75 and repository13-19 traced. No simultaneous redemption test executed.",
+      "conclusion": "CONT033-001. The usage transition needs durable conditional consumption.",
+      "finding_ids": [
+        "CONT033-001"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRoleConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          33
+        ]
+      ],
+      "line_count": 33,
+      "sha256": "9b0f5ea8fee1b83041d64c8571f149091b46e4d5f1cd19665c59ef8122a7d56f",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "UserRole join with unique UserId/RoleId pair, explicit FK indexes and cascade deletion.",
+      "trust_state_errors_concurrency": "Query filter requires visible link, User and Role. Unique pair protects duplicate grants at persistence. Caller authorization remains in the admin/service layer.",
+      "test_evidence": "Model FK and T08 guard source paths inspected. No grant API or provider mutation executed.",
+      "conclusion": "No new configuration defect. FK enforcement state is a separate T08 catalog concern.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          65
+        ]
+      ],
+      "line_count": 65,
+      "sha256": "11b98f485c2ab98f7f68e2d545ec4820c11b31d084cf32382a3e2d323ef37af0",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Pair lookup, user friendship list, accepted predicate and accepted peer IDs.",
+      "trust_state_errors_concurrency": "Mutating lookup is tracked and accepts either direction. FirstOrDefault has no active-status preference or order. Read-only list uses no tracking. Status reads depend on visibility filters and caller-derived IDs. Cancellation is forwarded to EF.",
+      "test_evidence": "Both send handlers read then insert. FriendshipHandlerTests136-176 supply a single mocked active row.",
+      "conclusion": "CONT033-004. A terminal row can hide active state and read-then-insert races lack pair uniqueness.",
+      "finding_ids": [
+        "CONT033-004"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/InboxRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          47
+        ]
+      ],
+      "line_count": 47,
+      "sha256": "d71eb69d5a3c6b7592dbd387305bc005b604a7947856272cfb1693c6b4a1832a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Legacy Auth inbox repository for tracked reads, immediate add/update saves and processed cleanup.",
+      "trust_state_errors_concurrency": "SaveChanges can commit other tracked state in the scope. DeleteProcessedMessagesAsync materializes eligible rows before deletion. Exists plus Add does not establish atomic dedup. Reviewed Auth DI does not bind this adapter.",
+      "test_evidence": "AuthRepositoryPersistenceTests341 onwards exercises persistence by explicit construction. Source only.",
+      "conclusion": "No new reachable production finding from this adapter. Retention uses its own shared policy.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/LoginHistoryRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          71
+        ]
+      ],
+      "line_count": 71,
+      "sha256": "e42967a44a7e22b182fa2ddd473b33949fbdbbb3b9a278fbd4190fd584a95842",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Owner-specific recent history, count/page, failed-window lookup and historical delete helper.",
+      "trust_state_errors_concurrency": "Read-only paths use no tracking and owner predicate. Count and page are separate SQL reads. Timestamp-only sort and unchecked Int32 offset retain the established BE-008 boundary. Delete helper materializes rows and saves. Cancellation forwarded.",
+      "test_evidence": "Login-history validator and domain test locations checked. No additional provider outcome executed.",
+      "conclusion": "Existing BE-008, with source line40 still active. No duplicate finding ID.",
+      "finding_ids": [
+        "BE-008"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/OutboxRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          50
+        ]
+      ],
+      "line_count": 50,
+      "sha256": "6b62b6b3c00c53b0fe282a77c14bb79f1cb83dbe8cd62ead692e3c75ab2c46c5",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Obsolete Auth outbox wrapper forwarding Stage, Add, polling, update and cleanup to the canonical implementation.",
+      "trust_state_errors_concurrency": "Stage tracks only and Add preserves immediate save. Forwarded cancellation/errors and scope match the canonical repository. Auth DI registers the canonical type.",
+      "test_evidence": "T01 Stage and Auth deletion test sources are relevant. No runtime use of legacy wrapper assumed.",
+      "conclusion": "No new outbox defect. Current wrapper includes the T01 additive contract.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/PasswordHistoryRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          42
+        ]
+      ],
+      "line_count": 42,
+      "sha256": "4a23b79eff3bfdacbb47a412d4d27092e9833a5c4deab10b9b19fa43e6e6d66e",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Owner password-history lookup and removal of entries beyond requested keep count.",
+      "trust_state_errors_concurrency": "Read-only lookup uses no tracking. Trim materializes ordered history and saves separate deletions if needed. No stable ID tie-breaker. Direct query scope relies on caller owner and does not add the base IsDeleted predicate.",
+      "test_evidence": "PasswordValidator130-137 consumes owner hashes to check reuse. No live pruning/concurrent password change executed.",
+      "conclusion": "No new confirmed defect from this file. Retain owner filtering and review transaction/tie behavior in reachable callers.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRecoveryCodeRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          37
+        ]
+      ],
+      "line_count": 37,
+      "sha256": "0baf7062c002ded6687d64243afc504a346ce2137421a692e01586224970b7df",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Tracked unused-code lookup and owner-specific physical replacement cleanup.",
+      "trust_state_errors_concurrency": "Read filters owner, unused and not deleted. DeleteAll commits existing code deletion immediately before caller replacement saves. No row lock or conditional use update. EF cancellation forwarded.",
+      "test_evidence": "AuthUnitOfWork31-38 and RecoveryCodeService27-75 traced. No provider concurrency or replacement failure executed.",
+      "conclusion": "CONT033-001. Separate code replacement failure semantics remain a test limit.",
+      "finding_ids": [
+        "CONT033-001"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Planora.Auth.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          37
+        ]
+      ],
+      "line_count": 37,
+      "sha256": "02af1fdfd5e31c8497827a2c0d7432a93ff741193bcd6a536f0132d19f1c5bdf",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Auth Infrastructure net10 project with centralized EF/Npgsql/Redis/security/native image dependencies and shared references.",
+      "trust_state_errors_concurrency": "Design package is private. Manifest establishes compile/runtime asset graph but cannot prove safe dependency versions or successful provider startup.",
+      "test_evidence": "Read all37 lines. T12 dependency and root build results remain separate.",
+      "conclusion": "No new manifest defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Retention/AuthCleanupPolicies.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          85
+        ]
+      ],
+      "line_count": 85,
+      "sha256": "d3304fc53720a8a20ee150f77fb99bdce2a3fcdbd37b93333ccb4307df19c422",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Opt-in terminal friendship purge and used recovery-code purge registered by Auth DI.",
+      "trust_state_errors_concurrency": "Terminal status and cutoff or spent status and UsedAt determine eligibility. Shared runner supplies lock, tripwire and dry run. It bypasses filters intentionally for maintenance and forwards cancellation.",
+      "test_evidence": "AuthRetentionPostgresTests260 and318 cover source-level fixture intent. No execution here.",
+      "conclusion": "No new policy defect. Recovery code reuse race is in redemption, not this cleanup predicate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Retention/ExpiredRefreshTokenPurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          46
+        ]
+      ],
+      "line_count": 46,
+      "sha256": "942600ba04202fdde86aaa4fcaf75e2ba332944cb7a1dc4f30e1ac9d56837548",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Expired refresh-token hard purge using ExpiresAt and configured grace.",
+      "trust_state_errors_concurrency": "Runs with policy flag, advisory lock, tripwire and batch deletes. Current or recent-expiry sessions fall outside cutoff. Neither expiry cleanup nor its lock serializes refresh redemption.",
+      "test_evidence": "AuthRetentionPostgresTests260 fixture identified. Existing BE-003/BE-004 remain independent security/session findings.",
+      "conclusion": "No new retention defect. Never infer token rotation safety from housekeeping.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Retention/SecurityAuditRetentionPolicies.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          77
+        ]
+      ],
+      "line_count": 77,
+      "sha256": "508cc9be894a39908ee97d30c3fd5896d4bd4f228a319ebb2fd15cc379c4f0e8",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Opt-in age-based login history and audit log hard purge.",
+      "trust_state_errors_concurrency": "Uses trusted policy configuration and UTC cutoff. Shared runner handles dry-run/tripwire, lock, batching and cancellation. Retention windows are defaults, not proof of deployed policy or legal compliance.",
+      "test_evidence": "AuthRetentionPostgresTests318 fixture identified. Actual retention settings, data and legal determinations are outside this source review.",
+      "conclusion": "No new policy defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Retention/UserSoftDeletePurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          114
+        ]
+      ],
+      "line_count": 114,
+      "sha256": "fd029519d1c37468b08c0f9b447a5c89c9b7250232b3f971eb6a205787226fb8",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Purges expired soft-deleted Auth accounts, avatars and Auth-owned dependents in dependency order.",
+      "trust_state_errors_concurrency": "Selection bypasses filters only for eligible deleted users. Avatar failure excludes that ID for the current pass. Cancellation is checked before file and DB work. Separate delete commands permit partial progress before later failure. Policy lock coordinates retention peers, not all application writers. Cross-service event delivery is outside this policy.",
+      "test_evidence": "AuthRetentionPostgresTests59/129/190/230 cover provider fixtures for dependents, avatar errors, progress and cancellation. No application execution here.",
+      "conclusion": "No new confirmed reachable loss scenario. Do not infer cross-service erasure or atomicity from this purge.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Security/JwtSettings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          15
+        ]
+      ],
+      "line_count": 15,
+      "sha256": "89450d7363443d91175acd09f83b4fc47036b7cb5b2c864d1387dfee08fd0c5c",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "JWT configuration shape with empty secret/issuer/audience and access/refresh lifetime defaults.",
+      "trust_state_errors_concurrency": "Settings are input data. Auth DI enforces secret minimum and hardcodes its bearer trust checks. Mutable config values do not establish deployment key quality or actual token lifetime.",
+      "test_evidence": "DI184-232 traced. Token/JWT runtime tests not executed.",
+      "conclusion": "No new settings defect. Scope is Auth bearer binding and source defaults.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordHasher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          102
+        ]
+      ],
+      "line_count": 102,
+      "sha256": "963e906c1cf4b4118ad3b65401e67289c2f1b26739bca3a55e602f695548dc2f",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "PBKDF2-HMAC-SHA512 password/recovery-code hashing and legacy verification with rehash hint.",
+      "trust_state_errors_concurrency": "Generated hashes use random salt, known sizes and work factor. Versioned verification accepts decoded key length as KDF output size and omits strict metadata validation. Fixed-time comparison still accepts two empty spans. Legacy format remains a compatibility requirement.",
+      "test_evidence": "PasswordHasherTests1-88 read with synthetic literals redacted. Existing malformed tests expect exceptions for covered inputs. .NET 10.0.8 source confirms empty-destination semantics.",
+      "conclusion": "CONT033-003. Requires malformed stored hash. A remotely writable hash path was not established.",
+      "finding_ids": [
+        "CONT033-003"
+      ]
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordResetTokenService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          49
+        ]
+      ],
+      "line_count": 49,
+      "sha256": "914d291ce333b2a26c67b404762440477c9d48d45fd666e8d4026fe634e7a65c",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Opaque reset-token generation, hash, bounded configured lifetime and fixed-time hash validation.",
+      "trust_state_errors_concurrency": "Validation rejects empty/expired data and compares a stored hash. It has no persistence-side consumption operation. The caller reads and clears token state separately. Token service is deterministic for input and time rather than an ownership guard.",
+      "test_evidence": "OpaqueToken1-24 and ResetPassword handler33-115 traced. Existing tests include sequential mocked replay, not independent database contexts.",
+      "conclusion": "CONT033-002. One-time semantics require durable conditional consumption in the caller/store.",
+      "finding_ids": [
+        "CONT033-002"
+      ]
+    }
+  ],
+  "method": "Read all 25 numbered files completely. Sensitive configuration literals and test credentials were redacted from displayed traces. Per-file notes cover callers, trust, state, failure, cancellation, concurrency and verification limits. Initial and final raw hashes match for all batch files.",
+  "concurrent_changes": {
+    "role_configuration_commit": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+    "batch_files_unchanged_during_review": true,
+    "auth_context_supporting_trace": {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+      "sha256": "b7828b37a8cc92c54614769686cd2a3c664f91f337c841900070f6ad72908126",
+      "ranges_read": [
+        [
+          1,
+          85
+        ]
+      ],
+      "counts_toward_batch_coverage": false,
+      "differs_from_recorded_head_text": true,
+      "observation": "Reviewed working mapping omits the old PendingModelChangesWarning suppression. The context is outside READ-033. The recorded concurrency trace concerns the current model, not the old warning state."
+    }
+  },
+  "supplemental_traces": [
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+      "ranges_read": [
+        [
+          1,
+          85
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs",
+      "ranges_read": [
+        [
+          16,
+          49
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/BaseRepository.cs",
+      "ranges_read": [
+        [
+          1,
+          40
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs",
+      "ranges_read": [
+        [
+          44,
+          48
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs",
+      "ranges_read": [
+        [
+          1,
+          86
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Domain/Entities/UserRecoveryCode.cs",
+      "ranges_read": [
+        [
+          1,
+          34
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Domain/Entities/User.cs",
+      "ranges_read": [
+        [
+          223,
+          280
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+      "ranges_read": [
+        [
+          50,
+          224
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/ResetPassword/ResetPasswordCommandHandler.cs",
+      "ranges_read": [
+        [
+          30,
+          118
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequest/SendFriendRequestCommandHandler.cs",
+      "ranges_read": [
+        [
+          32,
+          91
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequestByEmail/SendFriendRequestByEmailCommandHandler.cs",
+      "ranges_read": [
+        [
+          37,
+          96
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Application/Common/Security/OpaqueToken.cs",
+      "ranges_read": [
+        [
+          1,
+          24
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionExecutor.cs",
+      "ranges_read": [
+        [
+          1,
+          131
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordHasherTests.cs",
+      "ranges_read": [
+        [
+          1,
+          88
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/ResetPasswordCommandHandlerTests.cs",
+      "ranges_read": [
+        [
+          102,
+          185
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs",
+      "ranges_read": [
+        [
+          136,
+          179
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordResetTokenServiceTests.cs",
+      "ranges_read": [
+        [
+          1,
+          29
+        ]
+      ],
+      "counts_toward_batch_coverage": false
+    }
+  ],
+  "findings": [
+    {
+      "provisional_id": "CONT033-001",
+      "priority": "P1",
+      "confidence": "LIKELY_STATIC_CONCURRENCY_TRACE",
+      "runtime_reproduction": "NOT_RUN",
+      "suggested_owner": [
+        "T02",
+        "T13"
+      ],
+      "title": "One recovery code can pass concurrent redemption checks",
+      "trigger": "Two independent login contexts with a valid password and the same unused recovery code both read it before either saves. Use different session fingerprints in the provider regression.",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRecoveryCodeRepository.cs",
+          "lines": "13-19",
+          "observation": "Tracked owner-scoped unused read without lock."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs",
+          "lines": "60-71",
+          "observation": "Verify hash, mark used, update and save. Successful save returns true."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRecoveryCodeConfiguration.cs",
+          "lines": "13-29",
+          "observation": "IsUsed has no concurrency-token configuration."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+          "lines": "37-54",
+          "observation": "Only Friendship receives xmin."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs",
+          "lines": "31-38",
+          "observation": "Repository and SaveChanges share a scoped context. This method adds no consume predicate."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+          "lines": "99-165",
+          "observation": "Successful recovery path proceeds to token issuance and session update."
+        }
+      ],
+      "impact": "Both requests can observe the code as unused and persist the use marker. A duplicate session is possible despite the intended single-use factor. Password possession remains a prerequisite.",
+      "recommendation": "Implement durable conditional consumption with owner, code ID and unused state and require exactly one winner. Preserve existing outward failure behavior and test cancellation plus provider races.",
+      "required_regressions": [
+        "Two Npgsql contexts with a barrier after unused read. Exactly one successful consume and one loser.",
+        "Used, wrong-owner and cancellation controls. Test token/session outcomes independently."
+      ],
+      "status": "OPEN_SOURCE_EVIDENCE"
+    },
+    {
+      "provisional_id": "CONT033-002",
+      "priority": "P1",
+      "confidence": "LIKELY_STATIC_CONCURRENCY_TRACE",
+      "runtime_reproduction": "NOT_RUN",
+      "suggested_owner": [
+        "T02",
+        "T13"
+      ],
+      "title": "Password reset validation and token clearing are separate concurrency steps",
+      "trigger": "Two requests present the same still-valid reset token and load the user before either saves. Each supplies a valid distinct new password.",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordResetTokenService.cs",
+          "lines": "32-47",
+          "observation": "Token validation checks hash and expiry without persistent consumption."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs",
+          "lines": "44-48",
+          "observation": "Loads tracked user and refresh tokens by token hash."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/ResetPassword/ResetPasswordCommandHandler.cs",
+          "lines": "39-53,89-108",
+          "observation": "Validates loaded state then saves new password and triggers post-save stamp/mail."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Domain/Entities/User.cs",
+          "lines": "223-236",
+          "observation": "Changes hash, clears token and revokes loaded sessions in the aggregate."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+          "lines": "37-54",
+          "observation": "No User xmin configured in inspected current mapping."
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/ResetPasswordCommandHandlerTests.cs",
+          "lines": "102-180",
+          "observation": "Existing replay test is sequential and uses one mocked mutable entity."
+        }
+      ],
+      "impact": "An in-flight stale copy can overwrite the first successful reset and return a second success. Post-save notification/stamp actions can repeat. A provider replay test is required.",
+      "recommendation": "Guard token consumption with durable hash/expiry comparison and coordinate password/session changes in the same transaction. Reject the losing request before external effects.",
+      "required_regressions": [
+        "Two independent Npgsql contexts with a read barrier and distinct passwords. Exactly one durable reset and one set of effects.",
+        "Expired-token clearing must not erase a newly issued token. Preserve normal and sequential replay responses."
+      ],
+      "status": "OPEN_SOURCE_EVIDENCE"
+    },
+    {
+      "provisional_id": "CONT033-003",
+      "priority": "P2",
+      "confidence": "CONFIRMED_STATIC_WITH_STORED_DATA_PRECONDITION",
+      "runtime_reproduction": "NOT_RUN",
+      "suggested_owner": [
+        "T02",
+        "T13"
+      ],
+      "title": "A malformed stored PBKDF2 record with an empty key can verify any password",
+      "trigger": "A stored versioned record has a parseable positive iteration count, a valid salt encoding and an empty final Base64 key segment. This requires malformed stored data.",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordHasher.cs",
+          "lines": "45-51,79-100",
+          "observation": "Decoded key length is passed as outputLength. Parser checks segment count but not key/salt size, version token or iteration bounds."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+          "lines": "83-98,172-179",
+          "observation": "Verification controls password acceptance and rehash uses the verified input."
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordHasherTests.cs",
+          "lines": "44-86",
+          "observation": "Existing malformed, legacy and older-iteration fixtures do not cover an empty decoded key."
+        }
+      ],
+      "primary_sources": [
+        {
+          "url": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.8/src/libraries/System.Security.Cryptography/src/System/Security/Cryptography/Rfc2898DeriveBytes.OneShot.cs",
+          "lines": "192-205,248-260",
+          "observation": "Char-span overload allows zero output length, creates an empty buffer and returns early."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dotnet/runtime/v10.0.8/src/libraries/System.Security.Cryptography/src/System/Security/Cryptography/CryptographicOperations.cs",
+          "lines": "35-54",
+          "observation": "Equal-length empty inputs compare true."
+        }
+      ],
+      "impact": "An empty stored key and empty derived key match regardless of the supplied password. Malformed metadata can also trigger exceptions or unbounded work. No externally writable hash route or deployed malformed row was established.",
+      "recommendation": "Validate complete versioned and legacy formats, exact decoded lengths and reviewed work-factor bounds before deriving. Reject malformed data while retaining supported historical hashes.",
+      "required_regressions": [
+        "Empty decoded key, malformed tokens and impossible sizes reject before derivation.",
+        "Unknown version and excessive iteration metadata fail safely.",
+        "Legacy and older supported work factors still verify and request rehash."
+      ],
+      "status": "OPEN_SOURCE_EVIDENCE"
+    },
+    {
+      "provisional_id": "CONT033-004",
+      "priority": "P2",
+      "confidence": "LIKELY_STATIC_CONCURRENCY_AND_SELECTION_TRACE",
+      "runtime_reproduction": "NOT_RUN",
+      "suggested_owner": [
+        "T02",
+        "T08",
+        "T13"
+      ],
+      "title": "Friendship creation lacks an active unordered-pair invariant",
+      "trigger": "Two requests for the same pair, including reciprocal directions, both read no active relationship before inserting. A retained terminal row can also be selected ahead of a later active row.",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/FriendshipConfiguration.cs",
+          "lines": "32-49",
+          "observation": "Endpoint indexes are nonunique and the visibility filter retains terminal status rows."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs",
+          "lines": "11-17",
+          "observation": "Unordered pair lookup uses FirstOrDefault without order or active-state preference."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequest/SendFriendRequestCommandHandler.cs",
+          "lines": "60-71",
+          "observation": "ID flow checks returned state then inserts a fresh row."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequestByEmail/SendFriendRequestByEmailCommandHandler.cs",
+          "lines": "68-78",
+          "observation": "Email flow has the same read-then-insert shape."
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+          "lines": "43-54",
+          "observation": "xmin protects updates to an existing Friendship, not insertion of separate IDs."
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs",
+          "lines": "136-176",
+          "observation": "Existing unit test injects one active row and does not exercise repository selection."
+        }
+      ],
+      "impact": "Duplicate pending rows or an ambiguous active relationship can violate request/remove semantics. Existing terminal history must remain supported.",
+      "recommendation": "Use an explicit active-pair query and an atomic uniqueness or serialization mechanism for normalized active endpoints. Review existing duplicates and preserve ID/email response policies.",
+      "required_regressions": [
+        "Simultaneous same-direction and reciprocal sends produce one active relationship.",
+        "Terminal history plus a new active row resolves to the active relationship.",
+        "Preserve generic email-flow responses, actor authorization and cancellation."
+      ],
+      "status": "OPEN_SOURCE_EVIDENCE"
+    }
+  ],
+  "related_risks": [
+    {
+      "id": "BE-008",
+      "note": "LoginHistoryRepository40 retains the registered unchecked offset behavior."
+    },
+    {
+      "id": "T02_CREDENTIAL_WRITE_CONCURRENCY",
+      "note": "A stale successful login can attempt to rehash a legacy credential while reset changes the same user. Include this schedule when reviewing user-row concurrency. No runtime result here."
+    }
+  ],
+  "verification": [
+    {
+      "kind": "source_review",
+      "result": "25 complete source files with exact ranges, raw SHA256 and semantic review."
+    },
+    {
+      "kind": "metadata",
+      "result": "Initial and final raw hashes match. Source text matches recorded HEAD after line-ending normalization. Role source matches the committed deterministic seed."
+    },
+    {
+      "kind": "primary_runtime_source",
+      "result": "Inspected .NET 10.0.8 PBKDF2 zero-length and fixed-time equality implementation for CONT033-003."
+    },
+    {
+      "kind": "application_tests",
+      "result": "0 executed by this reviewer. Supplemental test-source inspection is recorded separately from provider tests."
+    }
+  ],
+  "limitations": [
+    "Source-only review, with runtime and provider verification owned by the package gates.",
+    "Concurrent scenarios need deterministic independent-context barriers.",
+    "Malformed hash finding requires a stored-data precondition.",
+    "Only the 25 manifest paths count toward coverage.",
+    "Credential values and user data are absent from the report. Real env/auth, broker and DB access remain outside the reviewed operations."
+  ],
+  "next_step": "Root assigns stable IDs and owners, incorporates exact coverage, and schedules T02 regressions and any T08 schema handoff."
+}

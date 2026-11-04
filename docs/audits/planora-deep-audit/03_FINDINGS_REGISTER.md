@@ -943,3 +943,27 @@ A supported backfill/restore or other concurrent transition must first be reprod
 on a disposable provider before asserting normal-runtime impact. No real data-loss
 incident is claimed. T13 must verify the generic cap regression and the reachable
 provider case before choosing a narrowly scoped correction.
+
+## READ-033 — Auth persistence
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| BE-011 | P1 | LIKELY | Two Auth contexts load the same unused recovery code. Verify a single successful consume with a provider barrier and distinct login fingerprints. |
+| BE-012 | P1 | LIKELY | Two reset requests load the same token before either write. Verify one password update, one set of external effects and preservation of a newly issued token. |
+| BE-013 | P2 | CONFIRMED, static | An empty decoded key in a malformed stored PBKDF2 record compares equal to the empty derived key. Verify rejection and compatibility with supported historical hashes. |
+| BE-014 | P2 | LIKELY | Concurrent same-pair friendship requests can insert separate active rows. A retained terminal row can also win the unordered lookup. Verify both directions and preserved terminal history. |
+
+T02 owns these cases. BE-013 requires malformed stored data. The review found no
+external path for writing that hash. Provider and application regressions are
+pending. [READ-033](results/evidence/read-033-review.md)
+
+## READ-040 — Todo RPC and Realtime persistence
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| DIST-011 | P2 | CONFIRMED, static | Three Todo RPCs omit the request token when calling MediatR. T07 verifies token forwarding and cancellation before persistent effects. |
+| BE-015 | P2 | CONFIRMED, static | The legacy Realtime startup gate accepts drift in a mapped column default. T06 verifies rejection and the effect of the default on the regular notification write path in a disposable database. |
+
+Runtime effects remain unverified for both findings. BE-015 concerns the existing
+Realtime legacy helper. T08 introduced versioned schema comparison for four
+other services. [READ-040](results/evidence/read-040-review.md)

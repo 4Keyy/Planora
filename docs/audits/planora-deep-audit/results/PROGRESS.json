@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "current_sha": "d9c98b8c9acba95eeb10f61b48ca9394872d942e",
   "status": "in_progress",
   "current_task": "T09",
   "completed_tasks": [
@@ -11,7 +11,8 @@
     "T08 local migration and restore gates (working schema review and operational restore remain T14)"
   ],
   "in_progress_tasks": [
-    "T12"
+    "T12",
+    "T09"
   ],
   "pending_tasks": [
     "T09",
@@ -134,7 +135,7 @@
     "T08 child workers interrupted by service usage limit after writing tests/inventory/reviews. Root reproduced31targeted tests:24fail/7pass; fixed named Messaging selection and stable Auth seed; prerequisite GREEN11pass0skip. Schema guard/migrations remain unimplemented.",
     "T08 implemented after the prerequisite checkpoint; final broad tests and all ten Migrator/restore cases pass in owned fixtures."
   ],
-  "next_step": "Validate and integrate READ-033/READ-040 reviews. Execute T09 cache RED/GREEN and Redis durability handoff.",
+  "next_step": "Complete T09 RED/GREEN and Redis key durability handoff, then continue T02. READ-012 remains open.",
   "commands": [
     {
       "id": "readiness-red",
@@ -1610,18 +1611,28 @@
       "cases_passed": 10,
       "report": "docs/audits/planora-deep-audit/results/evidence/t08-migrator-verification.json",
       "report_sha256": "6e0dfb1cdd0df5a57552e2c373cf2ef6ba4e73b1672849c3bb197439ef20df27"
+    },
+    {
+      "id": "t08-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 109,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 77,
+    "pending_batches": 75,
     "complete": false,
-    "current_read_or_reviewed": 305,
+    "current_read_or_reviewed": 355,
     "completed_batches": [
       "READ-011",
       "READ-014",
-      "READ-038"
+      "READ-038",
+      "READ-033",
+      "READ-040"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -1651,7 +1662,11 @@
     "results/evidence/t08-catalog-cli-review.md",
     "results/evidence/t08-session-scope-review.md",
     "results/evidence/t08-generated-migration-review.md",
-    "results/evidence/t08-migrator-verification.json"
+    "results/evidence/t08-migrator-verification.json",
+    "results/evidence/read-033-review.json",
+    "results/evidence/read-033-review.md",
+    "results/evidence/read-040-review.json",
+    "results/evidence/read-040-review.md"
   ],
   "local_commits": [
     {
@@ -1672,6 +1687,11 @@
     {
       "task": "T08 prerequisites",
       "sha": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+      "pushed": false
+    },
+    {
+      "task": "T08 local guarded schema and CLI",
+      "sha": "d9c98b8c9acba95eeb10f61b48ca9394872d942e",
       "pushed": false
     }
   ],
@@ -1702,6 +1722,12 @@
   "new_findings": [
     "BE-008",
     "BE-009",
-    "BE-010"
+    "BE-010",
+    "BE-011",
+    "BE-012",
+    "BE-013",
+    "BE-014",
+    "DIST-011",
+    "BE-015"
   ]
 }

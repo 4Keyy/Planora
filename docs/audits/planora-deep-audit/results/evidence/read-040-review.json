@@ -1,0 +1,498 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-040",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "t05_transport",
+  "source_head": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 2259,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/ConnectionsResponse.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          8
+        ]
+      ],
+      "line_count": 8,
+      "sha256": "bd80644e1a71ce5cf860fba69568988208d9d2109a644750ee4fb0343566aa98",
+      "purpose_and_callers": "Ответ ConnectionsController для текущего пользователя, счётчик и список ID подключений.",
+      "trust_state_errors_concurrency": "DTO допускает изменяемый List. Контроллер получает identity из principal; ID соединения служит маршрутизации. Список отражает локальный снимок.",
+      "test_evidence": "ConnectionsControllerTests, поиск mock/assert; реальный SignalR не запускался.",
+      "conclusion": "Локальная диагностика соединений.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationPayload.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          32
+        ]
+      ],
+      "line_count": 32,
+      "sha256": "bd4a5867bf6026396f73bad990e121b548681db3e529387d0ee26c68bc2a3380",
+      "purpose_and_callers": "Общий SignalR/REST payload. From вызывается NotificationEventHandler, list строит тот же DTO в NotificationReadStore.",
+      "trust_state_errors_concurrency": "Копирует поля recipient/actor/task и IsRead, не меняет состояние. Маршрут и user scoping устанавливают caller и read store.",
+      "test_evidence": "NotificationInfrastructureTests и источники handler/read-store, без проверки сериализации в host.",
+      "conclusion": "Проводимость событий отделена от сохранения DIST-005.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationSummary.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          25
+        ]
+      ],
+      "line_count": 25,
+      "sha256": "3a4db3904242858d1353a06b6df9b49186727da1ee0e153681a9aab1783c959a",
+      "purpose_and_callers": "REST summary и типы per-task unread; NotificationReadStore строит summary, NotificationsController возвращает.",
+      "trust_state_errors_concurrency": "Empty использует пустой массив. Порядок Groups и согласованность LatestType с первой группой задаёт caller. I/O и токен у store.",
+      "test_evidence": "Статическая трассировка NotificationReadStore.cs:25–57 и NotificationsController.cs:49–83.",
+      "conclusion": "Явная обратная совместимость LatestType.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Domain/Entities/Notification.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          79
+        ]
+      ],
+      "line_count": 79,
+      "sha256": "2081db451259227bfc684a88811780e51e786ca097555ee0fe4ef2b4c0b7166f",
+      "purpose_and_callers": "Notification создаётся NotificationEventHandler, сохраняется NotificationStore и читается read store.",
+      "trust_state_errors_concurrency": "Проверяет recipient/message/type, нормализует null Title, default времени заменяет UTC now. SourceEventId доверен событию. MarkRead сохраняет время при повторе на том же объекте. Уникальность и лимиты хранилища вне сущности.",
+      "test_evidence": "NotificationEventHandler.cs:30–66 и NotificationStore.cs:24–60; DB concurrency не запускалась.",
+      "conclusion": "DIST-005 относится к отдельным стадиям сохранения и push.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Domain/Entities/NotificationDelivery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          62
+        ]
+      ],
+      "line_count": 62,
+      "sha256": "506168ce41362187345d6484570edda5da752d9b8160e8c3358eac97421631c1",
+      "purpose_and_callers": "Доменная строка учёта доставки, включена в RealtimeDbContext и retention policies.",
+      "trust_state_errors_concurrency": "Проверяет ID родителя и пользователя, меняет status/attempt/time/error; обрезает ошибку. Повторный вызов увеличивает счётчик, без CAS. LastError очищается при Delivered. Схема хранит одну строку пары, а обычный push не пишет delivery row.",
+      "test_evidence": "Синтетические строки NotificationRetentionPolicyTests и RealtimeRetentionPostgresTests найдены; live lifecycle не проверен.",
+      "conclusion": "Семантика учёта доставки отличается от acknowledgement клиента.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Domain/Enums/NotificationDeliveryStatus.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          19
+        ]
+      ],
+      "line_count": 19,
+      "sha256": "776b553bfad3a30492a0e0281c3bea93a8927ccfa0220f64f3bf37983682269d",
+      "purpose_and_callers": "Коды статусов NotificationDelivery, сериализация в БД через string conversion.",
+      "trust_state_errors_concurrency": "Значения Pending/Delivered/NotConnected/Failed. Переименование элементов требует контроля совместимости строк. Enum сам не проверяет переходы.",
+      "test_evidence": "NotificationDeliveryConfiguration.cs:21–24 и retention tests по символу.",
+      "conclusion": "Клиентское получение требует отдельного протокола.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Domain/Planora.Realtime.Domain.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          14
+        ]
+      ],
+      "line_count": 14,
+      "sha256": "82a83660daabb920bd816c2ce6d6291fafdb0c657a587e75e43ab1fff6948d53",
+      "purpose_and_callers": "Проект Realtime.Domain для Application/Infrastructure; зависимость от BuildingBlocks.Domain.",
+      "trust_state_errors_concurrency": "net10.0, nullable, implicit usings, latest. Декларативная граница без I/O.",
+      "test_evidence": "Чтение project references, без MSBuild/restore.",
+      "conclusion": "Проект описывает доменный слой.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/DesignTime/RealtimeDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          54
+        ]
+      ],
+      "line_count": 54,
+      "sha256": "3e1a97ce1cfca904bc90a15310c879a09664e6830de71e1bd75f81c1a4c2c5e6",
+      "purpose_and_callers": "EF tooling factory RealtimeDbContext, Npgsql, no-op dispatcher.",
+      "trust_state_errors_concurrency": "Читает optional appsettings в текущей директории и env provider, требует RealtimeDatabase. Конфигурация runtime не загружалась, значения соединений не сохранялись. Создание контекста отделено от сетевого вызова.",
+      "test_evidence": "Чтение кода, design-time CLI не запускалась.",
+      "conclusion": "Требуемый источник настройки явен.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          17
+        ]
+      ],
+      "line_count": 17,
+      "sha256": "3d6313fad2708f21c7b5cbbd38ba06c5ceed8edc7fb7540e605fb3ccfa47e70b",
+      "purpose_and_callers": "Общие импорты Infrastructure для DI/SignalR/logging/messaging/concurrent collections.",
+      "trust_state_errors_concurrency": "Compile-time only. Lifetime и авторизация определяются регистрациями и endpoint wiring.",
+      "test_evidence": "DependencyInjection.cs:27 подтверждает singleton для ConnectionManager; без сборки.",
+      "conclusion": "Сам по себе файл не регистрирует сервисы.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          246
+        ]
+      ],
+      "line_count": 246,
+      "sha256": "e99e45875495a10e536011686c9e2465df54a785ac383040b238c2f80b92098c",
+      "purpose_and_callers": "EF migration target model для InitialRealtimeNotifications.",
+      "trust_state_errors_concurrency": "Три таблицы, три PK и 11 индексов, включая два unique и один partial. Store types/defaults отражают Up. Связь NotificationDelivery с Notification выражена ID без физического FK.",
+      "test_evidence": "Полностью сопоставлен с Up, runtime mappings и snapshot; PostgreSQL не запускался.",
+      "conclusion": "Историческая модель соответствует проверенным DDL операциям.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          164
+        ]
+      ],
+      "line_count": 164,
+      "sha256": "30b4446b54e977cccbb003429ed5497e265a7bd2e0cc8862a521b4696021935b",
+      "purpose_and_callers": "Первичная versioned миграция Realtime, используется на свежей управляемой БД.",
+      "trust_state_errors_concurrency": "Up создаёт три таблицы и 11 индексов, без seed или произвольного SQL. Down удаляет все три таблицы с данными. Unique SourceEventId поддерживает конкурентную дедупликацию.",
+      "test_evidence": "RealtimeDatabaseStartupTests содержит provider cases fresh/restart; в этом batch не запускались.",
+      "conclusion": "Down требует изолированного сценария восстановления.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          243
+        ]
+      ],
+      "line_count": 243,
+      "sha256": "d674e9a170d1161b71dc6af37ebe9761cb4dc0853eb52b03426e956102846afb",
+      "purpose_and_callers": "EF snapshot для последующего diff миграций.",
+      "trust_state_errors_concurrency": "Полный нормализованный diff с Designer: отличается только wrapper. Тело модели и закрывающие строки совпали.",
+      "test_evidence": "Сравнение Designer 21–246 со snapshot 18–243 выполнено; EF differ не запускался.",
+      "conclusion": "Исторический снимок совпадает с target model.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          71
+        ]
+      ],
+      "line_count": 71,
+      "sha256": "9a2d91e76966cc4cdb6d60f120df741df6a36b712fb25ba139a45fd7d7dbf292",
+      "purpose_and_callers": "Таблица Notifications, запросы list/unread/mark-read и dedupe.",
+      "trust_state_errors_concurrency": "Размеры Title/Message/Type 200/2000/64, false defaults, soft-delete фильтр. Unique по SourceEventId глобален, включая soft-deleted; пользовательская изоляция у read store. Контроль default в startup неполон.",
+      "test_evidence": "NotificationStore.cs:24–60 и RealtimeDatabaseStartupTests по тестам drift; provider repro отсутствует.",
+      "conclusion": "Связь между model default и legacy verification.",
+      "finding_ids": [
+        "CONT040002"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationDeliveryConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          45
+        ]
+      ],
+      "line_count": 45,
+      "sha256": "c4e4f48b9db01d2eeae5156fe6cbd4fb5f22a0f27d6cf849b99c0d72219ee401",
+      "purpose_and_callers": "Маппинг NotificationDeliveries для store cleanup и retention.",
+      "trust_state_errors_concurrency": "String status, AttemptCount default 0, LastError max 2000. Unique NotificationId+UserId защищает дубль строки, не повторный push. Нет FK и cascade, store удаляет вручную.",
+      "test_evidence": "NotificationStore.cs:63–91 и RealtimeRetentionPostgresTests по символам, без запуска.",
+      "conclusion": "Lifecycle строки и физическая ссылочная целостность разделены.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          50
+        ]
+      ],
+      "line_count": 50,
+      "sha256": "e70dce926e3c5b3100a4a375e6ef072f5b518c173d3684398d4a546ff576d035",
+      "purpose_and_callers": "Маппинг OutboxMessages, shared polling и cleanup.",
+      "trust_state_errors_concurrency": "Status string, RetryCount default 0, terminal error длиной до 2000, partial index Pending/Failed. Индексы не захватывают lease и не обеспечивают delivery exactly once.",
+      "test_evidence": "Сопоставлено с 3 индексами в Up; план запроса и concurrency не проверялись.",
+      "conclusion": "Физический индекс поддерживает текущий polling predicate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          228
+        ]
+      ],
+      "line_count": 228,
+      "sha256": "f47eb5e6633960e7c83f2062f05f0a8a89bc94f091aa8c06044242d94994373d",
+      "purpose_and_callers": "Подготовка optional PostgreSQL перед приёмом событий в Realtime Program.cs:140.",
+      "trust_state_errors_concurrency": "До пяти попыток на transient Npgsql с cancellable delay. История с неизвестным ID блокируется. Неуправляемая БД с таблицами проверяется без stamp. Сверяет shape столбцов, лишние обязательные столбцы, PK и unique. Mapped defaults и произвольные ограничения не входят в сопоставление. Отдельные catalog queries не образуют единый snapshot.",
+      "test_evidence": "RealtimeDatabaseStartupTests.cs:17–263 покрывает fresh/restart, часть drift и отмену по названиям; значения mapped default отдельно не проверялись в batch.",
+      "conclusion": "Предел эквивалентности legacy schema gate.",
+      "finding_ids": [
+        "CONT040002"
+      ]
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          61
+        ]
+      ],
+      "line_count": 61,
+      "sha256": "b8d057f108d6238a0a584b849f45b76b5ff7775679e56e501de1c7215e472018",
+      "purpose_and_callers": "Контекст для Notifications, NotificationDeliveries, OutboxMessages, auto-apply конфигураций.",
+      "trust_state_errors_concurrency": "Снимает список domain events и очищает его до EF save, dispatch после успешного save с тем же token. Наблюдаемые Notification/Delivery методы не добавляют события. DbContext scoped, параллельный SaveChanges не заявлен.",
+      "test_evidence": "NotificationStore.cs:24–60 показывает normal SaveChangesAsync path; failure/event dispatch не воспроизводился.",
+      "conclusion": "Операция записи и post-save dispatch имеют отдельные точки отказа.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Planora.Realtime.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          38
+        ]
+      ],
+      "line_count": 38,
+      "sha256": "27bd386c56dc670ba27ce38daae793a9cc09d738a4b04323b8244e7c07400de4",
+      "purpose_and_callers": "Infra проект Realtime, EF/Npgsql, Redis, gRPC client и ASP.NET Core.",
+      "trust_state_errors_concurrency": "EF.Design private assets, контракты через GrpcContracts. Проект задаёт зависимости, DI выбирает фактическое состояние и подключения.",
+      "test_evidence": "Чтение csproj и поиск AddSingleton; без MSBuild/restore.",
+      "conclusion": "Граница инфраструктурных зависимостей.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/ConnectionManager.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          89
+        ]
+      ],
+      "line_count": 89,
+      "sha256": "a55b0c8011f0c60f736c5b0098a68ec6ed7a9373241b9b0c4d751abc11134bde",
+      "purpose_and_callers": "Process-local singleton ConnectionManager для Hub lifecycle и ConnectionsController.",
+      "trust_state_errors_concurrency": "Lock сериализует создание/удаление bucket; вложенные concurrent словари позволяют снимки чтения. Сумма и список могут меняться при churn, не дают cluster presence. Операции синхронны и возвращают CompletedTask.",
+      "test_evidence": "ConnectionManagerTests.cs:12,39,75 включает burst и last-remove/new-add race; тесты не запускались.",
+      "conclusion": "Известная гонка orphan bucket закрыта общим gate в исходниках.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/IConnectionManager.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "bc2ad2518b14ab8025a9de473e155e03a8f71ed48a0c8605ccb7654794bdcea4",
+      "purpose_and_callers": "Интерфейс локального registry, DI implementation ConnectionManager.",
+      "trust_state_errors_concurrency": "Идентификаторы передаёт caller. Add/Remove без token и без внешнего I/O, чтение возвращает копию списка. Контракт не обещает atomic cluster count.",
+      "test_evidence": "ConnectionManagerTests и ConnectionsControllerTests по callsites, без исполнения.",
+      "conclusion": "Auth и мультиузловая доставка вне registry.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          314
+        ]
+      ],
+      "line_count": 314,
+      "sha256": "68cf33aaff250a2dbd79ef2b6e5fc11354000c215275f1fcd724d751b0dd7724",
+      "purpose_and_callers": "Авторизованный REST API Todo. MediatR обслуживает list/public/counts/affinity/detail/subtasks и mutations.",
+      "trust_state_errors_concurrency": "Сбрасывает CreateTodo.UserId, перезаписывает route TodoId/ParentTodoId, передаёт request token всем dispatch. Ownership/visibility внутри handlers. Локальные Result failures маппятся 400/404, exception pipeline отдельно. Concurrency/transaction у handlers.",
+      "test_evidence": "DeleteTodoCommandHandler.cs:38–106 подтверждает ownership, cascade и outbox. Endpoint matrix не запускалась.",
+      "conclusion": "BE-008 относится к downstream pagination; REST слой не изменялся.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Dockerfile",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          42
+        ]
+      ],
+      "line_count": 42,
+      "sha256": "2c61c6391ac342271c8885c65da373c9c978343ee87d536177109293411691a9",
+      "purpose_and_callers": "Многостадийный Docker build Todo.Api, restore/build/publish из контекста repo, runtime aspnet10.",
+      "trust_state_errors_concurrency": "Отдельный непривилегированный appuser, curl health check /health на 80. Согласование port и probes зависит от deploy config. Mutable image tags, внешние registry/apt не проверялись.",
+      "test_evidence": "Todo Program.cs:232 объявляет health endpoints; image build/inspect не выполнялся.",
+      "conclusion": "Source-only Dockerfile review.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          25
+        ]
+      ],
+      "line_count": 25,
+      "sha256": "3cc6b7e08f4f0cf37fcc8f545e68b53ca36347963f66bcf7979a8bedce16f9a3",
+      "purpose_and_callers": "Глобальные imports Todo.Api для MediatR, MVC, authorization/JWT, validators, Serilog.",
+      "trust_state_errors_concurrency": "Импорты не включают auth или middleware, не читают secret store.",
+      "test_evidence": "Program.cs:84–88,228–230 подтверждает отдельное gRPC wiring; без сборки.",
+      "conclusion": "Compile-time setup.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          282
+        ]
+      ],
+      "line_count": 282,
+      "sha256": "4c4a0bedfd07222ddc3cb1a222ddd00b37ec77bb30b643bfa8e45c27f8756077",
+      "purpose_and_callers": "TodoService gRPC для межсервисных запросов. CheckTaskCommentAccess используется Collaboration/Realtime, GetSubtaskBrief — Collaboration reply flow.",
+      "trust_state_errors_concurrency": "Program регистрирует service-key interceptor. CheckTaskCommentAccess применяет TodoAccessPolicy и прячет описание/дату/участников при запрете; GetSubtaskBrief доверяет upstream parent check и проверяет связь child. GUID parsing даёт InvalidArgument; create/update передают token, три legacy RPC теряют его. Доступ и последующая запись не атомарны между сервисами.",
+      "test_evidence": "TodoGrpcServiceTests.cs:24–121,176–249 проверяет mapping и ошибки с Any token; DeleteTodoCommandHandler.cs:38–106 использует переданный token на repository/outbox/UoW. Живой deadline не проверялся.",
+      "conclusion": "Источник потери cancellation на границе MediatR.",
+      "finding_ids": [
+        "CONT040001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          41
+        ]
+      ],
+      "line_count": 41,
+      "sha256": "9d5d9bdde4adda3ec5eac5b2b8039ba573f31a0730fa8a6e81de371983e0e9f3",
+      "purpose_and_callers": "ASP.NET Web проект Todo, gRPC/JWT/EF tooling/telemetry и проекты слоёв.",
+      "trust_state_errors_concurrency": "net10.0, Linux target, UserSecretsId является именем контейнера настроек. Содержимое хранилища не читалось. EF.Design private assets.",
+      "test_evidence": "Статический project review, без MSBuild/restore.",
+      "conclusion": "Декларативные зависимости host.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT040001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Три Todo RPC не передают токен запроса в MediatR",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs",
+          "lines": "128–135, 156–164, 266–269"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs",
+          "lines": "38–51, 74–106",
+          "supplemental": true
+        }
+      ],
+      "impact": "Query и удаление могут продолжаться после отмены RPC. Handler удаления прокидывает полученный token до repository/outbox/UoW, поэтому default token отключает этот канал отмены на всём пути.",
+      "repro": "Вызвать каждую RPC с distinct ServerCallContext token, захватить token в IMediator. Для проверки поведения задержать repository до отмены и проверить, доходит ли операция до записи. Сценарий исполнения не запускался."
+    },
+    {
+      "id": "CONT040002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Realtime legacy schema gate принимает расхождение default у mapped column",
+      "evidence": [
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs",
+          "lines": "61–88, 108–126, 135–162"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+          "lines": "37–40, 52–53, 67–69"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+          "lines": "49–57"
+        }
+      ],
+      "impact": "Для Notifications.IsDeleted и IsRead модель задаёт false. Legacy verifier для mapped столбцов сравнивает только тип и nullability. Совместимая по этим признакам БД с IsDeleted DEFAULT true проходит catalog check. Скрытие вставленной строки при omitted column требует provider проверки.",
+      "repro": "В изолированной legacy Realtime БД изменить только default IsDeleted, оставить shape и unique неизменными, вызвать EnsureReadyAsync и обычный NotificationStore.TryAddAsync. Проверить startup verdict и значения IsDeleted через scoped query и raw row. Сценарий исполнения не запускался."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Все 25 файлов из manifest, в порядке READ-040. Supplemental traces и поиск тестов исключены из счётчика.",
+    "Snapshot прочитан через полный normalized diff с Designer. Тело и завершающие строки совпали полностью, wrapper прочитан из diff.",
+    "Build, Docker, PostgreSQL, gRPC и SignalR не запускались. Конфигурационные секреты не загружались. Исторические provider tests указаны только как исходники.",
+    "CONT040001/002 provisional и требуют сценарного запуска. DIST-005/006 и BE-008 остаются ссылками на предыдущие находки."
+  ]
+}

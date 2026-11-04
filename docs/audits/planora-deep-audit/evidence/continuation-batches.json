@@ -660,8 +660,10 @@
       "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordHasher.cs",
       "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordResetTokenService.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-033-review.json",
+    "notes": "Full source semantic review; recorded snapshot hashes and ranges verified by root. Runtime gates remain separate."
   },
   {
     "batch_id": "READ-034",
@@ -893,8 +895,10 @@
       "Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs",
       "Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-040-review.json",
+    "notes": "Full source semantic review; recorded snapshot hashes and ranges verified by root. Runtime gates remain separate."
   },
   {
     "batch_id": "READ-041",

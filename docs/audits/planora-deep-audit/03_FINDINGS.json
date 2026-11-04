@@ -354,9 +354,9 @@
     ],
     "limitations": "Inventory: git ls-files Services/*/*Infrastructure/Migrations/* содержит Todo/Realtime only. Deployed schema и ignored local migration contents не исследовались; drift конкретной БД не доказан.",
     "local_remediation_checkpoint": {
-      "status": "PREREQUISITE_VERIFIED",
+      "status": "LOCAL_FIX_VERIFIED",
       "report": "results/T08.md",
-      "note": "Stable Auth seed verified; missing chain and guarded schema provider failures remain open.",
+      "note": "T08 provider and Migrator verification passed for the reviewed profiles. Working deployment is gated by T14.",
       "authority": "Local implementation only; no push/deploy/working-data operation."
     }
   },
@@ -1622,7 +1622,7 @@
     "local_remediation_checkpoint": {
       "status": "LOCAL_FIX_VERIFIED",
       "report": "results/T08.md",
-      "note": "Named Messaging target selection and missing/blank rejection verified; T08 schema work remains open.",
+      "note": "T08 provider and Migrator verification passed for the reviewed profiles. Working deployment is gated by T14.",
       "authority": "Local implementation only; no push/deploy/working-data operation."
     }
   },
@@ -1664,5 +1664,255 @@
     ],
     "dependencies": [],
     "limitations": "Static loop/cap semantics only. Most reviewed policies use a fixed cutoff and new normal timestamps do not qualify. Prove a supported eligibility-growth path before claiming runtime impact; see results/evidence/read-014-review.json."
+  },
+  {
+    "id": "BE-011",
+    "title": "One recovery code can pass concurrent redemption checks",
+    "confidence": "LIKELY",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRecoveryCodeRepository.cs",
+        "lines": "13-19",
+        "observation": "Tracked owner-scoped unused read without lock."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs",
+        "lines": "60-71",
+        "observation": "Verify hash, mark used, update and save. Successful save returns true."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRecoveryCodeConfiguration.cs",
+        "lines": "13-29",
+        "observation": "IsUsed has no concurrency-token configuration."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "37-54",
+        "observation": "Only Friendship receives xmin."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs",
+        "lines": "31-38",
+        "observation": "Repository and SaveChanges share a scoped context. This method adds no consume predicate."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+        "lines": "99-165",
+        "observation": "Successful recovery path proceeds to token issuance and session update."
+      }
+    ],
+    "trigger": "Two independent login contexts with a valid password and the same unused recovery code both read it before either saves. Use different session fingerprints in the provider regression.",
+    "impact": "Both requests can observe the code as unused and persist the use marker. A duplicate session is possible despite the intended single-use factor. Password possession remains a prerequisite.",
+    "fix": "Implement durable conditional consumption with owner, code ID and unused state and require exactly one winner. Preserve existing outward failure behavior and test cancellation plus provider races.",
+    "tests": [
+      "Two Npgsql contexts with a barrier after unused read. Exactly one successful consume and one loser.",
+      "Used, wrong-owner and cancellation controls. Test token/session outcomes independently."
+    ],
+    "dependencies": [],
+    "limitations": "Source review CONT033-001; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+  },
+  {
+    "id": "BE-012",
+    "title": "Password reset validation and token clearing are separate concurrency steps",
+    "confidence": "LIKELY",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordResetTokenService.cs",
+        "lines": "32-47",
+        "observation": "Token validation checks hash and expiry without persistent consumption."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs",
+        "lines": "44-48",
+        "observation": "Loads tracked user and refresh tokens by token hash."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/ResetPassword/ResetPasswordCommandHandler.cs",
+        "lines": "39-53,89-108",
+        "observation": "Validates loaded state then saves new password and triggers post-save stamp/mail."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Domain/Entities/User.cs",
+        "lines": "223-236",
+        "observation": "Changes hash, clears token and revokes loaded sessions in the aggregate."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "37-54",
+        "observation": "No User xmin configured in inspected current mapping."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/ResetPasswordCommandHandlerTests.cs",
+        "lines": "102-180",
+        "observation": "Existing replay test is sequential and uses one mocked mutable entity."
+      }
+    ],
+    "trigger": "Two requests present the same still-valid reset token and load the user before either saves. Each supplies a valid distinct new password.",
+    "impact": "An in-flight stale copy can overwrite the first successful reset and return a second success. Post-save notification/stamp actions can repeat. A provider replay test is required.",
+    "fix": "Guard token consumption with durable hash/expiry comparison and coordinate password/session changes in the same transaction. Reject the losing request before external effects.",
+    "tests": [
+      "Two independent Npgsql contexts with a read barrier and distinct passwords. Exactly one durable reset and one set of effects.",
+      "Expired-token clearing must not erase a newly issued token. Preserve normal and sequential replay responses."
+    ],
+    "dependencies": [],
+    "limitations": "Source review CONT033-002; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+  },
+  {
+    "id": "BE-013",
+    "title": "A malformed stored PBKDF2 record with an empty key can verify any password",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordHasher.cs",
+        "lines": "45-51,79-100",
+        "observation": "Decoded key length is passed as outputLength. Parser checks segment count but not key/salt size, version token or iteration bounds."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+        "lines": "83-98,172-179",
+        "observation": "Verification controls password acceptance and rehash uses the verified input."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordHasherTests.cs",
+        "lines": "44-86",
+        "observation": "Existing malformed, legacy and older-iteration fixtures do not cover an empty decoded key."
+      }
+    ],
+    "trigger": "A stored versioned record has a parseable positive iteration count, a valid salt encoding and an empty final Base64 key segment. This requires malformed stored data.",
+    "impact": "An empty stored key and empty derived key match regardless of the supplied password. Malformed metadata can also trigger exceptions or unbounded work. No externally writable hash route or deployed malformed row was established.",
+    "fix": "Validate complete versioned and legacy formats, exact decoded lengths and reviewed work-factor bounds before deriving. Reject malformed data while retaining supported historical hashes.",
+    "tests": [
+      "Empty decoded key, malformed tokens and impossible sizes reject before derivation.",
+      "Unknown version and excessive iteration metadata fail safely.",
+      "Legacy and older supported work factors still verify and request rehash."
+    ],
+    "dependencies": [],
+    "limitations": "Source review CONT033-003; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+  },
+  {
+    "id": "BE-014",
+    "title": "Friendship creation lacks an active unordered-pair invariant",
+    "confidence": "LIKELY",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/FriendshipConfiguration.cs",
+        "lines": "32-49",
+        "observation": "Endpoint indexes are nonunique and the visibility filter retains terminal status rows."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs",
+        "lines": "11-17",
+        "observation": "Unordered pair lookup uses FirstOrDefault without order or active-state preference."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequest/SendFriendRequestCommandHandler.cs",
+        "lines": "60-71",
+        "observation": "ID flow checks returned state then inserts a fresh row."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequestByEmail/SendFriendRequestByEmailCommandHandler.cs",
+        "lines": "68-78",
+        "observation": "Email flow has the same read-then-insert shape."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "43-54",
+        "observation": "xmin protects updates to an existing Friendship, not insertion of separate IDs."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs",
+        "lines": "136-176",
+        "observation": "Existing unit test injects one active row and does not exercise repository selection."
+      }
+    ],
+    "trigger": "Two requests for the same pair, including reciprocal directions, both read no active relationship before inserting. A retained terminal row can also be selected ahead of a later active row.",
+    "impact": "Duplicate pending rows or an ambiguous active relationship can violate request/remove semantics. Existing terminal history must remain supported.",
+    "fix": "Use an explicit active-pair query and an atomic uniqueness or serialization mechanism for normalized active endpoints. Review existing duplicates and preserve ID/email response policies.",
+    "tests": [
+      "Simultaneous same-direction and reciprocal sends produce one active relationship.",
+      "Terminal history plus a new active row resolves to the active relationship.",
+      "Preserve generic email-flow responses, actor authorization and cancellation."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "limitations": "Source review CONT033-004; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+  },
+  {
+    "id": "DIST-011",
+    "title": "Три Todo RPC не передают токен запроса в MediatR",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T07",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs",
+        "lines": "128–135, 156–164, 266–269"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs",
+        "lines": "38–51, 74–106",
+        "supplemental": true
+      }
+    ],
+    "trigger": "Cancel a Todo gRPC request while its MediatR operation is still running.",
+    "impact": "Query и удаление могут продолжаться после отмены RPC. Handler удаления прокидывает полученный token до repository/outbox/UoW, поэтому default token отключает этот канал отмены на всём пути.",
+    "fix": "Pass the request token through the three MediatR sends and exercise each supported call path.",
+    "tests": [
+      "Вызвать каждую RPC с distinct ServerCallContext token, захватить token в IMediator. Для проверки поведения задержать repository до отмены и проверить, доходит ли операция до записи. Сценарий исполнения не запускался."
+    ],
+    "dependencies": [],
+    "limitations": "Static source evidence CONT040001; runtime reproduction NOT_RUN. See results/evidence/read-040-review.json."
+  },
+  {
+    "id": "BE-015",
+    "title": "Realtime legacy schema gate принимает расхождение default у mapped column",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T06",
+    "evidence": [
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDatabaseStartup.cs",
+        "lines": "61–88, 108–126, 135–162"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/Configurations/NotificationConfiguration.cs",
+        "lines": "37–40, 52–53, 67–69"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs",
+        "lines": "49–57"
+      }
+    ],
+    "trigger": "Prepare an otherwise compatible legacy Realtime schema with a different Notifications.IsDeleted default.",
+    "impact": "Для Notifications.IsDeleted и IsRead модель задаёт false. Legacy verifier для mapped столбцов сравнивает только тип и nullability. Совместимая по этим признакам БД с IsDeleted DEFAULT true проходит catalog check. Скрытие вставленной строки при omitted column требует provider проверки.",
+    "fix": "Validate mapped defaults in the Realtime legacy path and coordinate any schema change with T08.",
+    "tests": [
+      "В изолированной legacy Realtime БД изменить только default IsDeleted, оставить shape и unique неизменными, вызвать EnsureReadyAsync и обычный NotificationStore.TryAddAsync. Проверить startup verdict и значения IsDeleted через scoped query и raw row. Сценарий исполнения не запускался."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "limitations": "Static source evidence CONT040002; runtime reproduction NOT_RUN. See results/evidence/read-040-review.json."
   }
 ]
