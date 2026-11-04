@@ -8,7 +8,6 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.SendFriendReque
     {
         private readonly IFriendshipRepository _friendshipRepository;
         private readonly IUserRepository _userRepository;
-        private readonly IApplicationDbContext _dbContext;
         private readonly ICurrentUserService _currentUserService;
         private readonly IBusinessEventLogger? _businessLogger;
         private readonly ILogger<SendFriendRequestCommandHandler> _logger;
@@ -16,14 +15,12 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.SendFriendReque
         public SendFriendRequestCommandHandler(
             IFriendshipRepository friendshipRepository,
             IUserRepository userRepository,
-            IApplicationDbContext dbContext,
             ICurrentUserService currentUserService,
             ILogger<SendFriendRequestCommandHandler> logger,
             IBusinessEventLogger? businessLogger = null)
         {
             _friendshipRepository = friendshipRepository;
             _userRepository = userRepository;
-            _dbContext = dbContext;
             _currentUserService = currentUserService;
             _logger = logger;
             _businessLogger = businessLogger;
@@ -57,18 +54,12 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.SendFriendReque
                 if (friend == null)
                     return Result.Failure("USER_NOT_FOUND", "Friend not found");
 
-                var existingFriendship = await _friendshipRepository.GetFriendshipAsync(userId, request.FriendId, cancellationToken);
-                if (existingFriendship != null)
-                {
-                    if (existingFriendship.Status == Domain.Enums.FriendshipStatus.Accepted)
-                        return Result.Failure("ALREADY_FRIENDS", "Already friends with this user");
-                    if (existingFriendship.Status == Domain.Enums.FriendshipStatus.Pending)
-                        return Result.Failure("PENDING_REQUEST", "Friend request already pending");
-                }
-
                 var friendship = Friendship.Create(userId, request.FriendId);
-                await _friendshipRepository.AddAsync(friendship, cancellationToken);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                var existingStatus = await _friendshipRepository.TryCreatePendingAsync(friendship, cancellationToken);
+                if (existingStatus == Domain.Enums.FriendshipStatus.Accepted)
+                    return Result.Failure("ALREADY_FRIENDS", "Already friends with this user");
+                if (existingStatus == Domain.Enums.FriendshipStatus.Pending)
+                    return Result.Failure("PENDING_REQUEST", "Friend request already pending");
 
                 _businessLogger?.LogBusinessEvent(
                     FriendRequestSent,
@@ -80,7 +71,7 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.SendFriendReque
 
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Failed to send friend request from {UserId} to {FriendId}", userId, request.FriendId);
                 return Result.Failure("SEND_FAILED", "An error occurred processing your request");

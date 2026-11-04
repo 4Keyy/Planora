@@ -1846,7 +1846,7 @@
   {
     "id": "BE-014",
     "title": "Friendship creation lacks an active unordered-pair invariant",
-    "confidence": "LIKELY",
+    "confidence": "CONFIRMED",
     "priority": "P2",
     "severity": "medium",
     "likelihood": "condition-dependent",
@@ -1894,7 +1894,12 @@
     "dependencies": [
       "T08"
     ],
-    "limitations": "Source review CONT033-004; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+    "limitations": "Existing duplicate rows, old binaries and direct SQL are outside the local serialization gate. COMMIT acknowledgement loss was reviewed by source. Email send response privacy is distinct from outgoing listing visibility.",
+    "verification": {
+      "status": "PASS_LOCAL",
+      "note": "PostgreSQL RED 5/5 and GREEN 6/6. Both updated send paths share a transaction lock for the unordered pair. See t02-friendship-verification.json.",
+      "evidence": "results/evidence/t02-friendship-verification.json"
+    }
   },
   {
     "id": "DIST-011",

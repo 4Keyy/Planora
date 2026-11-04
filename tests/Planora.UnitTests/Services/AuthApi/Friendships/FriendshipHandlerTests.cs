@@ -32,12 +32,9 @@ public class FriendshipHandlerTests
         fixture.Users.Setup(x => x.GetByIdAsync(requester.Id, It.IsAny<CancellationToken>())).ReturnsAsync(requester);
         fixture.Users.Setup(x => x.GetByIdAsync(addressee.Id, It.IsAny<CancellationToken>())).ReturnsAsync(addressee);
         fixture.Friendships
-            .Setup(x => x.GetFriendshipAsync(requester.Id, addressee.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Friendship?)null);
-        fixture.Friendships
-            .Setup(x => x.AddAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryCreatePendingAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()))
             .Callback<Friendship, CancellationToken>((friendship, _) => created = friendship)
-            .ReturnsAsync((Friendship friendship, CancellationToken _) => friendship);
+            .ReturnsAsync((FriendshipStatus?)null);
 
         var result = await fixture.CreateSendHandler().Handle(
             new SendFriendRequestCommand(addressee.Id),
@@ -48,7 +45,7 @@ public class FriendshipHandlerTests
         Assert.Equal(requester.Id, created!.RequesterId);
         Assert.Equal(addressee.Id, created.AddresseeId);
         Assert.Equal(FriendshipStatus.Pending, created.Status);
-        fixture.DbContext.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Friendships.Verify(x => x.TryCreatePendingAsync(created, It.IsAny<CancellationToken>()), Times.Once);
 
         var unverified = CreateUser("unverified@example.com", verifyEmail: false);
         var unverifiedFixture = new FriendshipFixture(unverified.Id);
@@ -78,7 +75,7 @@ public class FriendshipHandlerTests
             CancellationToken.None);
 
         Assert.True(missingResult.IsSuccess);
-        missing.Friendships.Verify(x => x.AddAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()), Times.Never);
+        missing.Friendships.Verify(x => x.TryCreatePendingAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()), Times.Never);
 
         var self = new FriendshipFixture(requester.Id);
         self.Users.Setup(x => x.GetByIdAsync(requester.Id, It.IsAny<CancellationToken>())).ReturnsAsync(requester);
@@ -89,33 +86,30 @@ public class FriendshipHandlerTests
             CancellationToken.None);
 
         Assert.True(selfResult.IsSuccess);
-        self.Friendships.Verify(x => x.AddAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()), Times.Never);
+        self.Friendships.Verify(x => x.TryCreatePendingAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()), Times.Never);
 
         var duplicate = new FriendshipFixture(requester.Id);
         duplicate.Users.Setup(x => x.GetByIdAsync(requester.Id, It.IsAny<CancellationToken>())).ReturnsAsync(requester);
         duplicate.Users.Setup(x => x.GetByEmailAsync(addressee.Email, It.IsAny<CancellationToken>())).ReturnsAsync(addressee);
         duplicate.Friendships
-            .Setup(x => x.GetFriendshipAsync(requester.Id, addressee.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Friendship.Create(requester.Id, addressee.Id));
+            .Setup(x => x.TryCreatePendingAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FriendshipStatus.Pending);
 
         var duplicateResult = await duplicate.CreateSendByEmailHandler().Handle(
             new SendFriendRequestByEmailCommand(addressee.Email.Value),
             CancellationToken.None);
 
         Assert.True(duplicateResult.IsSuccess);
-        duplicate.Friendships.Verify(x => x.AddAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Null(duplicateResult.Error);
 
         var createdFixture = new FriendshipFixture(requester.Id);
         Friendship? created = null;
         createdFixture.Users.Setup(x => x.GetByIdAsync(requester.Id, It.IsAny<CancellationToken>())).ReturnsAsync(requester);
         createdFixture.Users.Setup(x => x.GetByEmailAsync(addressee.Email, It.IsAny<CancellationToken>())).ReturnsAsync(addressee);
         createdFixture.Friendships
-            .Setup(x => x.GetFriendshipAsync(requester.Id, addressee.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Friendship?)null);
-        createdFixture.Friendships
-            .Setup(x => x.AddAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryCreatePendingAsync(It.IsAny<Friendship>(), It.IsAny<CancellationToken>()))
             .Callback<Friendship, CancellationToken>((friendship, _) => created = friendship)
-            .ReturnsAsync((Friendship friendship, CancellationToken _) => friendship);
+            .ReturnsAsync((FriendshipStatus?)null);
 
         var createdResult = await createdFixture.CreateSendByEmailHandler().Handle(
             new SendFriendRequestByEmailCommand("Friend@Example.com"),
@@ -126,7 +120,7 @@ public class FriendshipHandlerTests
         Assert.Equal(requester.Id, created!.RequesterId);
         Assert.Equal(addressee.Id, created.AddresseeId);
         Assert.Equal(FriendshipStatus.Pending, created.Status);
-        createdFixture.DbContext.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        createdFixture.Friendships.Verify(x => x.TryCreatePendingAsync(created, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory]
@@ -162,15 +156,10 @@ public class FriendshipHandlerTests
         Assert.Equal("USER_NOT_FOUND", missing.Error!.Code);
 
         fixture.Users.Setup(x => x.GetByIdAsync(addressee.Id, It.IsAny<CancellationToken>())).ReturnsAsync(addressee);
-        var friendship = Friendship.Create(requester.Id, addressee.Id);
-        if (existingStatus == FriendshipStatus.Accepted)
-        {
-            friendship.Accept(addressee.Id);
-        }
-
         fixture.Friendships
-            .Setup(x => x.GetFriendshipAsync(requester.Id, addressee.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(friendship);
+            .Setup(x => x.TryCreatePendingAsync(It.Is<Friendship>(f =>
+                f.RequesterId == requester.Id && f.AddresseeId == addressee.Id), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingStatus);
 
         var existing = await fixture.CreateSendHandler().Handle(new SendFriendRequestCommand(addressee.Id), CancellationToken.None);
         Assert.Equal(expectedCode, existing.Error!.Code);
@@ -429,7 +418,6 @@ public class FriendshipHandlerTests
             => new(
                 Friendships.Object,
                 Users.Object,
-                DbContext.Object,
                 CurrentUser.Object,
                 Mock.Of<ILogger<SendFriendRequestCommandHandler>>());
 
@@ -437,7 +425,6 @@ public class FriendshipHandlerTests
             => new(
                 Friendships.Object,
                 Users.Object,
-                DbContext.Object,
                 CurrentUser.Object,
                 Mock.Of<ILogger<SendFriendRequestByEmailCommandHandler>>());
 

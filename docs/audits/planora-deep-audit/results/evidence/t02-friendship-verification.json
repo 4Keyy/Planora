@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "head": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Disposable PostgreSQL 16.13 / RabbitMQ with owner ID, label and endpoint verified. Redis test endpoint was unbound.",
+  "commands": [
+    {
+      "id": "t02-friendship-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --filter 'FullyQualifiedName~AuthFriendshipPostgresTests' --logger 'trx;LogFileName=t02-friendship-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 5,
+      "passed": 0,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-red.txt",
+      "log_sha256": "0b898d5cafbc7e6b714074c1d78bb3b3f7eaae11b0da8fc30175851375f4972e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-red.trx",
+      "trx_sha256": "a023beebe356d9e444fb13f5a1c666bf679e8559843c0320e5a21050b0905ac7"
+    },
+    {
+      "id": "t02-friendship-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --filter 'FullyQualifiedName~Friendship'",
+      "exit_code": 1,
+      "test_executed": 0,
+      "reason": "MSB3021/MSB3027 copying files locked by active local services",
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-green.txt",
+      "log_sha256": "8d57b1991a4737ded1be428da5e6229b04b8328e5652d90cdf7aa1e55bde4716"
+    },
+    {
+      "id": "t02-friendship-green-isolated",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/friendship-out/\" --filter 'FullyQualifiedName~Friendship' --logger 'trx;LogFileName=t02-friendship-green-isolated.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 68,
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-green-isolated.txt",
+      "log_sha256": "1f2b6de9a08371011f3a5f7bf4c66ca381219e9f392f902477cc5ee8d4183fba",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-green-isolated.trx",
+      "trx_sha256": "8b89bc89997000571b2f9bc199643598d726a74970028866f99adca1ce427ea0"
+    },
+    {
+      "id": "t02-friendship-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-friendship-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1459,
+      "passed": 1459,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-broad.txt",
+      "log_sha256": "9a3df82ba589af86c1a17277259da6f563edba6dc8a3b78ee041c6fd0246aa68",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-broad.trx",
+      "trx_sha256": "a044c31df1de820c989143a5e2e1f2df894d5b1f6e17373cf61afd65583ba573"
+    }
+  ],
+  "focused_cases": [
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_ReciprocalGuidAndEmailRequests_CommitOnePendingAndKeepGenericEmailResult",
+      "outcome": "Failed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_RetainedRejectedRowDoesNotHideAcceptedPair",
+      "outcome": "Failed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_ReciprocalGuidRequests_CommitOnePending",
+      "outcome": "Failed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_SameDirectionGuidRequests_CommitOnePending",
+      "outcome": "Failed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_RetainedRejectedRowDoesNotHidePendingPair",
+      "outcome": "Failed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_CancellationDuringInsertRollsBackAndAllowsRetry",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_RetainedRejectedRowDoesNotHideAcceptedPair",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_ReciprocalGuidRequests_CommitOnePending",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_SameDirectionGuidRequests_CommitOnePending",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_ReciprocalGuidAndEmailRequests_CommitOnePendingAndKeepGenericEmailResult",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthFriendshipPostgresTests.SendAsync_RetainedRejectedRowDoesNotHidePendingPair",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "friendship_review",
+    "result": "No blocking BE-014 finding. Verified lock scope, fresh READ COMMITTED query, retry boundary, xmin on row updates, generic email response and all six PostgreSQL GREEN cases.",
+    "limits": "COMMIT acknowledgement loss and historical duplicate cleanup not executed. Earlier Auth defects and outgoing invitation privacy are tracked separately."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequest/SendFriendRequestCommandHandler.cs": "9a514ee557cfcead18c6116b1778457cceef0011ba99bb0e0244f7213da0c0d6",
+    "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequestByEmail/SendFriendRequestByEmailCommandHandler.cs": "06dd3ddd022d4ff15d2aaf82f04987e70e235379b353447bc63ab66d88f2aa04",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IFriendshipRepository.cs": "cf70a403e584c8247e1e96742f6d98cf1da4030d6eb82af08b60d444edd440e6",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs": "53ceec7d79eef8c02f73547af8ec1c0b9db1f33284bd44855a01215742dca203",
+    "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs": "f7858d0a5f55890e57c2a66a3dc326127e92147b9b767d2b7080346d2f9db483",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthFriendshipPostgresTests.cs": "811cc968511f08ecab55ce5d86495e21b368d7b6518e4a8faf44465b2eda860a"
+  }
+}

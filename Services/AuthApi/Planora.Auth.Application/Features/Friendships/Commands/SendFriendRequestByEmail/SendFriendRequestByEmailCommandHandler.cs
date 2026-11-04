@@ -8,7 +8,6 @@ public sealed class SendFriendRequestByEmailCommandHandler : IRequestHandler<Sen
 {
     private readonly IFriendshipRepository _friendshipRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
     private readonly IBusinessEventLogger? _businessLogger;
     private readonly ILogger<SendFriendRequestByEmailCommandHandler> _logger;
@@ -16,14 +15,12 @@ public sealed class SendFriendRequestByEmailCommandHandler : IRequestHandler<Sen
     public SendFriendRequestByEmailCommandHandler(
         IFriendshipRepository friendshipRepository,
         IUserRepository userRepository,
-        IApplicationDbContext dbContext,
         ICurrentUserService currentUserService,
         ILogger<SendFriendRequestByEmailCommandHandler> logger,
         IBusinessEventLogger? businessLogger = null)
     {
         _friendshipRepository = friendshipRepository;
         _userRepository = userRepository;
-        _dbContext = dbContext;
         _currentUserService = currentUserService;
         _logger = logger;
         _businessLogger = businessLogger;
@@ -65,17 +62,12 @@ public sealed class SendFriendRequestByEmailCommandHandler : IRequestHandler<Sen
                 return Result.Success();
             }
 
-            var existingFriendship = await _friendshipRepository.GetFriendshipAsync(userId, friend.Id, cancellationToken);
-            if (existingFriendship is not null
-                && (existingFriendship.Status == Domain.Enums.FriendshipStatus.Accepted
-                    || existingFriendship.Status == Domain.Enums.FriendshipStatus.Pending))
+            var friendship = Friendship.Create(userId, friend.Id);
+            var existingStatus = await _friendshipRepository.TryCreatePendingAsync(friendship, cancellationToken);
+            if (existingStatus.HasValue)
             {
                 return Result.Success();
             }
-
-            var friendship = Friendship.Create(userId, friend.Id);
-            await _friendshipRepository.AddAsync(friendship, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
 
             _businessLogger?.LogBusinessEvent(
                 FriendRequestSent,
@@ -87,7 +79,7 @@ public sealed class SendFriendRequestByEmailCommandHandler : IRequestHandler<Sen
 
             return Result.Success();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to send email friend request from {UserId}", userId);
             return Result.Failure("SEND_FAILED", "An error occurred processing your request");

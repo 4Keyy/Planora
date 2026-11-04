@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "7592ce407bfba976db922f3686b259d95836d06b",
+  "current_sha": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -147,7 +147,14 @@
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthPasswordResetPostgresTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthRecoveryCodePostgresTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/LoginHistoryPaginationTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t02-one-time-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-one-time-verification.json",
+    "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequest/SendFriendRequestCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Application/Features/Friendships/Commands/SendFriendRequestByEmail/SendFriendRequestByEmailCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IFriendshipRepository.cs",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthFriendshipPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t02-friendship-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -166,9 +173,10 @@
     "T08 child workers interrupted by service usage limit after writing tests/inventory/reviews. Root reproduced31targeted tests:24fail/7pass; fixed named Messaging selection and stable Auth seed; prerequisite GREEN11pass0skip. Schema guard/migrations remain unimplemented.",
     "T08 implemented after the prerequisite checkpoint; final broad tests and all ten Migrator/restore cases pass in owned fixtures.",
     "T02 session and hash slice: BE-003/BE-004/BE-013 verified, with per-user PostgreSQL rotate/replay lock and bounded PBKDF2 metadata.",
-    "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open."
+    "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open.",
+    "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary."
   ],
-  "next_step": "BE-014 provider RED and shared unordered-pair serialization. BE-016 RED retained; preserve old URL until committed replacement and review pruning/erasure boundary.",
+  "next_step": "Run PostgreSQL RED for old-password login vs completed password reset, with and without rehash. Preserve BE-016 failing scenario for a separate fix.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2081,6 +2089,54 @@
       "documents": 115,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t02-friendship-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --filter 'FullyQualifiedName~AuthFriendshipPostgresTests' --logger 'trx;LogFileName=t02-friendship-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 5,
+      "passed": 0,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-red.txt",
+      "log_sha256": "0b898d5cafbc7e6b714074c1d78bb3b3f7eaae11b0da8fc30175851375f4972e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-red.trx",
+      "trx_sha256": "a023beebe356d9e444fb13f5a1c666bf679e8559843c0320e5a21050b0905ac7"
+    },
+    {
+      "id": "t02-friendship-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --filter 'FullyQualifiedName~Friendship'",
+      "exit_code": 1,
+      "test_executed": 0,
+      "reason": "MSB3021/MSB3027 copying files locked by active local services",
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-green.txt",
+      "log_sha256": "8d57b1991a4737ded1be428da5e6229b04b8328e5652d90cdf7aa1e55bde4716"
+    },
+    {
+      "id": "t02-friendship-green-isolated",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/friendship-out/\" --filter 'FullyQualifiedName~Friendship' --logger 'trx;LogFileName=t02-friendship-green-isolated.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 68,
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-green-isolated.txt",
+      "log_sha256": "1f2b6de9a08371011f3a5f7bf4c66ca381219e9f392f902477cc5ee8d4183fba",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-green-isolated.trx",
+      "trx_sha256": "8b89bc89997000571b2f9bc199643598d726a74970028866f99adca1ce427ea0"
+    },
+    {
+      "id": "t02-friendship-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-friendship-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1459,
+      "passed": 1459,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-friendship-broad.txt",
+      "log_sha256": "9a3df82ba589af86c1a17277259da6f563edba6dc8a3b78ee041c6fd0246aa68",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-broad.trx",
+      "trx_sha256": "a044c31df1de820c989143a5e2e1f2df894d5b1f6e17373cf61afd65583ba573"
     }
   ],
   "audit_coverage": {
@@ -2138,7 +2194,8 @@
     "results/evidence/read-034-review.json",
     "results/evidence/read-034-review.md",
     "results/evidence/t02-session-verification.json",
-    "results/evidence/t02-one-time-verification.json"
+    "results/evidence/t02-one-time-verification.json",
+    "results/evidence/t02-friendship-verification.json"
   ],
   "local_commits": [
     {
@@ -2175,6 +2232,11 @@
       "task": "T02 refresh/session and password-hash checkpoint",
       "sha": "7592ce407bfba976db922f3686b259d95836d06b",
       "pushed": false
+    },
+    {
+      "task": "T02 recovery, reset, login history and readiness checkpoint",
+      "sha": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2201,7 +2263,7 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "BE-014 active pair, BE-016 avatar publish/cleanup, privacy/erasure and T14 key-ring deployment."
+    "T02": "Login against password reset concurrency, BE-016 avatar publish/cleanup, outgoing email invitation privacy, erasure and T14 key-ring deployment."
   },
   "new_findings": [
     "BE-008",
