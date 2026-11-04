@@ -1018,3 +1018,14 @@ in the rehash variant. The guarded transaction now rejects both attempts.
 READ-036 also traced the Collaboration paths for fixed database provisioning
 and Int32 pagination offsets. Runtime verification remains open.
 [READ-036](results/evidence/read-036-review.md)
+
+## READ-037 — Collaboration event ordering and data bounds
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| DIST-012 | P2 | CONFIRMED, static | Late create or activity events can write after a task deletion cascade. Verify both delivery orders and duplicate delivery with PostgreSQL. |
+| BE-023 | P2 | CONFIRMED, static | Two 100-character Auth names with a separator exceed Collaboration's author snapshot columns. Verify comment and reply persistence at the boundary. |
+| BE-024 | P3 | CONFIRMED, static | Preview truncation can split a UTF-16 surrogate pair. Verify both the in-memory boundary and the provider round trip. |
+
+The review traced existing inbox and outbox findings separately.
+[READ-037](results/evidence/read-037-review.md)

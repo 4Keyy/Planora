@@ -2411,5 +2411,214 @@
       "T10"
     ],
     "limitations": "Static review CONT036003; runtime NOT_VERIFIED. See results/evidence/read-036-review.json."
+  },
+  {
+    "id": "DIST-012",
+    "title": "Late task events can write comments after the deletion cascade",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskCreatedEventConsumer.cs",
+        "lines": "29–41",
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskDeletedEventConsumer.cs",
+        "lines": "29–36",
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs",
+        "lines": "8–10",
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+        "lines": "149–163",
+        "supplemental": true,
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs",
+        "lines": "29–60",
+        "supplemental": true,
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "lines": "42–54",
+        "supplemental": true,
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+        "lines": "65–74",
+        "supplemental": true,
+        "observation": "CONT037001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/SoftDeletedPurgePolicy.cs",
+        "lines": "49–53",
+        "supplemental": true,
+        "observation": "CONT037001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+        "lines": "37–49",
+        "observation": "CONT037001"
+      }
+    ],
+    "trigger": "TaskDeleted полностью обработан, затем Collaboration получает более раннее TaskCreated или TaskActivity для того же TaskId через отдельную подписку. Порядок может разойтись при повторе или временной задержке одного consumer.",
+    "impact": "Cascade меняет только имеющиеся на момент обработки строки. Поздний consumer добавляет новый system comment с IsDeleted=false. Обычный GET закрыт проверкой существования задачи в Todo, а retention выбирает только soft-deleted строки. В данных остаётся недоступная ветка, включая имя из payload создания.",
+    "fix": "Согласовать в T03/T05 durable состояние удаления ветки и атомарную проверку записи системных строк с delete cascade. Проверить границу хранения этого состояния и сохранение изоляции сервисов.",
+    "tests": [
+      "В Npgsql fixture обработать TaskDeleted перед TaskCreated и перед TaskActivity. Проверить отсутствие активных строк по этому TaskId. Добавить обратный порядок, разные IDs событий, повтор и overlap после чтения delete cascade."
+    ],
+    "dependencies": [
+      "T05"
+    ],
+    "limitations": "Static review CONT037001; runtime NOT_VERIFIED. See results/evidence/read-037-review.json."
+  },
+  {
+    "id": "BE-023",
+    "title": "Allowed Auth display name exceeds Collaboration snapshot width",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs",
+        "lines": "61–80, 107–114",
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/UserGrpcService.cs",
+        "lines": "33–45",
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Validators/Register/RegisterCommandValidator.cs",
+        "lines": "27–35",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UpdateUser/UpdateUserCommandValidator.cs",
+        "lines": "10–18",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/TokenService.cs",
+        "lines": "25–33",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
+        "lines": "35–46",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Domain/Entities/User.cs",
+        "lines": "61",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/GetUserProfilesByIds/GetUserProfilesByIdsQueryHandler.cs",
+        "lines": "31–37",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+        "lines": "54–73, 150–159, 170–178",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+        "lines": "14–16, 46–48",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.cs",
+        "lines": "25",
+        "supplemental": true,
+        "observation": "CONT037002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.cs",
+        "lines": "21–27",
+        "supplemental": true,
+        "observation": "CONT037002"
+      }
+    ],
+    "trigger": "Автор или автор цитаты имеет допустимые имя и фамилию по 100 букв, без крайних пробелов. Auth формирует имя из обоих полей с пробелом посередине.",
+    "impact": "В обычном POST имя автора берётся из JWT-контекста, а при reply live name приходит из Auth profile RPC. Оба пути могут передать 201 знак в varchar(200). EF-домен не сокращает значение до сохранения. Ожидается ошибка записи, точный outcome Npgsql требует теста.",
+    "fix": "Согласовать границу snapshot-имени между Auth и Collaboration. При сохранении полного допустимого имени потребуется additive migration для двух полей. Проверить существующие значения, а также публикацию и UI при максимальной длине.",
+    "tests": [
+      "На миграционной цепочке T08 сохранить обычный комментарий с JWT-именем 100+100 и ответ обычного автора на ранее созданный комментарий после смены имени его автора на 100+100. Проверить обе записи, сохранённые поля и отсутствие частичных outbox effects при отказе."
+    ],
+    "dependencies": [
+      "T08"
+    ],
+    "limitations": "Static review CONT037002; runtime NOT_VERIFIED. See results/evidence/read-037-review.json."
+  },
+  {
+    "id": "BE-024",
+    "title": "Reply preview truncation can split a UTF-16 surrogate pair",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs",
+        "lines": "114, 122–134",
+        "observation": "CONT037003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+        "lines": "140–148",
+        "observation": "CONT037003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+        "lines": "150–159, 170–178",
+        "supplemental": true,
+        "observation": "CONT037003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+        "lines": "50–52",
+        "supplemental": true,
+        "observation": "CONT037003"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/CollaborationApi/Domain/CommentTests.cs",
+        "lines": "172–183",
+        "supplemental": true,
+        "observation": "CONT037003"
+      }
+    ],
+    "trigger": "Цитируемый текст содержит 298 ASCII-букв, затем emoji из surrogate pair и ещё один ASCII-знак. Нормализованная длина равна 301 UTF-16 code units.",
+    "impact": "Префикс из 299 code units сохраняет только high surrogate emoji, после него добавляется многоточие. Некорректная UTF-16 последовательность попадает в persisted preview и в live GET projection. Реакция PostgreSQL и JSON serialization отдельно не измерялась.",
+    "fix": "Выбирать границу усечения по целым Unicode scalar values, сохранив лимит и правило многоточия. Зафиксировать одинаковую обработку write-time snapshot и live-проекции.",
+    "tests": [
+      "Проверить в доменном тесте целостность surrogate pair на позициях около лимита. Отдельный Npgsql/HTTP сценарий должен записать reply на такой комментарий, затем прочитать quote и сравнить сохранённый и live preview."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT037003; runtime NOT_VERIFIED. See results/evidence/read-037-review.json."
   }
 ]

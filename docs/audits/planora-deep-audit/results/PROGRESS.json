@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "d4f37674c4ae55f5879448958f08cd3a1ebb6542",
+  "current_sha": "2f2352fda2f402d959a203dfb93ba574d822bd73",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -159,7 +159,9 @@
     "docs/audits/planora-deep-audit/results/evidence/read-035-review.md",
     "docs/audits/planora-deep-audit/results/evidence/t02-login-reset-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-036-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-036-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-036-review.md",
+    "docs/audits/planora-deep-audit/results/evidence/read-037-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-037-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -182,7 +184,8 @@
     "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary.",
     "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending.",
     "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips.",
-    "READ-036 completed 25 paths and 1067 source lines. OPS-014 Redis endpoint parity, BE-021 derived reply erasure and BE-022 author-note count are static findings pending runtime. Coverage 455/1558, 71 batches pending."
+    "READ-036 completed 25 paths and 1067 source lines. OPS-014 Redis endpoint parity, BE-021 derived reply erasure and BE-022 author-note count are static findings pending runtime. Coverage 455/1558, 71 batches pending.",
+    "READ-037 completed 25 paths and 1291 source lines. DIST-012 ordering, BE-023 author width and BE-024 Unicode preview await runtime. Coverage 480/1558, 70 batches pending."
   ],
   "next_step": "Verify BE-016 avatar publication and lock behavior. Reproduce persisted refresh survival in ChangePassword and RevokeAllSessions.",
   "commands": [
@@ -2202,9 +2205,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 71,
+    "pending_batches": 70,
     "complete": false,
-    "current_read_or_reviewed": 455,
+    "current_read_or_reviewed": 480,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2214,7 +2217,8 @@
       "READ-012",
       "READ-034",
       "READ-035",
-      "READ-036"
+      "READ-036",
+      "READ-037"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2262,7 +2266,9 @@
     "results/evidence/read-035-review.md",
     "results/evidence/t02-login-reset-verification.json",
     "results/evidence/read-036-review.json",
-    "results/evidence/read-036-review.md"
+    "results/evidence/read-036-review.md",
+    "results/evidence/read-037-review.json",
+    "results/evidence/read-037-review.md"
   ],
   "local_commits": [
     {
@@ -2319,6 +2325,11 @@
       "task": "T02 login/reset credential generation",
       "sha": "d4f37674c4ae55f5879448958f08cd3a1ebb6542",
       "pushed": false
+    },
+    {
+      "task": "READ-036 Category and Collaboration runtime boundaries",
+      "sha": "2f2352fda2f402d959a203dfb93ba574d822bd73",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2365,6 +2376,9 @@
     "BE-020",
     "OPS-014",
     "BE-021",
-    "BE-022"
+    "BE-022",
+    "DIST-012",
+    "BE-023",
+    "BE-024"
   ]
 }

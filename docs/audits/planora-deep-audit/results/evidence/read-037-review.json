@@ -1,0 +1,550 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-037",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read035",
+  "source_head": "2f2352fda2f402d959a203dfb93ba574d822bd73",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 1291,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 187"
+      ],
+      "line_count": 187,
+      "sha256": "5adc0e8be70ccb3b8b1154ba3f5d9fb02e56b42985844c1da95745cf913d31cd",
+      "purpose_and_callers": "Authorizes the timeline through Todo, then reads a comment page, live same-task quote targets and batched user profiles. Synthesizes the Author's Note.",
+      "trust_state_errors_concurrency": "Missing/denied branch returns 404/403 before loading comments. Missing live profile uses stored display name. Same-branch live quote lookup is guarded by task ID. Stored snapshot remains for deleted targets. First-page-only note currently changes TotalCount across pages.",
+      "test_evidence": "READ-036 recorded BE-021/022. Frontend worker-and-comments exercises paging with mocked responses.",
+      "conclusion": "Keep owner authorization before all content reads. Separate the existing count, erasure and Int32 offset gates.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskCreatedEventConsumer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 48"
+      ],
+      "line_count": 48,
+      "sha256": "22bad6af1ec5af57ffa1bd0a8ac962fbd03a58d2553d259a06822950a0572579",
+      "purpose_and_callers": "TaskCreated subscriber writes a system event with the owner's name. GET synthesizes the description from Todo.",
+      "trust_state_errors_concurrency": "Writes an independent row for every handler invocation. Neither a task lifecycle tombstone nor an existence check is consulted. A late create after the deletion cascade persists an active orphan. Inbox dedup is best effort as recorded in INV-COMM-4/T05.",
+      "test_evidence": "IntegrationEventConsumerTests.cs:23–49 checks the created row and no copied note through direct handler invocation.",
+      "conclusion": "Prove both delivery orders under PostgreSQL with independent subscription consumers.",
+      "finding_ids": [
+        "CONT037001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskDeletedEventConsumer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 39"
+      ],
+      "line_count": 39,
+      "sha256": "f24ef2ba577fe65e827351a5ec79f1292f3eb4ff225233023a14d883b9572f50",
+      "purpose_and_callers": "TaskDeleted subscriber soft-deletes the existing timeline by task ID.",
+      "trust_state_errors_concurrency": "Repository loads current nondeleted rows and marks them deleted. Repeated sequential calls converge for rows already present. No marker is persisted to guard against later TaskCreated or TaskActivity delivery. Outbound read remains Todo-authorized.",
+      "test_evidence": "IntegrationEventConsumerTests.cs:121–139 checks repository call and save, without earlier or later producer delivery.",
+      "conclusion": "Test creation before and after deletion plus retry and retention.",
+      "finding_ids": [
+        "CONT037001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 16"
+      ],
+      "line_count": 16,
+      "sha256": "ceae28af3877fc9c17848e8efad6d10a3464ccff1ff43af5cd097f475c44f12d",
+      "purpose_and_callers": "Application global imports for MediatR, validation, mapping and common contracts.",
+      "trust_state_errors_concurrency": "Compile-time scope only. Handler and consumer dependencies are explicit through DI.",
+      "test_evidence": "Cross-checked controller and application registrations. Build not run.",
+      "conclusion": "No independent runtime behavior.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Planora.Collaboration.Application.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 28"
+      ],
+      "line_count": 28,
+      "sha256": "51200e830c4735cb68027fe74abd452041cabdd39c60dcdc102f19506b489f37",
+      "purpose_and_callers": "Collaboration Application net10.0 project and internal visibility to Planora.UnitTests.",
+      "trust_state_errors_concurrency": "Declares CQRS/validation/mapping dependencies and shared Application/Domain/Infrastructure plus local Domain reference.",
+      "test_evidence": "Compared package and project references with actual compilation units by source. Build and restore were not run.",
+      "conclusion": "Dependency and provenance gates remain T12/T14.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Services/ITaskAccessService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 45"
+      ],
+      "line_count": 45,
+      "sha256": "d2898ae3b593e293830af5eb7d63f10e0f6073fadd55ea9487d8a41c47b08226",
+      "purpose_and_callers": "Task access boundary and subtask quote-target contract, implemented by Todo gRPC client.",
+      "trust_state_errors_concurrency": "TaskAccessResult includes existence, authorization, owner/participants, description and creation time. SubtaskBrief returns the validated parent's live child data. Add checks parent access before obtaining brief. Task identity remains in Todo.",
+      "test_evidence": "CommentCommandHandlerTests.cs:48 onward verifies denied/missing access. Subtask quote tests at lines 162–200 stub the scoped RPC contract.",
+      "conclusion": "Keep service-key authentication and end-user authorization separate. Existing Delete asymmetry is AZ-03.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Services/IUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 26"
+      ],
+      "line_count": 26,
+      "sha256": "117561a098944cef06f63f17baaa6c037cdab686f9b0817dc1450ee22ceb1d07",
+      "purpose_and_callers": "Optional batch profile enrichment for comment authors and quoted authors.",
+      "trust_state_errors_concurrency": "The interface omits missing users and allows fallback on dependency failure. The text claiming there is no stored name drifts from Comment.AuthorName and ReplyToAuthorName. Both may carry Auth-generated names of 201 characters.",
+      "test_evidence": "BE-021 traces post-erasure snapshots. Auth profile query uses FullName and provider round-trip remains a separate width gate.",
+      "conclusion": "Preserve profile-rename behavior and clarify the persisted snapshot bound.",
+      "finding_ids": [
+        "CONT037002"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 179"
+      ],
+      "line_count": 179,
+      "sha256": "0c38131e562becd61fea49c68fd1b00aa4beaf1c26240f0afea63899b1b509fa",
+      "purpose_and_callers": "Comment aggregate for regular messages/replies and system timeline events, including validation and edit timestamps.",
+      "trust_state_errors_concurrency": "Create validates IDs, author nonblank and content ≤ 2000, then stores a trimmed author name without checking the DB width. CreateReply captures name and preview. TruncatePreview cuts at a UTF-16 index that can split a surrogate pair. Update requires author. System rows use empty AuthorId.",
+      "test_evidence": "CommentTests.cs:16–223 covers construction, replies, truncation and edits, using ASCII in the oversize preview control. No Npgsql write test at these boundaries.",
+      "conclusion": "Validate interservice author-name width and preserve complete Unicode scalar values in previews.",
+      "finding_ids": [
+        "CONT037001",
+        "CONT037002",
+        "CONT037003"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Enums/ReplyTargetType.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 16"
+      ],
+      "line_count": 16,
+      "sha256": "8a24a53e3fcf9b2fbcc859a2ecceaa075a2b0a5f505650eef9001459cd7a70c1",
+      "purpose_and_callers": "Comment and Subtask enum used in the domain and EF mapping.",
+      "trust_state_errors_concurrency": "Stable enum values 1 and 2. CommentConfiguration persists the name. Add validates the target before construction, and CreateReply rejects undefined enum values.",
+      "test_evidence": "CommentTests.cs:142 onward covers reply snapshots. T08 proves additive nullable reply columns on its isolated schema chain.",
+      "conclusion": "Keep enum names and wire projection compatible.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Events/CommentAddedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 9"
+      ],
+      "line_count": 9,
+      "sha256": "57b30d85f33aeea7f3a86ea41ac40ca48add1faf838c0b070a6d202a12a2ced0",
+      "purpose_and_callers": "Local domain event carrying comment, task and author IDs, emitted by Comment.Create.",
+      "trust_state_errors_concurrency": "CollaborationDbContext does not dispatch domain events on SaveChanges. No local handler registration found. Live fan-out comes from explicit outbox calls in the application command (BE-002).",
+      "test_evidence": "CommentTests.cs checks domain event shape and system rows' absence of an event. Source trace distinguishes event objects from broker envelopes.",
+      "conclusion": "Do not treat local event creation as durable publication.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 2"
+      ],
+      "line_count": 2,
+      "sha256": "b428fe5c0148dd6b8a0ee2b4d27b24e86a9e9eed484f9d7bdd02005645eff7db",
+      "purpose_and_callers": "Domain global import of shared interfaces.",
+      "trust_state_errors_concurrency": "Resolves IAggregateRoot and repository interfaces at compile time.",
+      "test_evidence": "Compared with Comment and ICommentRepository declarations.",
+      "conclusion": "No separate runtime gate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Planora.Collaboration.Domain.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 14"
+      ],
+      "line_count": 14,
+      "sha256": "635ab8756a41d810b5b406914f24da4016aad661b46cf86e72b6036d84b5e15f",
+      "purpose_and_callers": "Collaboration Domain net10.0 project with BuildingBlocks Domain reference.",
+      "trust_state_errors_concurrency": "No independent configuration or package references in this project manifest.",
+      "test_evidence": "Inspected project contents, with no build or restore.",
+      "conclusion": "No separate runtime gate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 44"
+      ],
+      "line_count": 44,
+      "sha256": "06c7980ebebb7f84d440509de4111afda62d628137d032f7a4b9f489b8f08887",
+      "purpose_and_callers": "Repository contract for timeline paging, task/author deletion, subtask announcement cleanup, quote enrichment and target-deletion flags.",
+      "trust_state_errors_concurrency": "Mutations depend on tracked load with xmin and caller SaveChanges. Live quote read is scoped by task. Subtask activity selector takes title (BE-006). Task-deletion method has no tombstone or lifecycle state contract.",
+      "test_evidence": "IntegrationEventConsumerTests.cs:121–201 checks consumer contract with mocks. CommentRepository implementation supplies the query bounds.",
+      "conclusion": "Existing BE-006/008/021/022 remain distinct from late task-lifecycle writes.",
+      "finding_ids": [
+        "CONT037001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 88"
+      ],
+      "line_count": 88,
+      "sha256": "78e906397ac7e7f7a8c9fcd4c0c15b7601d01ce8a64abd1c466186d55803e77d",
+      "purpose_and_callers": "Collaboration Infrastructure composition with scoped Npgsql repositories, outbox, inbox, retention, HTTP context and two gRPC clients.",
+      "trust_state_errors_concurrency": "Uses mandatory named DB, retry policy, disabled sensitive EF logging. DI registers the inbox repository used by the bus and a singleton memory cache supplied by shared Infrastructure. Todo access and Auth enrichment have separate failure semantics. Local DbContext check is untagged; T01 shared Database is ready-tagged.",
+      "test_evidence": "OutboxStagingContractTests.cs verifies Collaboration repository staging. T05 transport and T08 schema proof are separate. No full DI host executed.",
+      "conclusion": "Actual liveness/readiness, effective gRPC targets and consumer topology remain deployment checks.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DesignTime/CollaborationDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 26"
+      ],
+      "line_count": 26,
+      "sha256": "d642095936adef494317b52fafa555a2786b9a3e1becb22fe6aae5b3cbff9f2b",
+      "purpose_and_callers": "Collaboration EF design-time factory. Builds options from optional cwd appsettings, environment overrides and a fallback connection.",
+      "trust_state_errors_concurrency": "No connection opens in construction. Fallback value masked. Runtime Startup/Planora.Migrator remain separate paths.",
+      "test_evidence": "Compared T08 generated model and normal chain. No ef command executed.",
+      "conclusion": "Keep EF input names aligned and preserve runtime schema guard.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 19"
+      ],
+      "line_count": 19,
+      "sha256": "7ff0fc7c97484bf4a44ef74db1ff3550fc8a7a12e73aac81120d3ab48b24e313",
+      "purpose_and_callers": "Infrastructure global imports for common repositories, EF, gRPC and logging.",
+      "trust_state_errors_concurrency": "Compile-time scope only. Live bindings are in Infrastructure DependencyInjection.",
+      "test_evidence": "Cross-checked use in client, repository and configurations.",
+      "conclusion": "No independent runtime behavior.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/CachingUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 88"
+      ],
+      "line_count": 88,
+      "sha256": "716cc065db1f550e4b7091a35bf800475ce27ee222323a7c896f90411f4c1f08",
+      "purpose_and_callers": "Positive-only per-user memory cache over Auth profile batch lookup, used on branch GET and reply write/enrichment.",
+      "trust_state_errors_concurrency": "Distinct IDs. Cached values reused for 60 seconds, missing-only fetches, no negative cache. No explicit invalidation when UserDeleted is handled. This bounds stale live profile exposure independently of stored reply snapshots (BE-021).",
+      "test_evidence": "Compared consumer and cache source paths. No focused cache test or outage injection run.",
+      "conclusion": "Distinguish bounded positive-cache staleness from durable quote erasure.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/TaskAccessGrpcClient.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 113"
+      ],
+      "line_count": 113,
+      "sha256": "e0135c7a8bf198aee567cc5c3e43204d05f49697f5f6a2de9940e61b06f4a113",
+      "purpose_and_callers": "Todo gRPC adapter for comment authorization and parent-scoped subtask validation.",
+      "trust_state_errors_concurrency": "Injects service key through DI; sends caller ID and cancellation token on access request. Filters invalid participant IDs. Converts RpcException to safe ServiceUnavailable; OperationCanceledException rethrows. Subtask lookup takes branch and child IDs after handler access check.",
+      "test_evidence": "CommentCommandHandlerTests mocks ITaskAccessService. Existing DIST-011 concerns server-side MediatR cancellation gaps and not the token passed here.",
+      "conclusion": "Fail closed for authority failures. Verify transport cancellation and server propagation independently.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/UserGrpcService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 67"
+      ],
+      "line_count": 67,
+      "sha256": "f34e0540f94d173a5821a4c45514f94ebf2b31ac4cd16e81a866d1348e3164e0",
+      "purpose_and_callers": "Auth gRPC client batches user profiles for Collaboration comments and replies.",
+      "trust_state_errors_concurrency": "Deduplicates request IDs and maps GUID-keyed profiles. Downstream RpcException or broad exception returns empty profiles, including cancel represented by an exception. Author name passes through unchanged from Auth.",
+      "test_evidence": "GetUserProfilesByIdsQueryHandler source returns User.FullName. No profile-width or canceled-RPC provider test executed here.",
+      "conclusion": "Preserve optional enrichment fallback while honoring request cancellation and snapshot limits.",
+      "finding_ids": [
+        "CONT037002"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/InboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 45"
+      ],
+      "line_count": 45,
+      "sha256": "358a08d0273b6f96d1bb7238644f87fad11d8f072202ae04a32abdfda0a0f8d0",
+      "purpose_and_callers": "EF model for durable Collaboration inbox receipt rows.",
+      "trust_state_errors_concurrency": "Primary key is InboxMessage.Id. Current bus derives it from event ID and handler type. MessageId/Type widths 255, Error width 2000, Status string and status/processed-time retention index. Key prevents duplicate receipt rows but handler side effects occur before receipt.",
+      "test_evidence": "T05 records best-effort dedup and stable handler keys. Atomic and concurrent duplicate-effect tests remain separate.",
+      "conclusion": "Do not claim exactly-once system comments from this mapping.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 40"
+      ],
+      "line_count": 40,
+      "sha256": "d08076ff8f372f5de6919c7946da1d8692f04c5e1df972daea7826022679f032",
+      "purpose_and_callers": "EF model for Collaboration outbox envelopes.",
+      "trust_state_errors_concurrency": "Type width 255, Error width 2000, string Status, default retry count, indexes on status/time and processed time. Collaboration has no partial active index; INV-COMM-5 already records this divergence.",
+      "test_evidence": "OutboxStagingContractTests and T08 chain are separate evidence. No query-plan measurement in this review.",
+      "conclusion": "BE-002 is a transaction-boundary issue and DIST-009 is a multi-drainer issue.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/InboxRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 48"
+      ],
+      "line_count": 48,
+      "sha256": "18ba6c7c022a34d45947cfb8213d7d49595f3fb03d3d91541c9e93f6bb0f3cb9",
+      "purpose_and_callers": "Collaboration implementation of the optional inbox repository.",
+      "trust_state_errors_concurrency": "ExistsAsync probes receipt key. Add/Update save immediately. DeleteProcessedMessagesAsync loads/removes prior processed rows, while registered retention uses ProcessedMessagePurgePolicy. Bus separates probe, handler commit and receipt commit and handles failures best effort.",
+      "test_evidence": "RabbitMqEventBus.cs:292–328 and INV-COMM-4/T05 document ordering and fail-open dedup. No parallel redelivery run here.",
+      "conclusion": "Existing duplicate-effects gap is distinct from out-of-order distinct lifecycle events.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Planora.Collaboration.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 31"
+      ],
+      "line_count": 31,
+      "sha256": "9e47fd5495b3132a4cb2dbbff4561ac77514ef413ceaab87bc658890f3d88c9a",
+      "purpose_and_callers": "Collaboration Infrastructure net10.0 manifest. References Npgsql, EF design tooling, gRPC client/server packages, Redis and health checks.",
+      "trust_state_errors_concurrency": "Shared Application/Domain/Infrastructure, local Application/Domain and generated gRPC contracts are project references. EF Design package uses private assets.",
+      "test_evidence": "Compared references with EF/gRPC source paths and T08 migration artifacts. No build or restore.",
+      "conclusion": "Dependency audit and image provenance remain separate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/Dockerfile",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 47"
+      ],
+      "line_count": 47,
+      "sha256": "287e9b551baf115b31e155afbc5d4fc9afb5ec97bbcb026d41b1310f8653e626",
+      "purpose_and_callers": "Messaging API multi-stage Linux .NET 10 Docker build, including Auth Domain/Application compile-time references.",
+      "trust_state_errors_concurrency": "Copies central package inputs and service/shared csproj before restore, then source and published binaries. Final process uses appuser, curl aggregate /health on port 80. Listener/health parity depends on effective Compose/Fly settings.",
+      "test_evidence": "T08 proves migration-source Docker context inclusion with a COPY-only build. Full image and deployment checks remain T14.",
+      "conclusion": "Keep exact-SHA image build and service runtime evidence separate.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Api/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 26"
+      ],
+      "line_count": 26,
+      "sha256": "2ee5961dd41df3cb87fe53bc492f9fee79069ffc42749aec93a48eb55038396f",
+      "purpose_and_callers": "Messaging API global imports for service registration, ASP.NET auth/MVC, MediatR and shared middleware.",
+      "trust_state_errors_concurrency": "Compile-time aliases. Effective auth, health and gRPC wiring live in Messaging Program.",
+      "test_evidence": "Compared with actual API entrypoint. No build.",
+      "conclusion": "No independent runtime behavior.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT037001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Запоздалое событие создания или активности записывает комментарий после удаления задачи",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskCreatedEventConsumer.cs",
+          "lines": "29–41"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskDeletedEventConsumer.cs",
+          "lines": "29–36"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs",
+          "lines": "8–10"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+          "lines": "149–163",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs",
+          "lines": "29–60",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+          "lines": "42–54",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+          "lines": "65–74",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/Policies/SoftDeletedPurgePolicy.cs",
+          "lines": "49–53",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+          "lines": "37–49"
+        }
+      ],
+      "trigger": "TaskDeleted полностью обработан, затем Collaboration получает более раннее TaskCreated или TaskActivity для того же TaskId через отдельную подписку. Порядок может разойтись при повторе или временной задержке одного consumer.",
+      "impact": "Cascade меняет только имеющиеся на момент обработки строки. Поздний consumer добавляет новый system comment с IsDeleted=false. Обычный GET закрыт проверкой существования задачи в Todo, а retention выбирает только soft-deleted строки. В данных остаётся недоступная ветка, включая имя из payload создания.",
+      "repro": "В Npgsql fixture обработать TaskDeleted перед TaskCreated и перед TaskActivity. Проверить отсутствие активных строк по этому TaskId. Добавить обратный порядок, разные IDs событий, повтор и overlap после чтения delete cascade.",
+      "fix": "Согласовать в T03/T05 durable состояние удаления ветки и атомарную проверку записи системных строк с delete cascade. Проверить границу хранения этого состояния и сохранение изоляции сервисов."
+    },
+    {
+      "id": "CONT037002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Допустимое полное имя из Auth превышает ширину двух полей Collaboration",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs",
+          "lines": "61–80, 107–114"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/UserGrpcService.cs",
+          "lines": "33–45"
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Validators/Register/RegisterCommandValidator.cs",
+          "lines": "27–35",
+          "supplemental": true
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UpdateUser/UpdateUserCommandValidator.cs",
+          "lines": "10–18",
+          "supplemental": true
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/TokenService.cs",
+          "lines": "25–33",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
+          "lines": "35–46",
+          "supplemental": true
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Domain/Entities/User.cs",
+          "lines": "61",
+          "supplemental": true
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/GetUserProfilesByIds/GetUserProfilesByIdsQueryHandler.cs",
+          "lines": "31–37",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+          "lines": "54–73, 150–159, 170–178",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+          "lines": "14–16, 46–48",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.cs",
+          "lines": "25",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.cs",
+          "lines": "21–27",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Автор или автор цитаты имеет допустимые имя и фамилию по 100 букв, без крайних пробелов. Auth формирует имя из обоих полей с пробелом посередине.",
+      "impact": "В обычном POST имя автора берётся из JWT-контекста, а при reply live name приходит из Auth profile RPC. Оба пути могут передать 201 знак в varchar(200). EF-домен не сокращает значение до сохранения. Ожидается ошибка записи, точный outcome Npgsql требует теста.",
+      "repro": "На миграционной цепочке T08 сохранить обычный комментарий с JWT-именем 100+100 и ответ обычного автора на ранее созданный комментарий после смены имени его автора на 100+100. Проверить обе записи, сохранённые поля и отсутствие частичных outbox effects при отказе.",
+      "fix": "Согласовать границу snapshot-имени между Auth и Collaboration. При сохранении полного допустимого имени потребуется additive migration для двух полей. Проверить существующие значения, а также публикацию и UI при максимальной длине."
+    },
+    {
+      "id": "CONT037003",
+      "severity": "P3",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Обрезка цитаты может оставить непарный UTF-16 surrogate",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs",
+          "lines": "114, 122–134"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+          "lines": "140–148"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+          "lines": "150–159, 170–178",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+          "lines": "50–52",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/CollaborationApi/Domain/CommentTests.cs",
+          "lines": "172–183",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Цитируемый текст содержит 298 ASCII-букв, затем emoji из surrogate pair и ещё один ASCII-знак. Нормализованная длина равна 301 UTF-16 code units.",
+      "impact": "Префикс из 299 code units сохраняет только high surrogate emoji, после него добавляется многоточие. Некорректная UTF-16 последовательность попадает в persisted preview и в live GET projection. Реакция PostgreSQL и JSON serialization отдельно не измерялась.",
+      "repro": "Проверить в доменном тесте целостность surrogate pair на позициях около лимита. Отдельный Npgsql/HTTP сценарий должен записать reply на такой комментарий, затем прочитать quote и сравнить сохранённый и live preview.",
+      "fix": "Выбирать границу усечения по целым Unicode scalar values, сохранив лимит и правило многоточия. Зафиксировать одинаковую обработку write-time snapshot и live-проекции."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Охват включает только 25 manifest paths. Дополнительные пути вызова, тесты и документы в счётчик не входят.",
+    "SHA-256 вычислены по байтам рабочего дерева. Diff по READ-037 к снимку пуст.",
+    "Резервная строка подключения скрыта. Рабочие env-файлы, user secrets и auth/credentials не загружались.",
+    "Build, unit/provider tests, Docker image, host, RabbitMQ, PostgreSQL и браузер не запускались.",
+    "BE-002, BE-006, BE-008, BE-021 и BE-022 связаны с текущими путями без новых ID. Best-effort inbox уже описан в INV-COMM-4 и T05. CONT037001 использует разные события жизненного цикла задачи, отдельные от BE-006 и от duplicate delivery.",
+    "Эффективные probes, deployment и ownership drainers относятся к T14. Уязвимость по внешней доступности gRPC не исследовалась."
+  ]
+}
