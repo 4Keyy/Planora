@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
+  "current_sha": "6feea16f939affdaf14ab533bebd35f247645512",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -156,7 +156,8 @@
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthFriendshipPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t02-friendship-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-035-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-035-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-035-review.md",
+    "docs/audits/planora-deep-audit/results/evidence/t02-login-reset-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -177,9 +178,10 @@
     "T02 session and hash slice: BE-003/BE-004/BE-013 verified, with per-user PostgreSQL rotate/replay lock and bounded PBKDF2 metadata.",
     "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open.",
     "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary.",
-    "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending."
+    "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending.",
+    "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips."
   ],
-  "next_step": "Old-password login PostgreSQL RED reproduced in both rehash variants. Validate the guarded login commit. BE-016 requires serialized avatar publication and cleanup.",
+  "next_step": "Verify BE-016 avatar publication and lock behavior. Reproduce persisted refresh survival in ChangePassword and RevokeAllSessions.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2140,6 +2142,58 @@
       "log_sha256": "9a3df82ba589af86c1a17277259da6f563edba6dc8a3b78ee041c6fd0246aa68",
       "trx": ".buildcheck/deep-audit-t02/results/t02-friendship-broad.trx",
       "trx_sha256": "a044c31df1de820c989143a5e2e1f2df894d5b1f6e17373cf61afd65583ba573"
+    },
+    {
+      "id": "t02-login-reset-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName~LoginAsync_PreResetPassword' --logger 'trx;LogFileName=t02-login-reset-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-red.txt",
+      "log_sha256": "c9bda45b7a1de703862ba711eb7c85c8e262ffc26777c99c18389699f340b652",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-red.trx",
+      "trx_sha256": "4355ca551debc51199136fd83e9c82a784e09b4eef6050f3b88f8b6bb27269f2"
+    },
+    {
+      "id": "t02-login-reset-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-login-reset-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 465,
+      "passed": 465,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-green.txt",
+      "log_sha256": "0e9860096add1de596e0acfafb902449cd12e7ec67150400f78c8378933109d7",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-green.trx",
+      "trx_sha256": "3572b48be48a584e7719631c83e79903482fe2c1270412549483f00f2d1de9e0"
+    },
+    {
+      "id": "t02-login-reset-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-login-reset-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1461,
+      "passed": 1461,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-broad.txt",
+      "log_sha256": "382ad26e4f14f13a9b9847270a3600e0a8e4046d52e497b1f8c77a9799a0377c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-broad.trx",
+      "trx_sha256": "d8f07332725327d0c8276466d78dfb9383c849e9f3d47f98f67d6bf3ca4b3ac1"
+    },
+    {
+      "id": "t02-login-reset-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-errors-out/\" --logger 'trx;LogFileName=t02-login-reset-errors.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-errors.txt",
+      "log_sha256": "bf2f66a65c1a697280f29dee3cf6dbd56758b40623cf94e1d76f0439beb4fe0e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-errors.trx",
+      "trx_sha256": "244396ad2493a83c4525e5f1bc1153b315ed02a66f464cfb16e44899af2f7424"
     }
   ],
   "audit_coverage": {
@@ -2201,7 +2255,8 @@
     "results/evidence/t02-one-time-verification.json",
     "results/evidence/t02-friendship-verification.json",
     "results/evidence/read-035-review.json",
-    "results/evidence/read-035-review.md"
+    "results/evidence/read-035-review.md",
+    "results/evidence/t02-login-reset-verification.json"
   ],
   "local_commits": [
     {
@@ -2248,6 +2303,11 @@
       "task": "T02 friendship pair checkpoint",
       "sha": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
       "pushed": false
+    },
+    {
+      "task": "READ-035 Category command and owner review",
+      "sha": "6feea16f939affdaf14ab533bebd35f247645512",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2274,7 +2334,7 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "Login against password reset concurrency, BE-016 avatar publish/cleanup, outgoing email invitation privacy, erasure and T14 key-ring deployment."
+    "T02": "Authenticated ChangePassword/RevokeAllSessions PostgreSQL revocation gates, BE-016 avatar publish/cleanup, outgoing email invitation privacy, erasure and T14 key-ring deployment."
   },
   "new_findings": [
     "BE-008",
@@ -2290,6 +2350,7 @@
     "BE-016",
     "BE-017",
     "BE-018",
-    "BE-019"
+    "BE-019",
+    "BE-020"
   ]
 }

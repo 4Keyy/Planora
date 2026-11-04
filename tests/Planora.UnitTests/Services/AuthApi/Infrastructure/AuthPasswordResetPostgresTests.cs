@@ -7,8 +7,10 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Application.Common.Options;
+using Planora.Auth.Application.Features.Authentication.Commands.Login;
 using Planora.Auth.Application.Features.Authentication.Commands.RequestPasswordReset;
 using Planora.Auth.Application.Features.Authentication.Commands.ResetPassword;
+using Planora.Auth.Application.Features.Authentication.Handlers.Login;
 using Planora.Auth.Application.Features.Authentication.Handlers.RequestPasswordReset;
 using Planora.Auth.Application.Features.Authentication.Handlers.ResetPassword;
 using Planora.Auth.Domain.Entities;
@@ -17,6 +19,7 @@ using Planora.Auth.Domain.ValueObjects;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Auth.Infrastructure.Services.Authentication;
 using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Services;
 using Planora.UnitTests.BuildingBlocks.Retention.Postgres;
 
 namespace Planora.UnitTests.Services.AuthApi.Infrastructure;
@@ -81,6 +84,12 @@ public sealed class AuthPasswordResetPostgresTests
 
     [PostgresFact]
     public Task ResetAsync_ExpiredSnapshotCannotClearNewlyIssuedToken() => CheckSupersededResetAsync(expired: true);
+
+    [PostgresFact]
+    public Task LoginAsync_PreResetPasswordCannotCreateNewDeviceSession() => CheckStaleLoginAsync(needsRehash: false);
+
+    [PostgresFact]
+    public Task LoginAsync_PreResetPasswordCannotOverwriteResetHashDuringRehash() => CheckStaleLoginAsync(needsRehash: true);
 
     [PostgresFact]
     public async Task ResetAsync_StillCurrentExpiredTokenIsCleared()
@@ -193,11 +202,80 @@ public sealed class AuthPasswordResetPostgresTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static async Task<User> SeedAsync(TemporaryDatabase database, string resetHash, bool expired)
+    private async Task CheckStaleLoginAsync(bool needsRehash)
+    {
+        const string oldPassword = "synthetic-previous-password";
+        await using var database = await TemporaryDatabase.CreateAsync();
+        var resetToken = _tokens.GenerateToken();
+        var user = await SeedAsync(database, _tokens.HashToken(resetToken), expired: false, enableTwoFactor: true);
+        await using var loginContext = CreateContext(database.Options<AuthDbContext>());
+        await using var resetContext = CreateContext(database.Options<AuthDbContext>());
+        using var loginUnit = new AuthUnitOfWork(loginContext);
+        using var resetUnit = new AuthUnitOfWork(resetContext);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        var loginHasher = new Mock<IPasswordHasher>();
+        loginHasher.Setup(x => x.VerifyPassword(oldPassword, OriginalPasswordHash)).Returns(true);
+        loginHasher.Setup(x => x.NeedsRehash(OriginalPasswordHash)).Returns(needsRehash);
+        loginHasher.Setup(x => x.HashPassword(oldPassword)).Returns(() => _hasher.HashPassword(oldPassword));
+        var tokens = new Mock<ITokenService>();
+        tokens.Setup(x => x.GenerateAccessToken(It.IsAny<User>())).Returns("synthetic-access");
+        tokens.Setup(x => x.GenerateRefreshToken()).Returns(() => Guid.NewGuid().ToString("N"));
+        tokens.Setup(x => x.GetRefreshTokenLifetime()).Returns(TimeSpan.FromDays(7));
+        var verifiedPassword = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var twoFactor = new Mock<ITwoFactorService>();
+        twoFactor.Setup(x => x.VerifyCodeAsync(It.IsAny<string>(), "123456", user.Id, It.IsAny<CancellationToken>()))
+            .Returns(async (string _, string _, Guid _, CancellationToken token) =>
+            {
+                verifiedPassword.TrySetResult();
+                await resume.Task.WaitAsync(token);
+                return true;
+            });
+
+        var login = new LoginCommandHandler(loginUnit, loginHasher.Object, tokens.Object,
+            twoFactor.Object, Mock.Of<IRecoveryCodeService>(), Mock.Of<ICurrentUserService>(),
+            Mock.Of<IBusinessEventLogger>(), NullLogger<LoginCommandHandler>.Instance);
+        var signingIn = login.Handle(new LoginCommand
+        {
+            Email = user.Email.Value, Password = oldPassword, TwoFactorCode = "123456"
+        }, timeout.Token);
+
+        try
+        {
+            await verifiedPassword.Task.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token);
+            var stamp = new Mock<ISecurityStampService>();
+            var reset = await CreateHandler(resetUnit, stamp.Object, Mock.Of<IEmailService>())
+                .Handle(Command(resetToken, FirstPassword), timeout.Token);
+            Assert.True(reset.IsSuccess);
+            stamp.Verify(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            resume.TrySetResult();
+            await signingIn;
+        }
+
+        var loginResult = await signingIn;
+        await using var verify = CreateContext(database.Options<AuthDbContext>());
+        var persisted = await verify.Users.AsNoTracking().Include(row => row.RefreshTokens)
+            .SingleAsync(row => row.Id == user.Id, timeout.Token);
+        Assert.Equal(
+            (false, true, false, 1),
+            (loginResult.IsSuccess, _hasher.VerifyPassword(FirstPassword, persisted.PasswordHash),
+                persisted.RefreshTokens.Any(row => row.IsActive), persisted.RefreshTokens.Count));
+        Assert.Equal("LOGIN_SESSION_CHANGED", loginResult.Error!.Code);
+        Assert.Empty(await verify.LoginHistory.AsNoTracking().ToListAsync(timeout.Token));
+    }
+
+    private static async Task<User> SeedAsync(
+        TemporaryDatabase database, string resetHash, bool expired, bool enableTwoFactor = false)
     {
         await using var context = CreateContext(database.Options<AuthDbContext>());
         await AuthDatabaseStartup.EnsureReadyAsync(context, NullLogger.Instance);
         var user = User.Create(Email.Create("audit-reset@example.test"), OriginalPasswordHash, "Audit", "Reset");
+        if (enableTwoFactor)
+            user.EnableTwoFactor("synthetic-totp");
         user.SetPasswordResetToken(resetHash, DateTime.UtcNow.AddHours(1));
         if (expired)
             RetentionTestKit.Set(user, nameof(User.PasswordResetTokenExpiry), DateTime.UtcNow.AddHours(-1));

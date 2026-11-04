@@ -245,7 +245,7 @@ public class AuthLifecycleHandlerTests
         Assert.True(loginHistory!.IsSuccessful);
         Assert.Equal("127.0.0.1", loginHistory.IpAddress);
         fixture.UnitOfWork.Verify(x => x.TryCommitLoginAsync(
-            It.IsAny<RefreshTokenEntity>(), null, It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<RefreshTokenEntity>(), null, user.PasswordHash, It.IsAny<CancellationToken>()), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         fixture.BusinessLogger.Verify(
             x => x.LogBusinessEvent(
@@ -559,7 +559,8 @@ public class AuthLifecycleHandlerTests
             UnitOfWork.SetupGet(x => x.PasswordHistory).Returns(PasswordHistory.Object);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             UnitOfWork.Setup(x => x.TryCommitLoginAsync(
-                It.IsAny<RefreshTokenEntity>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+                It.IsAny<RefreshTokenEntity>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
             CurrentUser.SetupGet(x => x.IpAddress).Returns("127.0.0.1");
             CurrentUser.SetupGet(x => x.UserAgent).Returns("Mozilla/5.0 Chrome/120.0");
             EmailService

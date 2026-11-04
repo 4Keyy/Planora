@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "baseline": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
+  "head": "6feea16f939affdaf14ab533bebd35f247645512",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Disposable PostgreSQL 16.13 and RabbitMQ with owner and endpoint checks. Stamp, TOTP and login token generation are fakes in focused PostgreSQL scenarios.",
+  "commands": [
+    {
+      "id": "t02-login-reset-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName~LoginAsync_PreResetPassword' --logger 'trx;LogFileName=t02-login-reset-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-red.txt",
+      "log_sha256": "c9bda45b7a1de703862ba711eb7c85c8e262ffc26777c99c18389699f340b652",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-red.trx",
+      "trx_sha256": "4355ca551debc51199136fd83e9c82a784e09b4eef6050f3b88f8b6bb27269f2"
+    },
+    {
+      "id": "t02-login-reset-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-login-reset-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 465,
+      "passed": 465,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-green.txt",
+      "log_sha256": "0e9860096add1de596e0acfafb902449cd12e7ec67150400f78c8378933109d7",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-green.trx",
+      "trx_sha256": "3572b48be48a584e7719631c83e79903482fe2c1270412549483f00f2d1de9e0"
+    },
+    {
+      "id": "t02-login-reset-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify&FullyQualifiedName!~AvatarReplacementPersistenceTests' --logger 'trx;LogFileName=t02-login-reset-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1461,
+      "passed": 1461,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-broad.txt",
+      "log_sha256": "382ad26e4f14f13a9b9847270a3600e0a8e4046d52e497b1f8c77a9799a0377c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-broad.trx",
+      "trx_sha256": "d8f07332725327d0c8276466d78dfb9383c849e9f3d47f98f67d6bf3ca4b3ac1"
+    },
+    {
+      "id": "t02-login-reset-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/login-reset-errors-out/\" --logger 'trx;LogFileName=t02-login-reset-errors.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-login-reset-errors.txt",
+      "log_sha256": "bf2f66a65c1a697280f29dee3cf6dbd56758b40623cf94e1d76f0439beb4fe0e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-login-reset-errors.trx",
+      "trx_sha256": "244396ad2493a83c4525e5f1bc1153b315ed02a66f464cfb16e44899af2f7424"
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t02-login-reset-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.LoginAsync_PreResetPasswordCannotOverwriteResetHashDuringRehash",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-login-reset-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.LoginAsync_PreResetPasswordCannotCreateNewDeviceSession",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-login-reset-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.LoginAsync_PreResetPasswordCannotCreateNewDeviceSession",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-login-reset-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthPasswordResetPostgresTests.LoginAsync_PreResetPasswordCannotOverwriteResetHashDuringRehash",
+      "outcome": "Passed"
+    }
+  ],
+  "red_observed": {
+    "without_rehash": "Login succeeded; reset hash survived; two session rows and a new active token.",
+    "with_rehash": "Login succeeded; reset hash overwritten; two session rows and a new active token."
+  },
+  "review": {
+    "reviewer": "friendship_review",
+    "verdict": "No blocker found in scoped login/reset fix. Advisory, Users, RefreshTokens lock order and exact RED/GREEN reviewed.",
+    "limits": "Separately traced ChangePassword and RevokeAllSessions without loaded refresh tokens. Both require PostgreSQL reproduction."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs": "bd2e8fafe136cbfb8e9b7db528963908e2a2742a08dc3b5488b97144068f25f7",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IAuthUnitOfWork.cs": "7eaa07020b694b6f27d01adcb0794a0f137b2d7318b9283df39db32328e4784a",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs": "bf48361cb1d4ac0325586d859887d86f327c1a9bc635b354d3c37266313b73d4",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs": "6efcc2a521a22037012e39d979f983e5869ebf056ae2ce71f5051d0a93964b3b",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/LoginCommandHandlerTests.cs": "696e43bf5986764c822ae2d186dbf4d3bc354c456bb7e00242fa3e236b51f570",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthPasswordResetPostgresTests.cs": "04b088db7c23521933ff8144cce11c6234d6d43fdad269ad912328e060085f7e"
+  }
+}

@@ -17,6 +17,7 @@ namespace Planora.Auth.Domain.Repositories
         Task<bool> TryCommitLoginAsync(
             RefreshToken session,
             string? previousTokenHash,
+            string verifiedPasswordHash,
             CancellationToken cancellationToken = default);
 
         Task<User?> TryResetPasswordAsync(

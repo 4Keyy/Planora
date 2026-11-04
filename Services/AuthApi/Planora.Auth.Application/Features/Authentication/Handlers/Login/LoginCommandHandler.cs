@@ -80,7 +80,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                 throw new ForbiddenException("Account is locked. Please try again later.");
             }
 
-            if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+            var verifiedPasswordHash = user.PasswordHash;
+            if (!_passwordHasher.VerifyPassword(command.Password, verifiedPasswordHash))
             {
                 _logger.LogWarning("Invalid password for user: {UserId}", user.Id);
                 await _unitOfWork.Users.HandleFailedLoginAsync(user.Id, cancellationToken);
@@ -176,14 +177,15 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                 // work factor/format, re-hash with today's policy now that the plaintext has been
                 // verified. This is silent — it neither rotates the security stamp nor revokes
                 // sessions, because the password itself has not changed.
-                if (_passwordHasher.NeedsRehash(user.PasswordHash))
+                if (_passwordHasher.NeedsRehash(verifiedPasswordHash))
                 {
                     user.UpgradePasswordHash(_passwordHasher.HashPassword(command.Password));
                 }
 
-                if (!await _unitOfWork.TryCommitLoginAsync(session, previousTokenHash, cancellationToken))
+                if (!await _unitOfWork.TryCommitLoginAsync(
+                    session, previousTokenHash, verifiedPasswordHash, cancellationToken))
                 {
-                    _logger.LogWarning("Concurrent session change during login for user {UserId}.", user.Id);
+                    _logger.LogWarning("Concurrent password or session change during login for user {UserId}.", user.Id);
                     return BuildingBlocks.Domain.Result<LoginResponse>.Failure(BuildingBlocks.Domain.Error.Unauthorized(
                         "LOGIN_SESSION_CHANGED", "Session changed during sign-in."));
                 }

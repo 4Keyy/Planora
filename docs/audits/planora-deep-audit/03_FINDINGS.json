@@ -2202,5 +2202,43 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT035002; runtime NOT_VERIFIED. See results/evidence/read-035-review.json."
+  },
+  {
+    "id": "BE-020",
+    "title": "In-flight login can use a password superseded by reset",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs",
+        "lines": "83,179-184",
+        "observation": "On f505ebf26b4d1fdb376688b107bac4efd4f002b7, verifies the loaded hash and can rehash from the same snapshot after reset."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs",
+        "lines": "38-86",
+        "observation": "On f505ebf26b4d1fdb376688b107bac4efd4f002b7, session commit can insert a new-device token without revalidating that password hash."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthPasswordResetPostgresTests.cs",
+        "observation": "Independent contexts reproduce login after reset with and without rehash."
+      }
+    ],
+    "trigger": "Pause a valid login after verifying the old password, complete a password reset, then resume login on a new device.",
+    "impact": "A request using the superseded password can receive a new session and, when rehash is required, restore the old password.",
+    "fix": "Revalidate the verified hash on the locked user row under the shared advisory lock before any session mutation.",
+    "tests": [
+      "Both PostgreSQL scenarios preserve the reset hash, return LOGIN_SESSION_CHANGED and create no session or successful login history."
+    ],
+    "dependencies": [],
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/t02-login-reset-verification.json",
+      "note": "Two deterministic PostgreSQL RED and GREEN outcomes. Broad 1461 and ErrorHandling 94 without skips."
+    },
+    "limitations": "Focused verification uses a stamp mock. Other authenticated revocation paths and prior-policy deployment are separate gates."
   }
 ]

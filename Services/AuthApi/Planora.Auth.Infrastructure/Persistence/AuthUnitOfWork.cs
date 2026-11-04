@@ -38,6 +38,7 @@ namespace Planora.Auth.Infrastructure.Persistence
         public async Task<bool> TryCommitLoginAsync(
             RefreshToken session,
             string? previousTokenHash,
+            string verifiedPasswordHash,
             CancellationToken cancellationToken = default)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -47,6 +48,19 @@ namespace Planora.Auth.Infrastructure.Persistence
                     _context,
                     async (context, token) =>
                     {
+                        // Use the same lock order as password reset before changing any session row.
+                        await AuthSessionLock.AcquireAsync(context, session.UserId, token);
+                        var owner = await context.Database.SqlQuery<int>($"""
+                            SELECT 1 AS "Value"
+                            FROM public."Users"
+                            WHERE "Id" = {session.UserId}
+                              AND "PasswordHash" = {verifiedPasswordHash}
+                              AND NOT "IsDeleted"
+                            FOR NO KEY UPDATE
+                            """).ToListAsync(token);
+                        if (owner.Count == 0)
+                            return false;
+
                         var now = DateTime.UtcNow;
                         if (previousTokenHash is null)
                         {
@@ -72,10 +86,6 @@ namespace Planora.Auth.Infrastructure.Persistence
                                   AND session."RevokedAt" IS NULL
                                   AND session."ExpiresAt" > {now}
                                   AND NOT session."IsDeleted"
-                                  AND EXISTS (
-                                    SELECT 1 FROM public."Users" AS owner
-                                    WHERE owner."Id" = session."UserId" AND NOT owner."IsDeleted"
-                                  )
                                 FOR UPDATE OF session
                                 """).ToListAsync(token);
                             if (current.Count == 0)

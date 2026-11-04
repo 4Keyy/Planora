@@ -998,3 +998,11 @@ and filesystem regressions remain open. [READ-034](results/evidence/read-034-rev
 Three additional Category RPCs omit the request cancellation token in
 MediatR calls. They extend DIST-011. The review did not execute the RPC or
 HTTP scenarios. [READ-035](results/evidence/read-035-review.md)
+
+## BE-020 — Login verified against a superseded password
+
+Priority P1, CONFIRMED and PASS_LOCAL. The PostgreSQL regression paused login
+after password verification and completed a reset. Before the fix, login
+created a new active session in both variants and restored the old password
+in the rehash variant. The guarded transaction now rejects both attempts.
+[T02 evidence](results/T02.md)
