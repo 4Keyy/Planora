@@ -1,0 +1,342 @@
+{
+  "source_head": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "status": "Application and provider gates PASS; CLI/restore gate separate",
+  "commands": [
+    {
+      "id": "expression-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~SchemaExpressionCompatibilityTests' --logger 'trx;LogFileName=expression-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\expression-red.txt",
+      "log_sha256": "c4eaa0ef27892d8898599d23c7a4d3f036c4371561ffd7ad658da26aca0a373b",
+      "counts": {
+        "total": 17,
+        "executed": 17,
+        "passed": 13,
+        "failed": 4,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T23:14:37.0139274+03:00",
+        "queuing": "2026-11-03T23:14:37.0139281+03:00",
+        "start": "2026-11-03T23:14:35.3930388+03:00",
+        "finish": "2026-11-03T23:14:37.0771365+03:00"
+      },
+      "trx_sha256": "1a7460088b9f46cc43a202a92cf8427b2a7ea58274cc7ce63f57f3086026f6cd",
+      "failed_test_names": [
+        "Planora.UnitTests.Services.Infrastructure.SchemaExpressionCompatibilityTests.ChangedPredicate_IsNotEquivalent(actual: \"((\\\"Status\\\")::boolean)::text = ANY (ARRAY['Pendin\"···)",
+        "Planora.UnitTests.Services.Infrastructure.SchemaExpressionCompatibilityTests.ReviewedActivePredicate_AcceptsItsPostgresRendering(actual: \"((\\\"Status\\\")::text = ANY ((ARRAY['Pending'::chara\"···)",
+        "Planora.UnitTests.Services.Infrastructure.SchemaExpressionCompatibilityTests.ChangedLiteralOrFunction_IsNotEquivalent(expected: \"'123'\", actual: \"('123'::integer)::text\")",
+        "Planora.UnitTests.Services.Infrastructure.SchemaExpressionCompatibilityTests.ChangedPredicate_IsNotEquivalent(actual: \"(((\\\"Status\\\")::integer)::text = ANY (ARRAY['Pendi\"···)"
+      ],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\expression-red.trx"
+    },
+    {
+      "id": "guard-review-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~SchemaExpressionCompatibilityTests|FullyQualifiedName~SchemaCompatibilityGuardPostgresTests' --logger 'trx;LogFileName=guard-review-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\guard-review-red.txt",
+      "log_sha256": "94c4082d7ff1bcaef14b2c7a9e0ec8b7567b7e0abcf90050472519d9487eea5d",
+      "counts": {
+        "total": 24,
+        "executed": 24,
+        "passed": 17,
+        "failed": 7,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T23:20:03.8947019+03:00",
+        "queuing": "2026-11-03T23:20:03.8947026+03:00",
+        "start": "2026-11-03T23:20:02.0552575+03:00",
+        "finish": "2026-11-03T23:20:12.3876393+03:00"
+      },
+      "trx_sha256": "8b9555f289708d76a9feb17c0539349ec01532ca3146452a995ad12c8059cc03",
+      "failed_test_names": [
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.StatusOperandCoercion_IsRejectedBeforeStampingHistory",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.UserCollationNamedDefault_IsRejectedAsDifferentFromTheSystemDefault",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.ShadowedNowDefault_IsRejected_EvenWhenPostgresRendersTheSameUnqualifiedText",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.EnabledDatabaseEventTrigger_IsRejectedBeforeAnyHistoryDdlExecutes",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.HistoryView_IsRejectedBeforeReadingItsVolatileFunction",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.ValidCategorySchema_IsVerifiedAndAdopted_WithoutChangingStoredRows",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.HistoryInsertTrigger_IsRejectedBeforeAdoption_AndCannotDeleteExistingOutboxRows"
+      ],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\guard-review-red.trx"
+    },
+    {
+      "id": "guard-review-red-valid-control",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~SchemaExpressionCompatibilityTests|FullyQualifiedName~SchemaCompatibilityGuardPostgresTests' --logger 'trx;LogFileName=guard-review-red-valid-control.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\guard-review-red-valid-control.txt",
+      "log_sha256": "1c3dec357012fa7ebfad25c5689896b73667e0691fa42ac06e93cba2ef9edb25",
+      "counts": {
+        "total": 24,
+        "executed": 24,
+        "passed": 19,
+        "failed": 5,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-03T23:21:47.5619906+03:00",
+        "queuing": "2026-11-03T23:21:47.5619914+03:00",
+        "start": "2026-11-03T23:21:45.8500484+03:00",
+        "finish": "2026-11-03T23:21:54.3239006+03:00"
+      },
+      "trx_sha256": "4f0edf99bbc04066e32aedf9fe45146303df000a0c76639db478e43f43b0107f",
+      "failed_test_names": [
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.EnabledDatabaseEventTrigger_IsRejectedBeforeAnyHistoryDdlExecutes",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.UserCollationNamedDefault_IsRejectedAsDifferentFromTheSystemDefault",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.HistoryInsertTrigger_IsRejectedBeforeAdoption_AndCannotDeleteExistingOutboxRows",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.ShadowedNowDefault_IsRejected_EvenWhenPostgresRendersTheSameUnqualifiedText",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityGuardPostgresTests.HistoryView_IsRejectedBeforeReadingItsVolatileFunction"
+      ],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\guard-review-red-valid-control.trx"
+    },
+    {
+      "id": "guard-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~SchemaExpressionCompatibilityTests|FullyQualifiedName~SchemaCompatibilityGuardPostgresTests|FullyQualifiedName~SchemaCompatibilityPostgresTests|FullyQualifiedName~LegacyCollaborationBaselineFactoryTests' --logger 'trx;LogFileName=guard-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\guard-green.txt",
+      "log_sha256": "9ff631700414f4881e91603a4715925eef2e37f2eb382dcbe1ae470dbaac5e08",
+      "tests_executed": 0,
+      "note": "xUnit2031 compile failure in new legacy model assertion; corrected to predicate overload. No runtime gate attempted."
+    },
+    {
+      "id": "guard-green-retry",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~SchemaExpressionCompatibilityTests|FullyQualifiedName~SchemaCompatibilityGuardPostgresTests|FullyQualifiedName~SchemaCompatibilityPostgresTests|FullyQualifiedName~LegacyCollaborationBaselineFactoryTests' --logger 'trx;LogFileName=guard-green-retry.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\guard-green-retry.txt",
+      "log_sha256": "3adf9600b1b1a7d5124032686120e72cfe16ed11094fd4d28750067e4aee04ed",
+      "counts": {
+        "total": 45,
+        "executed": 45,
+        "passed": 45,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-04T08:32:56.7044290+03:00",
+        "queuing": "2026-11-04T08:32:56.7044295+03:00",
+        "start": "2026-11-04T08:32:51.1880682+03:00",
+        "finish": "2026-11-04T08:33:08.6881741+03:00"
+      },
+      "trx_sha256": "da2a59807486e0f7981bbed120b6eef36e0fffb0c46b6114b9e2b6b9d042a2a9",
+      "failed_test_names": [],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\guard-green-retry.trx"
+    },
+    {
+      "id": "baseline-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~VersionedDatabaseStartupPostgresTests|FullyQualifiedName~SchemaExpressionCompatibilityTests|FullyQualifiedName~SchemaCompatibilityGuardPostgresTests|FullyQualifiedName~SchemaCompatibilityPostgresTests|FullyQualifiedName~LegacyCollaborationBaselineFactoryTests|FullyQualifiedName~AuthRoleModelDeterminismTests|FullyQualifiedName~DesignTimeDbContextFactoryTests' --logger 'trx;LogFileName=baseline-green.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\baseline-green.txt",
+      "log_sha256": "701a8daaf38a0e39055b6de84afc1a2c6e75a583397a9b1d494bc709047d32d6",
+      "counts": {
+        "total": 83,
+        "executed": 83,
+        "passed": 83,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-04T08:39:32.2665940+03:00",
+        "queuing": "2026-11-04T08:39:32.2665948+03:00",
+        "start": "2026-11-04T08:39:30.7772160+03:00",
+        "finish": "2026-11-04T08:39:49.8163559+03:00"
+      },
+      "trx_sha256": "fe2c8a65153506a9e00de72b11e3733beac0a45dee7acc2f1143fc6444d60b77",
+      "failed_test_names": [],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\baseline-green.trx"
+    },
+    {
+      "id": "catalog-extra-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName~ShadowedTemporaryType|FullyQualifiedName~DisabledForeignKeyTriggers|FullyQualifiedName~ReplicaSession' --logger 'trx;LogFileName=catalog-extra-red.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 1,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\catalog-extra-red.txt",
+      "log_sha256": "286ea71d0a85b67033059bc3bb8f5cecc6316689c00498e136865189320f0ae8",
+      "counts": {
+        "total": 3,
+        "executed": 3,
+        "passed": 0,
+        "failed": 3,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-04T08:43:49.5797678+03:00",
+        "queuing": "2026-11-04T08:43:49.5797681+03:00",
+        "start": "2026-11-04T08:43:46.0547624+03:00",
+        "finish": "2026-11-04T08:43:50.4282575+03:00"
+      },
+      "trx_sha256": "1ed7afc0dc2e23f87294e3133783c59e3bea920716d08903323b1c375ef63bf3",
+      "failed_test_names": [
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityPostgresTests.DisabledForeignKeyTriggers_AreRejectedDespiteMatchingConstraintMetadata",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityPostgresTests.ShadowedTemporaryType_DoesNotAffectCatalogVerification",
+        "Planora.UnitTests.Services.Infrastructure.SchemaCompatibilityPostgresTests.ReplicaSession_IsRejectedBeforeAdoption"
+      ],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\catalog-extra-red.trx"
+    },
+    {
+      "id": "t08-unit-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\ --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t08-unit-broad.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\t08-unit-broad.txt",
+      "log_sha256": "cd3d97f157a6ce4251ccfa53a0da59bc7ab8780c83c7d1f512995793bdccd80e",
+      "counts": {
+        "total": 1419,
+        "executed": 1419,
+        "passed": 1419,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-04T08:45:13.7368862+03:00",
+        "queuing": "2026-11-04T08:45:13.7368866+03:00",
+        "start": "2026-11-04T08:45:11.6374932+03:00",
+        "finish": "2026-11-04T08:45:52.9489945+03:00"
+      },
+      "trx_sha256": "59d32ec53d3649947eb1f8dbbb6a885efe79073ef864113a94cf27e1c3ac7abb",
+      "failed_test_names": [],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\t08-unit-broad.trx"
+    },
+    {
+      "id": "t08-errors",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\errors\\ --logger 'trx;LogFileName=t08-errors.trx' --results-directory F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\t08-errors.txt",
+      "log_sha256": "2ade18ff8b132ed0176ffb88af5d65b7ea16a265059e324b961b2076ee21847d",
+      "counts": {
+        "total": 94,
+        "executed": 94,
+        "passed": 94,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      "times": {
+        "creation": "2026-11-04T08:48:34.3995581+03:00",
+        "queuing": "2026-11-04T08:48:34.3995589+03:00",
+        "start": "2026-11-04T08:48:30.3082902+03:00",
+        "finish": "2026-11-04T08:48:45.0973168+03:00"
+      },
+      "trx_sha256": "83426db1eaf04ea76a4cfb2adb2bf136c70e5074dea5229796e7d2967d7ba4dc",
+      "failed_test_names": [],
+      "trx": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\results\\t08-errors.trx"
+    },
+    {
+      "id": "collaboration-legacy-build",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' build Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\unit\\",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\collaboration-legacy-build.txt",
+      "log_sha256": "2fd70a932da851883199b185269ef92f5b8f51cb20f07dfb31834fcbbb70a9fd"
+    },
+    {
+      "id": "migrator-build",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' build tools/Planora.Migrator/Planora.Migrator.csproj --no-restore --configuration Release -p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\migrator\\",
+      "cwd": "F:\\Projects\\Planora",
+      "exit_code": 0,
+      "log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\migrator-build.txt",
+      "log_sha256": "93e9b76b4a5a360e9da3010b4d894b1e4a7f48dd40602a7ed1844cc586307f90"
+    }
+  ],
+  "notes": [
+    "Initial guard review run included 25P02 on absent history read in the adoption transaction. Npgsql catches UndefinedTable but the transaction is aborted. After a catalog existence check, the positive control passed and the five genuine false-acceptance paths still failed.",
+    "Expression RED demonstrated three unsafe normalization acceptances and rejection of the valid PostgreSQL array rendering.",
+    "Additional RED reproduced temp type shadowing, disabled foreign-key triggers and replica session acceptance; final broad suite covers all three corrected paths.",
+    "The final broad run uses owned PostgreSQL 16.13 and RabbitMQ fixtures. Two T05 restart phases are excluded because they require orchestration and were separately verified in T05.",
+    "No working database or production rollout was used."
+  ]
+}

@@ -1,10 +1,14 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Domain.Interfaces;
+using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Category.Infrastructure.Persistence;
 using Planora.Collaboration.Infrastructure.Persistence;
@@ -27,7 +31,6 @@ namespace Planora.Migrator;
 /// Connection strings are read in this priority order:
 ///   1. --connection-string CLI flag (overrides everything)
 ///   2. ConnectionStrings:&lt;Name&gt; from appsettings.json or env (ASP.NET convention)
-///   3. The service-specific env var (e.g. AUTH_DATABASE) when neither is set
 /// </summary>
 internal static class Program
 {
@@ -71,12 +74,20 @@ internal static class Program
         var logger = loggerFactory.CreateLogger("Planora.Migrator");
 
         var selected = parsed.AllServices
-            ? Services
+            ? Services.ToList()
             : Services.Where(s => parsed.Services.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (parsed.UpgradeCollaborationReplies && selected.All(s => s.Name != "collaboration"))
+            selected.Add(Services.Single(s => s.Name == "collaboration"));
 
-        if (selected.Count == 0 && !parsed.BackfillCollaboration && !parsed.UpgradeCollaborationReplies)
+        if (selected.Count == 0 && !parsed.BackfillCollaboration)
         {
             logger.LogError("No matching services. Valid names: {Names}", string.Join(", ", Services.Select(s => s.Name)));
+            return ExitBadArgs;
+        }
+
+        if (parsed.OverrideConnectionString is not null && (selected.Count > 1 || parsed.BackfillCollaboration))
+        {
+            logger.LogError("A connection-string override requires a single service and cannot be combined with cross-store backfill.");
             return ExitBadArgs;
         }
 
@@ -101,7 +112,7 @@ internal static class Program
             anyFailure |= !ok;
         }
 
-        if (parsed.BackfillCollaboration && !parsed.ListPendingOnly)
+        if (parsed.BackfillCollaboration && !parsed.ListPendingOnly && !anyFailure)
         {
             var todoConn = configuration.GetConnectionString("TodoDatabase");
             var collabConn = configuration.GetConnectionString("CollaborationDatabase");
@@ -120,30 +131,6 @@ internal static class Program
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Collaboration backfill failed.");
-                    anyFailure = true;
-                }
-            }
-        }
-
-        if (parsed.UpgradeCollaborationReplies && !parsed.ListPendingOnly)
-        {
-            var collabConn = parsed.OverrideConnectionString
-                ?? configuration.GetConnectionString("CollaborationDatabase");
-            if (string.IsNullOrWhiteSpace(collabConn))
-            {
-                logger.LogError(
-                    "Replies upgrade requires ConnectionStrings__CollaborationDatabase (or --connection-string).");
-                anyFailure = true;
-            }
-            else
-            {
-                try
-                {
-                    await CollaborationRepliesUpgrade.RunAsync(collabConn, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Collaboration replies upgrade failed.");
                     anyFailure = true;
                 }
             }
@@ -182,46 +169,48 @@ internal static class Program
         {
             var context = (DbContext)scope.ServiceProvider.GetRequiredService(service.DbContextType);
 
-            // SCHEMA DRIFT GUARD — applied set must be a subset of code set.
-            // Any "ghost" migration recorded in __EFMigrationsHistory but absent from the
-            // compiled assembly indicates a developer deleted a migration file locally,
-            // or a deploy ran against a database that was on a more advanced schema than
-            // the one shipping now. Either case is a hard stop: silently running a partial
-            // migration would corrupt the history. Operators must reconcile manually.
-            var codeSet = context.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
-            var applied = (await context.Database.GetAppliedMigrationsAsync()).ToList();
-            var drifted = applied.Where(m => !codeSet.Contains(m)).ToList();
-            if (drifted.Count > 0)
-            {
-                logger.LogError(
-                    "Schema drift detected: {Count} migration(s) applied to the database are not in the current code base: {Migrations}. " +
-                    "Either restore the migration files in code, or reset the target environment, before re-running. " +
-                    "Migrator will not partially apply against an unknown schema.",
-                    drifted.Count, string.Join(", ", drifted));
-                sw.Stop();
-                return false;
-            }
-
-            var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
-            if (pending.Count == 0)
-            {
-                logger.LogInformation("No pending migrations. Applied so far: {AppliedCount}.", applied.Count);
-                sw.Stop();
-                return true;
-            }
-
-            logger.LogInformation("Pending migrations ({Count}): {Names}",
-                pending.Count, string.Join(", ", pending));
+            var known = context.Database.GetMigrations().ToArray();
+            if (known.Length == 0)
+                throw new InvalidOperationException("The compiled service migration chain is missing.");
+            var creator = context.GetService<IRelationalDatabaseCreator>();
+            var exists = await creator.ExistsAsync();
 
             if (listPendingOnly)
             {
-                sw.Stop();
+                var baseline = context switch
+                {
+                    AuthDbContext => AuthDatabaseStartup.BaselineMigrationId,
+                    CategoryDbContext => CategoryDatabaseStartup.BaselineMigrationId,
+                    MessagingDbContext => MessagingDatabaseStartup.BaselineMigrationId,
+                    CollaborationDbContext => CollaborationDatabaseStartup.BaselineMigrationId,
+                    _ => known[0]
+                };
+                if (known[0] != baseline)
+                    throw new InvalidOperationException("The reviewed service baseline is missing from the compiled chain.");
+                var applied = exists ? await VersionedDatabaseStartup.ValidateHistoryAsync(context, baseline) : [];
+                var pending = known.Skip(applied.Length).ToArray();
+                logger.LogInformation("Pending migrations ({Count}): {Names}. History inspected without schema preparation.",
+                    pending.Length, string.Join(", ", pending));
                 return true;
             }
 
-            await context.Database.MigrateAsync();
+            // Preserve EF's fresh-database provisioning for explicit apply invocations.
+            if (!exists) await creator.CreateAsync();
+            if (context is TodoDbContext or RealtimeDbContext)
+                await VersionedDatabaseStartup.ValidateHistoryAsync(context, known[0]);
+
+            await (context switch
+            {
+                AuthDbContext db => AuthDatabaseStartup.EnsureReadyAsync(db, logger),
+                CategoryDbContext db => CategoryDatabaseStartup.EnsureReadyAsync(db, logger),
+                MessagingDbContext db => MessagingDatabaseStartup.EnsureReadyAsync(db, logger),
+                CollaborationDbContext db => CollaborationDatabaseStartup.EnsureReadyAsync(db, logger),
+                TodoDbContext db => TodoDatabaseStartup.EnsureReadyAsync(db, logger, CancellationToken.None),
+                RealtimeDbContext db => RealtimeDatabaseStartup.EnsureReadyAsync(db, logger, CancellationToken.None),
+                _ => throw new InvalidOperationException("No reviewed preparation path for the selected service.")
+            });
             sw.Stop();
-            logger.LogInformation("Migrations applied successfully in {Elapsed}.", sw.Elapsed);
+            logger.LogInformation("Database preparation completed in {Elapsed}.", sw.Elapsed);
             return true;
         }
         catch (Exception ex)
@@ -251,7 +240,11 @@ internal static class Program
                          && m.GetParameters()[1].ParameterType == typeof(Action<DbContextOptionsBuilder>))
             .MakeGenericMethod(contextType);
 
-        Action<DbContextOptionsBuilder> configureOptions = opts => opts.UseNpgsql(connectionString);
+        Action<DbContextOptionsBuilder> configureOptions = opts =>
+        {
+            var target = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = "public, pg_temp" };
+            opts.UseNpgsql(target.ConnectionString);
+        };
 
         addDbContext.Invoke(null, new object?[]
         {
@@ -338,10 +331,9 @@ internal static class Program
               and ConnectionStrings__CollaborationDatabase.
 
             UPGRADES
-              --upgrade-collaboration-replies adds the reply-reference columns to
-              collaboration.comments on databases created before the reply feature
-              (idempotent; fresh installs never need it). Needs
-              ConnectionStrings__CollaborationDatabase or --connection-string.
+              --upgrade-collaboration-replies selects the guarded Collaboration migration chain.
+              Compatible pre-reply schemas receive the additive reply-reference migration.
+              Needs ConnectionStrings__CollaborationDatabase or --connection-string.
 
             EXIT CODES
               0   success

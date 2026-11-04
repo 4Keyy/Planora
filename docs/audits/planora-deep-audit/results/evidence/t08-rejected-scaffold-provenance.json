@@ -1,0 +1,61 @@
+{
+  "files": [
+    {
+      "source": "Services\\AuthApi\\Planora.Auth.Infrastructure\\Migrations\\20261103195755_InitialReviewedBaseline.cs",
+      "sha256": "93c75d83d568b2fe8acc9249cfd583141f87f4129b68bf5aa8dff24beb6dcab7",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\20261103195755_InitialReviewedBaseline.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\AuthApi\\Planora.Auth.Infrastructure\\Migrations\\20261103195755_InitialReviewedBaseline.Designer.cs",
+      "sha256": "e4561d4bb41d79dc45cdfbf32e02c7c440076b1997a168f3be7295a218f5b59d",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\20261103195755_InitialReviewedBaseline.Designer.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\AuthApi\\Planora.Auth.Infrastructure\\Migrations\\AuthDbContextModelSnapshot.cs",
+      "sha256": "3d3499668d9323deb85a1ea143a8090c5cd98bf5341d3119367eafb4b57d3f9c",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\AuthDbContextModelSnapshot.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\CategoryApi\\Planora.Category.Infrastructure\\Migrations\\20261103200035_InitialReviewedBaseline.cs",
+      "sha256": "c2172cde5496ee5c7055e860190b638ef5d139b603b4a103939f0213600315b1",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\20261103200035_InitialReviewedBaseline.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\CategoryApi\\Planora.Category.Infrastructure\\Migrations\\20261103200035_InitialReviewedBaseline.Designer.cs",
+      "sha256": "e3c90a4d6ff1525d4504f9e220c184b4d299ce2fd5bfe8a466f6bfd5f440979b",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\20261103200035_InitialReviewedBaseline.Designer.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\CategoryApi\\Planora.Category.Infrastructure\\Migrations\\CategoryDbContextModelSnapshot.cs",
+      "sha256": "a8fab491d5096f94885ea03bdc1dd18f1e9a276cc0624ff3ba4f98ec33488401",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\CategoryDbContextModelSnapshot.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\MessagingApi\\Planora.Messaging.Infrastructure\\Migrations\\20261103200048_InitialReviewedBaseline.cs",
+      "sha256": "66f4f6b850d29b2495bb557252963767b5bb429965383c955a3e6f5349bd6e32",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\20261103200048_InitialReviewedBaseline.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\MessagingApi\\Planora.Messaging.Infrastructure\\Migrations\\20261103200048_InitialReviewedBaseline.Designer.cs",
+      "sha256": "9dbf04c1a3031acd09a9cd5782476c3ad94c7f72b9bc58c5ec96692b02910fb9",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\20261103200048_InitialReviewedBaseline.Designer.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    },
+    {
+      "source": "Services\\MessagingApi\\Planora.Messaging.Infrastructure\\Migrations\\MessagingDbContextModelSnapshot.cs",
+      "sha256": "a6404353856ca11d42d190e1a6fc83829d3d01400a7c7f47f204701ccff141a7",
+      "backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\MessagingDbContextModelSnapshot.cs",
+      "reason": "EF CLI --no-build resolved stale default-bin application base despite env OutDir; rejected before staging/application."
+    }
+  ],
+  "tracked_files_deleted": 0,
+  "working_databases_used": false,
+  "diagnostic_log": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\auth-ef-target-diagnostic.txt"
+}

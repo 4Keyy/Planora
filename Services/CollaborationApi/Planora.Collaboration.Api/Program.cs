@@ -123,7 +123,7 @@ namespace Planora.Collaboration.Api
                     {
                         try
                         {
-                            await DatabaseStartup.EnsureReadyAsync(
+                            await CollaborationDatabaseStartup.EnsureReadyAsync(
                                 db,
                                 logger,
                                 app.Lifetime.ApplicationStopping);

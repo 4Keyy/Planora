@@ -162,7 +162,7 @@ namespace Planora.Messaging.Api
                     {
                         try
                         {
-                            await DatabaseStartup.EnsureReadyAsync(
+                            await MessagingDatabaseStartup.EnsureReadyAsync(
                                 db,
                                 logger,
                                 app.Lifetime.ApplicationStopping);

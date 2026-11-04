@@ -134,7 +134,7 @@ namespace Planora.Category.Api
                     {
                         try
                         {
-                            await DatabaseStartup.EnsureReadyAsync(
+                            await CategoryDatabaseStartup.EnsureReadyAsync(
                                 db,
                                 logger,
                                 app.Lifetime.ApplicationStopping);

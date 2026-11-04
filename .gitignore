@@ -246,3 +246,27 @@ Services/TodoApi/Planora.Todo.Infrastructure/Migrations/*
 !/Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.Designer.cs
 !/Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.cs
 !/Services/TodoApi/Planora.Todo.Infrastructure/Migrations/TodoDbContextModelSnapshot.cs
+
+# Reviewed T08 migration sources.
+!/Services/AuthApi/Planora.Auth.Infrastructure/Migrations/
+/Services/AuthApi/Planora.Auth.Infrastructure/Migrations/**
+!/Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.cs
+!/Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.Designer.cs
+!/Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs
+!/Services/CategoryApi/Planora.Category.Infrastructure/Migrations/
+/Services/CategoryApi/Planora.Category.Infrastructure/Migrations/**
+!/Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.cs
+!/Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.Designer.cs
+!/Services/CategoryApi/Planora.Category.Infrastructure/Migrations/CategoryDbContextModelSnapshot.cs
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/
+/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/**
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.cs
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.Designer.cs
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.cs
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.Designer.cs
+!/Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/CollaborationDbContextModelSnapshot.cs
+!/Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/
+/Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/**
+!/Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.cs
+!/Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.Designer.cs
+!/Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/MessagingDbContextModelSnapshot.cs

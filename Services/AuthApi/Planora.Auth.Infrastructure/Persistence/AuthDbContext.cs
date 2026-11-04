@@ -1,7 +1,6 @@
 using Planora.Auth.Infrastructure.Auditing;
 using Planora.BuildingBlocks.Infrastructure.Inbox;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Planora.BuildingBlocks.Domain;
 using System.Security.Cryptography;
@@ -34,13 +33,6 @@ public sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.ConfigureWarnings(warnings =>
-            warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
-        base.OnConfiguring(optionsBuilder);
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

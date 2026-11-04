@@ -1,0 +1,1362 @@
+{
+  "schema_version": 3,
+  "task": "T08 generated migration source review",
+  "reviewer": "t05_transport",
+  "review_date_local": "2026-11-03",
+  "timezone": "Europe/Moscow",
+  "source_head": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+  "status": "SOURCE_REVIEW_COMPLETE_PROVIDER_GATES_PENDING",
+  "verdict": "NO_OPEN_GENERATED_SOURCE_FINDINGS_IN_FOUR_REVIEWED_CHAINS; EXECUTABLE_GATES_TRACKED_SEPARATELY",
+  "scope_files": 14,
+  "source_lines_read": 4439,
+  "files": [
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.cs",
+      "kind": "up_down",
+      "line_count": 560,
+      "ranges_read": [
+        [
+          1,
+          560
+        ]
+      ],
+      "sha256": "e35576864181ae6fd364a4aae518ffaa25a652188a4bca54846b66dbf5fd6ef2",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.Designer.cs",
+      "kind": "target_model",
+      "line_count": 883,
+      "ranges_read": [
+        [
+          1,
+          883
+        ]
+      ],
+      "sha256": "e4bbfa9f2fc2828ed0778691239e8af7b558f85bc8c6f7735e3a3e50a2a412e5",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+      "kind": "snapshot",
+      "line_count": 880,
+      "ranges_read": [
+        [
+          1,
+          880
+        ]
+      ],
+      "sha256": "c1c98ae848e04e8755397c3666a03439a86f6df39f7ed3de73c23555e6a3d82d",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.cs",
+      "kind": "up_down",
+      "line_count": 124,
+      "ranges_read": [
+        [
+          1,
+          124
+        ]
+      ],
+      "sha256": "c2172cde5496ee5c7055e860190b638ef5d139b603b4a103939f0213600315b1",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.Designer.cs",
+      "kind": "target_model",
+      "line_count": 200,
+      "ranges_read": [
+        [
+          1,
+          200
+        ]
+      ],
+      "sha256": "8ce4ffb90bfeb269aff0fe9a76ffc81c1e0a0becaf30d8039a9583fb073c27d8",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/CategoryDbContextModelSnapshot.cs",
+      "kind": "snapshot",
+      "line_count": 197,
+      "ranges_read": [
+        [
+          1,
+          197
+        ]
+      ],
+      "sha256": "a8fab491d5096f94885ea03bdc1dd18f1e9a276cc0624ff3ba4f98ec33488401",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.cs",
+      "kind": "up_down",
+      "line_count": 145,
+      "ranges_read": [
+        [
+          1,
+          145
+        ]
+      ],
+      "sha256": "66f4f6b850d29b2495bb557252963767b5bb429965383c955a3e6f5349bd6e32",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.Designer.cs",
+      "kind": "target_model",
+      "line_count": 226,
+      "ranges_read": [
+        [
+          1,
+          226
+        ]
+      ],
+      "sha256": "bcaabb112cc06cc76b99aa00eae73e2d9bc0476e1270d031a1067678e1b02ef5",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/MessagingDbContextModelSnapshot.cs",
+      "kind": "snapshot",
+      "line_count": 223,
+      "ranges_read": [
+        [
+          1,
+          223
+        ]
+      ],
+      "sha256": "a6404353856ca11d42d190e1a6fc83829d3d01400a7c7f47f204701ccff141a7",
+      "ignored_source_not_staged": true,
+      "review_method": "Complete final file loaded and matched against full initially reviewed source; every changed line reviewed explicitly. Unchanged full spans retain the initial semantic review.",
+      "matches_owned_scaffolding_proof": true
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.cs",
+      "kind": "up_down",
+      "line_count": 149,
+      "ranges_read": [
+        [
+          1,
+          149
+        ]
+      ],
+      "sha256": "5ba920f323501c5a9d0b537eda3cbf7da81efdf6051a8cc43a049f2b7db4327c",
+      "matches_owned_scaffolding_proof": true,
+      "review_method": "Full source read and comparison with CollaborationDbContext, CommentConfiguration and the pre-reply model-only factory."
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.Designer.cs",
+      "kind": "target_model",
+      "line_count": 233,
+      "ranges_read": [
+        [
+          1,
+          233
+        ]
+      ],
+      "sha256": "07698aaf6857a3c1a740a25f9a28289a4cdf4c183693d2c8808489b3426ab42c",
+      "matches_owned_scaffolding_proof": true,
+      "review_method": "Full source read and comparison with CollaborationDbContext, CommentConfiguration and the pre-reply model-only factory."
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.cs",
+      "kind": "up_down",
+      "line_count": 106,
+      "ranges_read": [
+        [
+          1,
+          106
+        ]
+      ],
+      "sha256": "eb2a28493ab4c17bcb18232611085d1057c5fea6dc02c070c5f3cdd923763d95",
+      "matches_owned_scaffolding_proof": true,
+      "review_method": "Full source read and comparison with CollaborationDbContext, CommentConfiguration and the pre-reply model-only factory."
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.Designer.cs",
+      "kind": "target_model",
+      "line_count": 258,
+      "ranges_read": [
+        [
+          1,
+          258
+        ]
+      ],
+      "sha256": "e1efb7eb839f381717256f044e9003fb8983aab668973b4896826ad5aa0e3e51",
+      "matches_owned_scaffolding_proof": true,
+      "review_method": "Full source read and comparison with CollaborationDbContext, CommentConfiguration and the pre-reply model-only factory."
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/CollaborationDbContextModelSnapshot.cs",
+      "kind": "snapshot",
+      "line_count": 255,
+      "ranges_read": [
+        [
+          1,
+          255
+        ]
+      ],
+      "sha256": "7978e3f0edb2350f71723418dbe750238722eb0482bf364bebaf34602294e138",
+      "matches_owned_scaffolding_proof": true,
+      "review_method": "Full source read and comparison with CollaborationDbContext, CommentConfiguration and the pre-reply model-only factory."
+    }
+  ],
+  "services": [
+    {
+      "service": "Auth",
+      "migration_id": "20261103201759_InitialReviewedBaseline",
+      "source_review_status": "SEED_DRIFT_CORRECTED_SOURCE_ONLY_PROVIDER_GATES_PENDING",
+      "up_operation_counts": {
+        "CreateTable": 11,
+        "CreateIndex": 35,
+        "InsertData": 1,
+        "Sql": 0,
+        "AlterColumn": 0,
+        "DropTable": 0,
+        "DeleteData": 0,
+        "UpdateData": 0
+      },
+      "primary_key_count": 11,
+      "foreign_key_count": 6,
+      "unique_index_count": 6,
+      "filtered_index_count": 2,
+      "down_drop_table_count": 11,
+      "table_names": [
+        "AuditLogs",
+        "InboxMessages",
+        "OutboxMessages",
+        "PasswordHistory",
+        "Roles",
+        "UserRecoveryCodes",
+        "Users",
+        "Friendships",
+        "LoginHistory",
+        "RefreshTokens",
+        "UserRoles"
+      ],
+      "index_names": [
+        "IX_AuditLogs_CreatedAt",
+        "IX_AuditLogs_EntityName_EntityId",
+        "IX_Friendships_AddresseeId_RequesterId",
+        "IX_Friendships_RequesterId_AddresseeId",
+        "IX_Friendships_Status",
+        "IX_InboxMessages_MessageId",
+        "IX_InboxMessages_ProcessedOn",
+        "IX_InboxMessages_Status_ReceivedOn",
+        "IX_LoginHistory_IsDeleted",
+        "IX_LoginHistory_IsSuccessful",
+        "IX_LoginHistory_LoginAt",
+        "IX_LoginHistory_UserId",
+        "ix_outbox_messages_active",
+        "IX_OutboxMessages_ProcessedOnUtc",
+        "IX_OutboxMessages_Status_OccurredOnUtc",
+        "IX_PasswordHistory_ChangedAt",
+        "IX_PasswordHistory_IsDeleted",
+        "IX_PasswordHistory_UserId",
+        "IX_PasswordHistory_UserId_ChangedAt",
+        "ix_refresh_tokens_user_device_active",
+        "IX_RefreshTokens_ExpiresAt",
+        "IX_RefreshTokens_IsDeleted",
+        "IX_RefreshTokens_RevokedAt",
+        "IX_RefreshTokens_Token",
+        "IX_RefreshTokens_UserId",
+        "IX_Roles_Name",
+        "IX_UserRecoveryCodes_IsDeleted",
+        "IX_UserRecoveryCodes_UserId",
+        "IX_UserRecoveryCodes_UserId_IsUsed",
+        "IX_UserRoles_RoleId",
+        "IX_UserRoles_UserId",
+        "IX_UserRoles_UserId_RoleId",
+        "IX_Users_CreatedAt",
+        "IX_Users_Email",
+        "IX_Users_IsDeleted"
+      ],
+      "designer_snapshot_model_body_equal": true,
+      "model_body_sha256": "591193c658b371c9cd15e56da609b370008192e211bf3a804da191280b928f45"
+    },
+    {
+      "service": "Category",
+      "migration_id": "20261103201802_InitialReviewedBaseline",
+      "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_PENDING",
+      "up_operation_counts": {
+        "CreateTable": 2,
+        "CreateIndex": 8,
+        "InsertData": 0,
+        "Sql": 0,
+        "AlterColumn": 0,
+        "DropTable": 0,
+        "DeleteData": 0,
+        "UpdateData": 0
+      },
+      "primary_key_count": 2,
+      "foreign_key_count": 1,
+      "unique_index_count": 0,
+      "filtered_index_count": 1,
+      "down_drop_table_count": 2,
+      "table_names": [
+        "Categories",
+        "OutboxMessages"
+      ],
+      "index_names": [
+        "IX_Categories_CreatedAt",
+        "ix_categories_isdeleted_deletedat",
+        "IX_Categories_ParentCategoryId",
+        "IX_Categories_UserId",
+        "IX_Categories_UserId_IsDeleted",
+        "ix_outbox_messages_active",
+        "IX_OutboxMessages_ProcessedOnUtc",
+        "IX_OutboxMessages_Status_OccurredOnUtc"
+      ],
+      "designer_snapshot_model_body_equal": true,
+      "model_body_sha256": "7c6719544b16b15b910c6f1481c889924353ea4f80e36f190223fa4925d0c94c"
+    },
+    {
+      "service": "Messaging",
+      "migration_id": "20261103201805_InitialReviewedBaseline",
+      "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_PENDING",
+      "up_operation_counts": {
+        "CreateTable": 3,
+        "CreateIndex": 8,
+        "InsertData": 0,
+        "Sql": 0,
+        "AlterColumn": 0,
+        "DropTable": 0,
+        "DeleteData": 0,
+        "UpdateData": 0
+      },
+      "primary_key_count": 3,
+      "foreign_key_count": 0,
+      "unique_index_count": 0,
+      "filtered_index_count": 1,
+      "down_drop_table_count": 3,
+      "table_names": [
+        "InboxMessages",
+        "Messages",
+        "OutboxMessages"
+      ],
+      "index_names": [
+        "IX_Messages_CreatedAt",
+        "IX_Messages_RecipientId",
+        "IX_Messages_RecipientId_ReadAt",
+        "ix_messages_sender_recipient_created",
+        "IX_Messages_SenderId",
+        "ix_outbox_messages_active",
+        "IX_OutboxMessages_ProcessedOnUtc",
+        "IX_OutboxMessages_Status_OccurredOnUtc"
+      ],
+      "designer_snapshot_model_body_equal": true,
+      "model_body_sha256": "3d56280672bd79aad169d01b6d3da090f81d049eee9b2eddeebc4844bd2a4083"
+    },
+    {
+      "service": "Collaboration baseline",
+      "migration_id": "20261104053345_InitialPreReplyBaseline",
+      "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_SEPARATE",
+      "up_operation_counts": {
+        "EnsureSchema": 1,
+        "CreateTable": 3,
+        "CreateIndex": 6
+      },
+      "down_operation_counts": {
+        "DropTable": 3
+      },
+      "primary_key_count": 3,
+      "foreign_key_count": 0,
+      "unique_index_count": 0,
+      "filtered_index_count": 0,
+      "down_drop_table_count": 3,
+      "designer_snapshot_model_body_equal": "BASELINE_SNAPSHOT_SUPERSEDED_BY_REPLY_UPGRADE",
+      "model_body_sha256": "bdde15cba0f7fa1ca69b6e261792f10047c03164ece7888a0b05a16a54f4b6b3"
+    },
+    {
+      "service": "Collaboration reply upgrade",
+      "migration_id": "20261104053426_AddReplyReferences",
+      "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_SEPARATE",
+      "up_operation_counts": {
+        "AddColumn": 6,
+        "CreateIndex": 1
+      },
+      "down_operation_counts": {
+        "DropIndex": 1,
+        "DropColumn": 6
+      },
+      "primary_key_count": 0,
+      "foreign_key_count": 0,
+      "unique_index_count": 0,
+      "filtered_index_count": 0,
+      "down_drop_table_count": 0,
+      "designer_snapshot_model_body_equal": true,
+      "model_body_sha256": "d524e14d2ff784e255d677a5e5e54f899f1dd5c365e9f90477bee9d16e8f3cd6"
+    }
+  ],
+  "supplemental_model_configuration_files": [
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/FriendshipConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          53
+        ]
+      ],
+      "sha256": "fd3cd56d007c2d12d09ee24fd2ceabf80821f892ccf8b03fc06cd2327d6b1d20"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/InboxMessageConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          42
+        ]
+      ],
+      "sha256": "6f980bffcf0440030ea5f2d1c6737eee8270e2bda4b7e702ef5e7e492d08ff2a"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/LoginHistoryConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          30
+        ]
+      ],
+      "sha256": "4f83105f4fbcf13a554f31507286ed5c048f7e16f03af03b31c5cbb354fb4f1e"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          46
+        ]
+      ],
+      "sha256": "26c4b26f6c30b0edf1672747cb5669b3b7cc12813d14a858d72fbc3da4b538f7"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/PasswordHistoryConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          33
+        ]
+      ],
+      "sha256": "c00a744e1b6a515930a72c9dd7ad1311b8a7430a05ce65e08d9ded188c8c59bb"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          69
+        ]
+      ],
+      "sha256": "f9c6b50a6e6be318636abe786d0f662f5d4c3cd9f95da4164eff30effe6ea300"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          51
+        ]
+      ],
+      "sha256": "f7b1aa9e1a2e11acb2e7df74ebf3d30d415b1eef7844193a5e2dd545bbc7e192"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          98
+        ]
+      ],
+      "sha256": "ee63c5e7e5773de654d9f8da42283cbcf7a365e900e5179a07a9ecea94a94d80"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRecoveryCodeConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          32
+        ]
+      ],
+      "sha256": "2eecbce3745c883ed1168a4397e49e48c28e96fe3c8394da2c445754355abdab"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserRoleConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          33
+        ]
+      ],
+      "sha256": "9b0f5ea8fee1b83041d64c8571f149091b46e4d5f1cd19665c59ef8122a7d56f"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+      "ranges_read": [
+        [
+          1,
+          107
+        ]
+      ],
+      "sha256": "2cca9dfdd91c1d6c03db85d10c7655ee3bc4c7609f29a68bece90c7599c5062a"
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/CategoryConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          55
+        ]
+      ],
+      "sha256": "8a1c7166a8eb405e470125865a8d2673e7c47ca5345d389a450651884118bfcf"
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          52
+        ]
+      ],
+      "sha256": "d33cbb511001132504c184e86d0c47e35da68aa699cb9c97c8b590d6680a5c3b"
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs",
+      "ranges_read": [
+        [
+          1,
+          69
+        ]
+      ],
+      "sha256": "0db80158de08141a25f170bdc4aeee876b5714a0b27b76e0466d6775750cda25"
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          65
+        ]
+      ],
+      "sha256": "9f6c82e9a5489327b8857fb8d12caaafe3e8cb0a3faf2bfb35aa602148fc89bd"
+    },
+    {
+      "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/MessagingDbContext.cs",
+      "ranges_read": [
+        [
+          1,
+          51
+        ]
+      ],
+      "sha256": "35df84e3a369f19bf100b5048c5dde270751b1fa9bb68edb2b20267e67af2d45"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Infrastructure/Auditing/AuditLogConfiguration.cs",
+      "ranges_read": [
+        [
+          1,
+          30
+        ]
+      ],
+      "sha256": "82326ff57f7988a0def95244c90bd7402b8e9d6561c01ff3353d8a07238dcfaa"
+    }
+  ],
+  "findings": [
+    {
+      "id": "T08-GEN-001",
+      "severity": "P1",
+      "status": "CORRECTED_IN_REGENERATED_SOURCE_EXECUTABLE_GATES_PENDING",
+      "title": "Auth generated baseline and snapshot contain stale random role seeds that differ from the committed deterministic model",
+      "evidence": [
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.cs",
+          "ranges": [
+            [
+              330,
+              337
+            ]
+          ]
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.Designer.cs",
+          "ranges": [
+            [
+              351,
+              367
+            ]
+          ]
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+          "ranges": [
+            [
+              348,
+              364
+            ]
+          ]
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+          "ranges": [
+            [
+              33,
+              55
+            ]
+          ]
+        }
+      ],
+      "actual_seed_ids": {
+        "Admin": "e982c513-9683-4346-901b-e292fddc031a",
+        "User": "800cfde5-c0ff-42ee-b1f9-e3966f47373e"
+      },
+      "expected_seed_ids": {
+        "Admin": "075a45ef-828e-50e7-af6a-7587be5a997b",
+        "User": "0a00159e-af48-5e76-a909-55edb8c61fc7"
+      },
+      "actual_seed_timestamp": "2026-11-03T19:57:53.0700587Z / .0700621Z",
+      "expected_seed_timestamp": "2026-01-01T00:00:00Z",
+      "trigger": "Scaffolded Auth baseline was generated from a model containing Role.Create runtime values while the current committed configuration uses explicit stable seeds. Compare generated source/snapshot seed rows with current RoleConfiguration.",
+      "impact": "Fresh baseline rows differ from the current model contract. A future model-diff scaffold can delete the snapshot role IDs and insert the stable IDs; RoleId FK cascade can then remove UserRoles assignments. The migration and snapshot must be corrected before publication or baseline adoption. No actual data loss or executed migration is claimed.",
+      "remediation": "Root should regenerate the unpublished Auth baseline/Designer/snapshot from the verified current assembly, retain reviewed paths/tool provenance, then compare target model with current design-time model and execute fresh/adoption tests. Do not silently rewrite existing unmanaged role IDs or run the initial InsertData during adoption.",
+      "reviewer_changed_source": false,
+      "correction": "Initial random seeds rejected; final Auth Up/Designer/snapshot now use the exact committed stable IDs and fixed UTC timestamp. Initial finding and hashes preserved in initial_review. No generated source defect remains identified by this read-only comparison."
+    }
+  ],
+  "comparison_notes": {
+    "Auth": [
+      "11 tables/11 PKs/6 FKs and35 indexes reflect the mapped shape. Final regenerated Up/Designer/snapshot role seeds now match the committed stable IDs and timestamp.",
+      "Owned Email maps to Users.Email with unique index; UserRoles has unique(UserId,RoleId), RoleId/UserId cascade FKs. LoginHistory/RefreshTokens cascade from Users; friendships restrict user deletes.",
+      "PasswordHistory/UserRecoveryCodes lack user FKs in this baseline consistently with their current configuration; do not add relationships as a migration-review side effect.",
+      "Refresh token partial unique filter remains RevokedAt IS NULL; expiry semantics remain existing BE-004 and are not fixed by a baseline.",
+      "Outbox partial active index, retry default0 and varchar lengths match config. Auth inbox string Status and unique MessageId match its explicit mapping.",
+      "Friendship xmin is Npgsql row-version metadata; generated SQL/provider execution must verify system-column handling.",
+      "TwoFactorSecret remains varchar1024; the design-time baseline contains no key material or encrypted user values. Runtime DataProtection key management is outside this review."
+    ],
+    "Category": [
+      "Categories +OutboxMessages table shape, self-parent nullable FK, varchar lengths/defaults, xmin metadata and8 indexes match CategoryDbContext/CategoryConfiguration/OutboxMessageConfiguration.",
+      "No seed rows or destructive Up operations. Query filters are runtime model behavior, not automatically physical database constraints."
+    ],
+    "Messaging": [
+      "Messages +InboxMessages +OutboxMessages match inline MessagingDbContext and its outbox configuration.",
+      "MessageId in convention-mapped Messaging inbox is text and Status integer; it intentionally differs from Auth explicit inbox string mapping. No new inbox index is silently added.",
+      "Message.Id ValueGeneratedNever, JSON attachment string storage, five message indexes and three outbox indexes match current code; no cross-service user FKs are introduced."
+    ],
+    "Collaboration": [
+      "Both migration IDs match CollaborationDatabaseStartup constants and the reviewed adoption ceiling.",
+      "Baseline creates collaboration schema and comments/InboxMessages/OutboxMessages, with three PKs and six indexes. The mapped xmin remains a provider system column.",
+      "Reply upgrade adds the six properties and one composite index. The final target model and snapshot differ from the baseline target only by these insertions.",
+      "The new Down drops the composite index and six columns, destroying reply data. The earlier Down drops the three service tables.",
+      "No seed or raw SQL operation in either Up. Fresh and reviewed-prefix adoption remain executable gates."
+    ]
+  },
+  "sql_and_adoption_risks": [
+    "All three Up methods are initial schema creation; running them against existing unmanaged tables is not an upgrade/adoption strategy.",
+    "Down drops all service tables and data (Auth11,Category2,Messaging3); never use against working data as an automatic rollback.",
+    "Guarded adoption must prove full schema equivalence before inserting migration history and must skip initial data/DDL execution. Existing Auth Role.Id and UserRoles references must remain unchanged.",
+    "Future role data changes for adopted arbitrary IDs require an explicit name-aware migration; model-managed seed PK replacement is not safe for those databases.",
+    "Indexes/constraints create locks and can fail on incompatible existing data. No lock-duration benchmark, SQL script review or physical index/FK verification was executed by this reviewer.",
+    "No raw migrationBuilder.Sql, Up AlterColumn/DropTable/DeleteData/UpdateData operations were found; absence of these calls does not certify provider-generated SQL.",
+    "Auth pending-model warning suppression makes an explicit model/snapshot comparison gate important; no model-differ was run by this read-only reviewer."
+  ],
+  "execution": {
+    "application_builds": 0,
+    "ef_tool_commands": 0,
+    "database_commands": 0,
+    "tests_executed": 0,
+    "method": "Full source reads, static operation counts, SHA256 and full Designer/snapshot model-body equality; no source changes."
+  },
+  "limits": [
+    "These migration sources are currently ignored and not staged; this review gives no permission for force-add.",
+    "Per-file continuation coverage outside these generated9 files is not promoted by supplemental configuration reads.",
+    "Root must integrate verified regenerated hashes and exact provider/model-differ evidence before claiming T08 acceptance.",
+    "This update corrects only generated-source review. The separate adversarial schema-guard review remains NEEDS WORK until root records its own GREEN evidence; it is not resolved by source regeneration.",
+    "Four service chains and five migrations are covered. Shared startup/adoption helpers have their own review and executable gates."
+  ],
+  "initial_review": {
+    "source_head": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
+    "status": "NEEDS_WORK",
+    "verdict": "DO_NOT_PUBLISH_AUTH_BASELINE_UNTIL_T08-GEN-001_FIXED",
+    "files": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.cs",
+        "kind": "up_down",
+        "line_count": 560,
+        "ranges_read": [
+          [
+            1,
+            560
+          ]
+        ],
+        "sha256": "93c75d83d568b2fe8acc9249cfd583141f87f4129b68bf5aa8dff24beb6dcab7",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.Designer.cs",
+        "kind": "target_model",
+        "line_count": 883,
+        "ranges_read": [
+          [
+            1,
+            883
+          ]
+        ],
+        "sha256": "e4561d4bb41d79dc45cdfbf32e02c7c440076b1997a168f3be7295a218f5b59d",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+        "kind": "snapshot",
+        "line_count": 880,
+        "ranges_read": [
+          [
+            1,
+            880
+          ]
+        ],
+        "sha256": "3d3499668d9323deb85a1ea143a8090c5cd98bf5341d3119367eafb4b57d3f9c",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103200035_InitialReviewedBaseline.cs",
+        "kind": "up_down",
+        "line_count": 124,
+        "ranges_read": [
+          [
+            1,
+            124
+          ]
+        ],
+        "sha256": "c2172cde5496ee5c7055e860190b638ef5d139b603b4a103939f0213600315b1",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103200035_InitialReviewedBaseline.Designer.cs",
+        "kind": "target_model",
+        "line_count": 200,
+        "ranges_read": [
+          [
+            1,
+            200
+          ]
+        ],
+        "sha256": "e3c90a4d6ff1525d4504f9e220c184b4d299ce2fd5bfe8a466f6bfd5f440979b",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/CategoryDbContextModelSnapshot.cs",
+        "kind": "snapshot",
+        "line_count": 197,
+        "ranges_read": [
+          [
+            1,
+            197
+          ]
+        ],
+        "sha256": "a8fab491d5096f94885ea03bdc1dd18f1e9a276cc0624ff3ba4f98ec33488401",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103200048_InitialReviewedBaseline.cs",
+        "kind": "up_down",
+        "line_count": 145,
+        "ranges_read": [
+          [
+            1,
+            145
+          ]
+        ],
+        "sha256": "66f4f6b850d29b2495bb557252963767b5bb429965383c955a3e6f5349bd6e32",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103200048_InitialReviewedBaseline.Designer.cs",
+        "kind": "target_model",
+        "line_count": 226,
+        "ranges_read": [
+          [
+            1,
+            226
+          ]
+        ],
+        "sha256": "9dbf04c1a3031acd09a9cd5782476c3ad94c7f72b9bc58c5ec96692b02910fb9",
+        "ignored_source_not_staged": true
+      },
+      {
+        "path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/MessagingDbContextModelSnapshot.cs",
+        "kind": "snapshot",
+        "line_count": 223,
+        "ranges_read": [
+          [
+            1,
+            223
+          ]
+        ],
+        "sha256": "a6404353856ca11d42d190e1a6fc83829d3d01400a7c7f47f204701ccff141a7",
+        "ignored_source_not_staged": true
+      }
+    ],
+    "services": [
+      {
+        "service": "Auth",
+        "migration_id": "20261103195755_InitialReviewedBaseline",
+        "source_review_status": "FAIL_SEED_DRIFT",
+        "up_operation_counts": {
+          "CreateTable": 11,
+          "CreateIndex": 35,
+          "InsertData": 1,
+          "Sql": 0,
+          "AlterColumn": 0,
+          "DropTable": 0,
+          "DeleteData": 0,
+          "UpdateData": 0
+        },
+        "primary_key_count": 11,
+        "foreign_key_count": 6,
+        "unique_index_count": 6,
+        "filtered_index_count": 2,
+        "down_drop_table_count": 11,
+        "table_names": [
+          "AuditLogs",
+          "InboxMessages",
+          "OutboxMessages",
+          "PasswordHistory",
+          "Roles",
+          "UserRecoveryCodes",
+          "Users",
+          "Friendships",
+          "LoginHistory",
+          "RefreshTokens",
+          "UserRoles"
+        ],
+        "index_names": [
+          "IX_AuditLogs_CreatedAt",
+          "IX_AuditLogs_EntityName_EntityId",
+          "IX_Friendships_AddresseeId_RequesterId",
+          "IX_Friendships_RequesterId_AddresseeId",
+          "IX_Friendships_Status",
+          "IX_InboxMessages_MessageId",
+          "IX_InboxMessages_ProcessedOn",
+          "IX_InboxMessages_Status_ReceivedOn",
+          "IX_LoginHistory_IsDeleted",
+          "IX_LoginHistory_IsSuccessful",
+          "IX_LoginHistory_LoginAt",
+          "IX_LoginHistory_UserId",
+          "ix_outbox_messages_active",
+          "IX_OutboxMessages_ProcessedOnUtc",
+          "IX_OutboxMessages_Status_OccurredOnUtc",
+          "IX_PasswordHistory_ChangedAt",
+          "IX_PasswordHistory_IsDeleted",
+          "IX_PasswordHistory_UserId",
+          "IX_PasswordHistory_UserId_ChangedAt",
+          "ix_refresh_tokens_user_device_active",
+          "IX_RefreshTokens_ExpiresAt",
+          "IX_RefreshTokens_IsDeleted",
+          "IX_RefreshTokens_RevokedAt",
+          "IX_RefreshTokens_Token",
+          "IX_RefreshTokens_UserId",
+          "IX_Roles_Name",
+          "IX_UserRecoveryCodes_IsDeleted",
+          "IX_UserRecoveryCodes_UserId",
+          "IX_UserRecoveryCodes_UserId_IsUsed",
+          "IX_UserRoles_RoleId",
+          "IX_UserRoles_UserId",
+          "IX_UserRoles_UserId_RoleId",
+          "IX_Users_CreatedAt",
+          "IX_Users_Email",
+          "IX_Users_IsDeleted"
+        ],
+        "designer_snapshot_model_body_equal": true,
+        "model_body_sha256": "09a98bef5ea8219bc27a20b31fc55cd956d8bc202a54e1fad71cf347bdea6029"
+      },
+      {
+        "service": "Category",
+        "migration_id": "20261103200035_InitialReviewedBaseline",
+        "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_PENDING",
+        "up_operation_counts": {
+          "CreateTable": 2,
+          "CreateIndex": 8,
+          "InsertData": 0,
+          "Sql": 0,
+          "AlterColumn": 0,
+          "DropTable": 0,
+          "DeleteData": 0,
+          "UpdateData": 0
+        },
+        "primary_key_count": 2,
+        "foreign_key_count": 1,
+        "unique_index_count": 0,
+        "filtered_index_count": 1,
+        "down_drop_table_count": 2,
+        "table_names": [
+          "Categories",
+          "OutboxMessages"
+        ],
+        "index_names": [
+          "IX_Categories_CreatedAt",
+          "ix_categories_isdeleted_deletedat",
+          "IX_Categories_ParentCategoryId",
+          "IX_Categories_UserId",
+          "IX_Categories_UserId_IsDeleted",
+          "ix_outbox_messages_active",
+          "IX_OutboxMessages_ProcessedOnUtc",
+          "IX_OutboxMessages_Status_OccurredOnUtc"
+        ],
+        "designer_snapshot_model_body_equal": true,
+        "model_body_sha256": "7c6719544b16b15b910c6f1481c889924353ea4f80e36f190223fa4925d0c94c"
+      },
+      {
+        "service": "Messaging",
+        "migration_id": "20261103200048_InitialReviewedBaseline",
+        "source_review_status": "NO_NEW_SOURCE_FINDINGS_PROVIDER_GATES_PENDING",
+        "up_operation_counts": {
+          "CreateTable": 3,
+          "CreateIndex": 8,
+          "InsertData": 0,
+          "Sql": 0,
+          "AlterColumn": 0,
+          "DropTable": 0,
+          "DeleteData": 0,
+          "UpdateData": 0
+        },
+        "primary_key_count": 3,
+        "foreign_key_count": 0,
+        "unique_index_count": 0,
+        "filtered_index_count": 1,
+        "down_drop_table_count": 3,
+        "table_names": [
+          "InboxMessages",
+          "Messages",
+          "OutboxMessages"
+        ],
+        "index_names": [
+          "IX_Messages_CreatedAt",
+          "IX_Messages_RecipientId",
+          "IX_Messages_RecipientId_ReadAt",
+          "ix_messages_sender_recipient_created",
+          "IX_Messages_SenderId",
+          "ix_outbox_messages_active",
+          "IX_OutboxMessages_ProcessedOnUtc",
+          "IX_OutboxMessages_Status_OccurredOnUtc"
+        ],
+        "designer_snapshot_model_body_equal": true,
+        "model_body_sha256": "3d56280672bd79aad169d01b6d3da090f81d049eee9b2eddeebc4844bd2a4083"
+      }
+    ],
+    "findings": [
+      {
+        "id": "T08-GEN-001",
+        "severity": "P1",
+        "status": "CONFIRMED_SOURCE_ONLY_RELEASE_BLOCKER",
+        "title": "Auth generated baseline and snapshot contain stale random role seeds that differ from the committed deterministic model",
+        "evidence": [
+          {
+            "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.cs",
+            "ranges": [
+              [
+                330,
+                337
+              ]
+            ]
+          },
+          {
+            "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.Designer.cs",
+            "ranges": [
+              [
+                351,
+                367
+              ]
+            ]
+          },
+          {
+            "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+            "ranges": [
+              [
+                348,
+                364
+              ]
+            ]
+          },
+          {
+            "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/RoleConfiguration.cs",
+            "ranges": [
+              [
+                33,
+                55
+              ]
+            ]
+          }
+        ],
+        "actual_seed_ids": {
+          "Admin": "e982c513-9683-4346-901b-e292fddc031a",
+          "User": "800cfde5-c0ff-42ee-b1f9-e3966f47373e"
+        },
+        "expected_seed_ids": {
+          "Admin": "075a45ef-828e-50e7-af6a-7587be5a997b",
+          "User": "0a00159e-af48-5e76-a909-55edb8c61fc7"
+        },
+        "actual_seed_timestamp": "2026-11-03T19:57:53.0700587Z / .0700621Z",
+        "expected_seed_timestamp": "2026-01-01T00:00:00Z",
+        "trigger": "Scaffolded Auth baseline was generated from a model containing Role.Create runtime values while the current committed configuration uses explicit stable seeds. Compare generated source/snapshot seed rows with current RoleConfiguration.",
+        "impact": "Fresh baseline rows differ from the current model contract. A future model-diff scaffold can delete the snapshot role IDs and insert the stable IDs; RoleId FK cascade can then remove UserRoles assignments. The migration and snapshot must be corrected before publication or baseline adoption. No actual data loss or executed migration is claimed.",
+        "remediation": "Root should regenerate the unpublished Auth baseline/Designer/snapshot from the verified current assembly, retain reviewed paths/tool provenance, then compare target model with current design-time model and execute fresh/adoption tests. Do not silently rewrite existing unmanaged role IDs or run the initial InsertData during adoption.",
+        "reviewer_changed_source": false
+      }
+    ],
+    "disposition": "Rejected before staging/application; complete source copies retained in root-owned rejected-scaffolds backups.",
+    "provenance_evidence": "results/evidence/t08-rejected-scaffold-provenance.json"
+  },
+  "regeneration_comparison": [
+    {
+      "service": "Auth",
+      "initial_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.cs",
+      "initial_sha256": "93c75d83d568b2fe8acc9249cfd583141f87f4129b68bf5aa8dff24beb6dcab7",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\20261103195755_InitialReviewedBaseline.cs",
+      "final_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.cs",
+      "final_sha256": "e35576864181ae6fd364a4aae518ffaa25a652188a4bca54846b66dbf5fd6ef2",
+      "whole_file_unchanged": false,
+      "changes": [
+        {
+          "kind": "replace",
+          "initial_range": [
+            335,
+            336
+          ],
+          "final_range": [
+            335,
+            336
+          ],
+          "initial_lines": [
+            "                    { new Guid(\"800cfde5-c0ff-42ee-b1f9-e3966f47373e\"), new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(621), null, null, null, \"Regular user with standard access\", false, \"User\", null, null },",
+            "                    { new Guid(\"e982c513-9683-4346-901b-e292fddc031a\"), new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(587), null, null, null, \"System administrator with full access\", false, \"Admin\", null, null }"
+          ],
+          "final_lines": [
+            "                    { new Guid(\"075a45ef-828e-50e7-af6a-7587be5a997b\"), new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, null, \"System administrator with full access\", false, \"Admin\", null, null },",
+            "                    { new Guid(\"0a00159e-af48-5e76-a909-55edb8c61fc7\"), new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, null, \"Regular user with standard access\", false, \"User\", null, null }"
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Auth",
+      "initial_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103195755_InitialReviewedBaseline.Designer.cs",
+      "initial_sha256": "e4561d4bb41d79dc45cdfbf32e02c7c440076b1997a168f3be7295a218f5b59d",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\20261103195755_InitialReviewedBaseline.Designer.cs",
+      "final_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.Designer.cs",
+      "final_sha256": "e4bbfa9f2fc2828ed0778691239e8af7b558f85bc8c6f7735e3a3e50a2a412e5",
+      "whole_file_unchanged": false,
+      "changes": [
+        {
+          "kind": "replace",
+          "initial_range": [
+            15,
+            15
+          ],
+          "final_range": [
+            15,
+            15
+          ],
+          "initial_lines": [
+            "    [Migration(\"20261103195755_InitialReviewedBaseline\")]"
+          ],
+          "final_lines": [
+            "    [Migration(\"20261103201759_InitialReviewedBaseline\")]"
+          ]
+        },
+        {
+          "kind": "replace",
+          "initial_range": [
+            354,
+            355
+          ],
+          "final_range": [
+            354,
+            355
+          ],
+          "initial_lines": [
+            "                            Id = new Guid(\"e982c513-9683-4346-901b-e292fddc031a\"),",
+            "                            CreatedAt = new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(587),"
+          ],
+          "final_lines": [
+            "                            Id = new Guid(\"075a45ef-828e-50e7-af6a-7587be5a997b\"),",
+            "                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),"
+          ]
+        },
+        {
+          "kind": "replace",
+          "initial_range": [
+            362,
+            363
+          ],
+          "final_range": [
+            362,
+            363
+          ],
+          "initial_lines": [
+            "                            Id = new Guid(\"800cfde5-c0ff-42ee-b1f9-e3966f47373e\"),",
+            "                            CreatedAt = new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(621),"
+          ],
+          "final_lines": [
+            "                            Id = new Guid(\"0a00159e-af48-5e76-a909-55edb8c61fc7\"),",
+            "                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),"
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Auth",
+      "initial_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+      "initial_sha256": "3d3499668d9323deb85a1ea143a8090c5cd98bf5341d3119367eafb4b57d3f9c",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\auth\\AuthDbContextModelSnapshot.cs",
+      "final_path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+      "final_sha256": "c1c98ae848e04e8755397c3666a03439a86f6df39f7ed3de73c23555e6a3d82d",
+      "whole_file_unchanged": false,
+      "changes": [
+        {
+          "kind": "replace",
+          "initial_range": [
+            351,
+            352
+          ],
+          "final_range": [
+            351,
+            352
+          ],
+          "initial_lines": [
+            "                            Id = new Guid(\"e982c513-9683-4346-901b-e292fddc031a\"),",
+            "                            CreatedAt = new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(587),"
+          ],
+          "final_lines": [
+            "                            Id = new Guid(\"075a45ef-828e-50e7-af6a-7587be5a997b\"),",
+            "                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),"
+          ]
+        },
+        {
+          "kind": "replace",
+          "initial_range": [
+            359,
+            360
+          ],
+          "final_range": [
+            359,
+            360
+          ],
+          "initial_lines": [
+            "                            Id = new Guid(\"800cfde5-c0ff-42ee-b1f9-e3966f47373e\"),",
+            "                            CreatedAt = new DateTime(2026, 11, 3, 19, 57, 53, 70, DateTimeKind.Utc).AddTicks(621),"
+          ],
+          "final_lines": [
+            "                            Id = new Guid(\"0a00159e-af48-5e76-a909-55edb8c61fc7\"),",
+            "                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),"
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Category",
+      "initial_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103200035_InitialReviewedBaseline.cs",
+      "initial_sha256": "c2172cde5496ee5c7055e860190b638ef5d139b603b4a103939f0213600315b1",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\20261103200035_InitialReviewedBaseline.cs",
+      "final_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.cs",
+      "final_sha256": "c2172cde5496ee5c7055e860190b638ef5d139b603b4a103939f0213600315b1",
+      "whole_file_unchanged": true,
+      "changes": []
+    },
+    {
+      "service": "Category",
+      "initial_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103200035_InitialReviewedBaseline.Designer.cs",
+      "initial_sha256": "e3c90a4d6ff1525d4504f9e220c184b4d299ce2fd5bfe8a466f6bfd5f440979b",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\20261103200035_InitialReviewedBaseline.Designer.cs",
+      "final_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/20261103201802_InitialReviewedBaseline.Designer.cs",
+      "final_sha256": "8ce4ffb90bfeb269aff0fe9a76ffc81c1e0a0becaf30d8039a9583fb073c27d8",
+      "whole_file_unchanged": false,
+      "changes": [
+        {
+          "kind": "replace",
+          "initial_range": [
+            15,
+            15
+          ],
+          "final_range": [
+            15,
+            15
+          ],
+          "initial_lines": [
+            "    [Migration(\"20261103200035_InitialReviewedBaseline\")]"
+          ],
+          "final_lines": [
+            "    [Migration(\"20261103201802_InitialReviewedBaseline\")]"
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Category",
+      "initial_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/CategoryDbContextModelSnapshot.cs",
+      "initial_sha256": "a8fab491d5096f94885ea03bdc1dd18f1e9a276cc0624ff3ba4f98ec33488401",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\category\\CategoryDbContextModelSnapshot.cs",
+      "final_path": "Services/CategoryApi/Planora.Category.Infrastructure/Migrations/CategoryDbContextModelSnapshot.cs",
+      "final_sha256": "a8fab491d5096f94885ea03bdc1dd18f1e9a276cc0624ff3ba4f98ec33488401",
+      "whole_file_unchanged": true,
+      "changes": []
+    },
+    {
+      "service": "Messaging",
+      "initial_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103200048_InitialReviewedBaseline.cs",
+      "initial_sha256": "66f4f6b850d29b2495bb557252963767b5bb429965383c955a3e6f5349bd6e32",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\20261103200048_InitialReviewedBaseline.cs",
+      "final_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.cs",
+      "final_sha256": "66f4f6b850d29b2495bb557252963767b5bb429965383c955a3e6f5349bd6e32",
+      "whole_file_unchanged": true,
+      "changes": []
+    },
+    {
+      "service": "Messaging",
+      "initial_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103200048_InitialReviewedBaseline.Designer.cs",
+      "initial_sha256": "9dbf04c1a3031acd09a9cd5782476c3ad94c7f72b9bc58c5ec96692b02910fb9",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\20261103200048_InitialReviewedBaseline.Designer.cs",
+      "final_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/20261103201805_InitialReviewedBaseline.Designer.cs",
+      "final_sha256": "bcaabb112cc06cc76b99aa00eae73e2d9bc0476e1270d031a1067678e1b02ef5",
+      "whole_file_unchanged": false,
+      "changes": [
+        {
+          "kind": "replace",
+          "initial_range": [
+            15,
+            15
+          ],
+          "final_range": [
+            15,
+            15
+          ],
+          "initial_lines": [
+            "    [Migration(\"20261103200048_InitialReviewedBaseline\")]"
+          ],
+          "final_lines": [
+            "    [Migration(\"20261103201805_InitialReviewedBaseline\")]"
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Messaging",
+      "initial_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/MessagingDbContextModelSnapshot.cs",
+      "initial_sha256": "a6404353856ca11d42d190e1a6fc83829d3d01400a7c7f47f204701ccff141a7",
+      "rejected_backup": "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\rejected-scaffolds\\messaging\\MessagingDbContextModelSnapshot.cs",
+      "final_path": "Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/MessagingDbContextModelSnapshot.cs",
+      "final_sha256": "a6404353856ca11d42d190e1a6fc83829d3d01400a7c7f47f204701ccff141a7",
+      "whole_file_unchanged": true,
+      "changes": []
+    }
+  ],
+  "seed_correction_proof": {
+    "method": "Static full source comparison and exact literal checks; no model-differ or provider execution by reviewer.",
+    "role_configuration_sha256": "f7b1aa9e1a2e11acb2e7df74ebf3d30d415b1eef7844193a5e2dd545bbc7e192",
+    "roles": {
+      "Admin": "075a45ef-828e-50e7-af6a-7587be5a997b",
+      "User": "0a00159e-af48-5e76-a909-55edb8c61fc7"
+    },
+    "files": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.cs",
+        "sha256": "e35576864181ae6fd364a4aae518ffaa25a652188a4bca54846b66dbf5fd6ef2",
+        "expected_ids_present_once": true,
+        "rejected_ids_absent": true,
+        "seed_created_at_utc": "2026-01-01T00:00:00Z"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/20261103201759_InitialReviewedBaseline.Designer.cs",
+        "sha256": "e4bbfa9f2fc2828ed0778691239e8af7b558f85bc8c6f7735e3a3e50a2a412e5",
+        "expected_ids_present_once": true,
+        "rejected_ids_absent": true,
+        "seed_created_at_utc": "2026-01-01T00:00:00Z"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Migrations/AuthDbContextModelSnapshot.cs",
+        "sha256": "c1c98ae848e04e8755397c3666a03439a86f6df39f7ed3de73c23555e6a3d82d",
+        "expected_ids_present_once": true,
+        "rejected_ids_absent": true,
+        "seed_created_at_utc": "2026-01-01T00:00:00Z"
+      }
+    ],
+    "descriptions_unchanged": true,
+    "audit_null_fields_unchanged": true,
+    "is_deleted_false_unchanged": true
+  },
+  "regeneration_provenance": {
+    "evidence": "results/evidence/t08-owned-scaffolding.json",
+    "rejected_evidence": "results/evidence/t08-rejected-scaffold-provenance.json",
+    "all_nine_output_hashes_match": true,
+    "root_used_explicit_owned_assembly_paths": true,
+    "root_commands_executed_by_this_reviewer": false,
+    "all_fourteen_final_output_hashes_match": true
+  },
+  "collaboration_review": {
+    "source_files": 5,
+    "model_only_factory": {
+      "path": "tests/Planora.UnitTests/Services/Infrastructure/LegacyCollaborationBaselineFactory.cs",
+      "sha256": "5d972969738bc59eb65376f3cf4348bc196f51a1738f49d00385bb7b55ef7dfc",
+      "ranges_read": [
+        [
+          1,
+          112
+        ]
+      ],
+      "design_time_connection": "UseNpgsql() without a connection string. Test startup assembly uses separate IModelCustomizer. The runtime context retains the ordinary configuration."
+    },
+    "baseline_source_model": "Pre-reply model synthesized by removing the six reply properties and the (TaskId, ReplyToId) index from the current model. Historical deployed schema equivalence requires provider checks.",
+    "latest_model_body_matches_snapshot": true,
+    "baseline_snapshot_status": "Superseded by AddReplyReferences scaffold. Original output hash remains in t08-owned-scaffolding.json.",
+    "model_body_delta": [
+      "                    b.Property<Guid?>(\"ReplyToAuthorId\")",
+      "                        .HasColumnType(\"uuid\");",
+      "",
+      "                    b.Property<string>(\"ReplyToAuthorName\")",
+      "                        .HasMaxLength(200)",
+      "                        .HasColumnType(\"character varying(200)\");",
+      "",
+      "                    b.Property<bool>(\"ReplyToDeleted\")",
+      "                        .ValueGeneratedOnAdd()",
+      "                        .HasColumnType(\"boolean\")",
+      "                        .HasDefaultValue(false);",
+      "",
+      "                    b.Property<Guid?>(\"ReplyToId\")",
+      "                        .HasColumnType(\"uuid\");",
+      "",
+      "                    b.Property<string>(\"ReplyToPreview\")",
+      "                        .HasMaxLength(300)",
+      "                        .HasColumnType(\"character varying(300)\");",
+      "",
+      "                    b.Property<string>(\"ReplyToType\")",
+      "                        .HasMaxLength(16)",
+      "                        .HasColumnType(\"character varying(16)\");",
+      "",
+      "                    b.HasIndex(\"TaskId\", \"ReplyToId\");",
+      ""
+    ],
+    "added_columns": [
+      "ReplyToAuthorId",
+      "ReplyToAuthorName",
+      "ReplyToDeleted",
+      "ReplyToId",
+      "ReplyToPreview",
+      "ReplyToType"
+    ],
+    "added_index": "IX_comments_TaskId_ReplyToId",
+    "reply_column_defaults": "Five nullable columns, ReplyToDeleted non-null with default false.",
+    "provider_gates": "Tracked by root separately. Reviewer ran zero builds, EF commands and database operations."
+  }
+}

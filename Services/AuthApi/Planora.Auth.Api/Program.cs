@@ -149,7 +149,7 @@ namespace Planora.Auth.Api
                     {
                         try
                         {
-                            await DatabaseStartup.EnsureReadyAsync(
+                            await Planora.Auth.Infrastructure.Persistence.AuthDatabaseStartup.EnsureReadyAsync(
                                 db,
                                 logger,
                                 app.Lifetime.ApplicationStopping);

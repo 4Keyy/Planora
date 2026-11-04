@@ -1,0 +1,23 @@
+{
+  "command": [
+    "docker",
+    "build",
+    "--network",
+    "none",
+    "--no-cache",
+    "--file",
+    "F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\migration-context.Dockerfile",
+    "--output",
+    "type=local,dest=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t08\\docker-context-debb9262",
+    "."
+  ],
+  "cwd": "F:\\Projects\\Planora",
+  "exit_code": 0,
+  "context": "desktop-linux",
+  "expected_files": 14,
+  "exported_files": 14,
+  "excluded_unreviewed_probes": 4,
+  "hashes_match": true,
+  "log_sha256": "932d59493fbbb800b2184120923aa3bac714ac4438c7d7a382f94cf756053c36",
+  "scope": "FROM scratch COPY only; no base pull, network commands, service startup or external image push"
+}
