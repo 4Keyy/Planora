@@ -1918,6 +1918,11 @@
         "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs",
         "lines": "38–51, 74–106",
         "supplemental": true
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Api/Grpc/CategoryGrpcService.cs",
+        "lines": "29,68,127",
+        "observation": "READ-035 supplemental trace: three additional MediatR Send calls omit the Category RPC cancellation token."
       }
     ],
     "trigger": "Cancel a Todo gRPC request while its MediatR operation is still running.",
@@ -2078,5 +2083,124 @@
       "T08"
     ],
     "limitations": "Static source evidence CONT034002; runtime reproduction NOT_RUN. See results/evidence/read-034-review.json."
+  },
+  {
+    "id": "BE-018",
+    "title": "Category gRPC create ignores the validated owner ID",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T04",
+    "evidence": [
+      {
+        "path": "Services/CategoryApi/Planora.Category.Api/Grpc/CategoryGrpcService.cs",
+        "lines": "113–137, 155–163",
+        "supplemental": true,
+        "observation": "CONT035001"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/CreateCategory/CreateCategoryCommandHandler.cs",
+        "lines": "33–47, 66–70",
+        "observation": "CONT035001"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Domain/Entities/Category.cs",
+        "lines": "21–34",
+        "observation": "CONT035001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
+        "lines": "15–28",
+        "supplemental": true,
+        "observation": "CONT035001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs",
+        "lines": "28–34, 66–92",
+        "supplemental": true,
+        "observation": "CONT035001"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Api/Program.cs",
+        "lines": "83–86, 189–206",
+        "supplemental": true,
+        "observation": "CONT035001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/CategoryApi/Grpc/CategoryGrpcServiceTests.cs",
+        "lines": "128–154",
+        "supplemental": true,
+        "observation": "CONT035001"
+      }
+    ],
+    "trigger": "Вызвать CreateCategory по gRPC с корректным синтетическим x-service-key и непустым валидным request.UserId, без bearer JWT.",
+    "impact": "Interceptor проверяет только service key. Обработчик получает Guid.Empty из HttpContext, игнорирует командный UserId, домен прерывает создание до INSERT, а адаптер возвращает Internal. Рабочий production caller для create по gRPC не найден.",
+    "fix": "Зафиксировать контракт RPC в T04/T07. Для поддерживаемого service-to-service create передавать явно авторизованный owner через отдельный доверенный путь. Если RPC исключён из поддерживаемых вызовов, явный отказ должен быть согласован как изменение контракта.",
+    "tests": [
+      "В изолированном Category host с реальным MediatR и временным PostgreSQL вызвать RPC с синтетическим service key и валидным owner без bearer. Проверить текущий Internal и ноль созданных строк. Добавить сравнение с HTTP POST, в котором присланный body UserId игнорируется."
+    ],
+    "dependencies": [
+      "T07"
+    ],
+    "limitations": "Static review CONT035001; runtime NOT_VERIFIED. See results/evidence/read-035-review.json."
+  },
+  {
+    "id": "BE-019",
+    "title": "Color-only Category PUT clears the current icon",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T04",
+    "evidence": [
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/UpdateCategory/UpdateCategoryCommand.cs",
+        "lines": "5–11",
+        "observation": "CONT035002"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/UpdateCategory/UpdateCategoryCommandValidator.cs",
+        "lines": "9–30",
+        "observation": "CONT035002"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/UpdateCategory/UpdateCategoryCommandHandler.cs",
+        "lines": "36–62",
+        "supplemental": true,
+        "observation": "CONT035002"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Domain/Entities/Category.cs",
+        "lines": "64–70",
+        "observation": "CONT035002"
+      },
+      {
+        "path": "docs/API.md",
+        "lines": "705–706",
+        "supplemental": true,
+        "observation": "CONT035002"
+      },
+      {
+        "path": "frontend/src/app/(app)/categories/page.tsx",
+        "lines": "156–175",
+        "supplemental": true,
+        "observation": "CONT035002"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/CategoryApi/Handlers/UpdateCategoryCommandHandlerTests.cs",
+        "lines": "18–63",
+        "supplemental": true,
+        "observation": "CONT035002"
+      }
+    ],
+    "trigger": "Создать категорию владельца с иконкой, затем выполнить авторизованный PUT с CSRF и единственным полем color.",
+    "impact": "Icon по умолчанию null и UpdateAppearance присваивает его существующей категории. При успешном commit результат и сохранённая запись теряют иконку. Штатный автосейв передаёт оба поля.",
+    "fix": "В T04 сохранить прежнее значение при пропуске icon и отдельно зафиксировать контракт явной очистки. Проверить UI-путь, отправляющий icon, включая null, и не менять остальные optional поля.",
+    "tests": [
+      "В изолированном HTTP и PostgreSQL сценарии проверить цвет и иконку в ответе и повторном GET. Отдельные случаи должны различать пропуск icon, отправку новой иконки и явный null согласно согласованной семантике очистки."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT035002; runtime NOT_VERIFIED. See results/evidence/read-035-review.json."
   }
 ]

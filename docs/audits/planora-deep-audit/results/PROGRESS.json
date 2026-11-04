@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
+  "current_sha": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -154,7 +154,9 @@
     "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthFriendshipPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t02-friendship-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-friendship-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-035-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-035-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -174,9 +176,10 @@
     "T08 implemented after the prerequisite checkpoint; final broad tests and all ten Migrator/restore cases pass in owned fixtures.",
     "T02 session and hash slice: BE-003/BE-004/BE-013 verified, with per-user PostgreSQL rotate/replay lock and bounded PBKDF2 metadata.",
     "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open.",
-    "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary."
+    "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary.",
+    "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending."
   ],
-  "next_step": "Run PostgreSQL RED for old-password login vs completed password reset, with and without rehash. Preserve BE-016 failing scenario for a separate fix.",
+  "next_step": "Old-password login PostgreSQL RED reproduced in both rehash variants. Validate the guarded login commit. BE-016 requires serialized avatar publication and cleanup.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2142,9 +2145,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 73,
+    "pending_batches": 72,
     "complete": false,
-    "current_read_or_reviewed": 405,
+    "current_read_or_reviewed": 430,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2152,7 +2155,8 @@
       "READ-033",
       "READ-040",
       "READ-012",
-      "READ-034"
+      "READ-034",
+      "READ-035"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2195,7 +2199,9 @@
     "results/evidence/read-034-review.md",
     "results/evidence/t02-session-verification.json",
     "results/evidence/t02-one-time-verification.json",
-    "results/evidence/t02-friendship-verification.json"
+    "results/evidence/t02-friendship-verification.json",
+    "results/evidence/read-035-review.json",
+    "results/evidence/read-035-review.md"
   ],
   "local_commits": [
     {
@@ -2237,6 +2243,11 @@
       "task": "T02 recovery, reset, login history and readiness checkpoint",
       "sha": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
       "pushed": false
+    },
+    {
+      "task": "T02 friendship pair checkpoint",
+      "sha": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2277,6 +2288,8 @@
     "BE-015",
     "OPS-013",
     "BE-016",
-    "BE-017"
+    "BE-017",
+    "BE-018",
+    "BE-019"
   ]
 }

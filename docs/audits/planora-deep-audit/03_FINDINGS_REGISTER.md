@@ -987,3 +987,14 @@ unverified. T02/T14 own the dedicated durable store and migration rehearsal.
 
 The reviewed paths establish the ordering and configuration mismatch. Provider
 and filesystem regressions remain open. [READ-034](results/evidence/read-034-review.md)
+
+## READ-035 — Category commands and caller identity
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| BE-018 | P2 | CONFIRMED, static | A service-key gRPC create passes an owner ID that the real handler ignores. T04 and T07 verify the call without bearer JWT and preserve the owner boundary for HTTP create. |
+| BE-019 | P2 | CONFIRMED, static | A color-only PUT clears an existing icon. T04 verifies omitted, replaced and explicitly cleared icon values against a disposable database. |
+
+Three additional Category RPCs omit the request cancellation token in
+MediatR calls. They extend DIST-011. The review did not execute the RPC or
+HTTP scenarios. [READ-035](results/evidence/read-035-review.md)
