@@ -1,0 +1,510 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-036",
+  "reviewed_date_local": "2026-11-04",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read035",
+  "source_head": "6feea16f939affdaf14ab533bebd35f247645512",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 1067,
+  "source_changes": [],
+  "files": [
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/DesignTime/CategoryDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 38"
+      ],
+      "line_count": 38,
+      "sha256": "cb0a751edf495b0566094548ec0a680745bf681c343f1b29a593e528c0490cdd",
+      "purpose_and_callers": "EF design-time factory for CategoryDbContext. Loads optional appsettings relative to current working directory, then env overrides, then fallback.",
+      "trust_state_errors_concurrency": "Constructs Npgsql options without opening a connection. Dispatcher stub completes synchronously without side effects. A fallback connection literal exists and was masked. EF design time and the runtime migrator have separate entry points.",
+      "test_evidence": "DesignTimeDbContextFactoryTests.cs:84 onward checks factory selection by source. T08 provides versioned schema and migrator evidence.",
+      "conclusion": "BE-017 concerns runtime provisioning. No migration command was executed.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 27"
+      ],
+      "line_count": 27,
+      "sha256": "6c4d88cf52d17a499e17aa0b1d94ac178fa4d3c40c11f9928e0cec64bf7c516f",
+      "purpose_and_callers": "Global imports for Category Infrastructure repositories, EF, configuration and DI.",
+      "trust_state_errors_concurrency": "Compile-time scope only. Both the Category-specific user interface and shared domain interface imports are present. Runtime registrations qualify the shared persistence interface.",
+      "test_evidence": "Cross-checked DependencyInjection and CurrentUserService declarations.",
+      "conclusion": "No executable behavior.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryUnitOfWork.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 70"
+      ],
+      "line_count": 70,
+      "sha256": "c65f4edfb797d22afb6a8e4fa4e18ef52592c297355afdcf5f4e2f7b01cff942",
+      "purpose_and_callers": "Alternative Category IUnitOfWork with explicit begin, commit, rollback and sync/async disposal.",
+      "trust_state_errors_concurrency": "Save delegates to CategoryDbContext, so current dispatch order still applies. Commit always calls SaveChanges before committing the explicit transaction. Commit/rollback dispose in finally and clear the field. Begin overwrites the field after a successful Begin. No current production DI registration found.",
+      "test_evidence": "UnitOfWorkTransactionTests.cs:47 onward instantiates this implementation directly. Category Infrastructure DI registers UnitOfWork instead.",
+      "conclusion": "Do not infer that the production Category handlers run inside this transaction wrapper.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 52"
+      ],
+      "line_count": 52,
+      "sha256": "d33cbb511001132504c184e86d0c47e35da68aa699cb9c97c8b590d6680a5c3b",
+      "purpose_and_callers": "Category OutboxMessages EF model and polling/retention indexes.",
+      "trust_state_errors_concurrency": "Status stored as string, Type width 255, Error width 2000, retry count default zero. Partial index covers Pending/Failed, alongside status/time and processed-time indexes. The model does not serialize competing drainers.",
+      "test_evidence": "EfModelConfigurationTests.cs:112 onward and T08 chain evidence. DIST-009 remains a process topology gate.",
+      "conclusion": "Check execution plan and actual deployed schema separately from model inspection.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Persistence/UnitOfWork.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 49"
+      ],
+      "line_count": 49,
+      "sha256": "657aed093dd2ffe4dfb2e143ac935aba8aed48728fab25bdb87052607361b4a7",
+      "purpose_and_callers": "Production Category IUnitOfWork registered by Infrastructure DI.",
+      "trust_state_errors_concurrency": "SaveChanges delegates to CategoryDbContext. Normal handlers call SaveChanges without starting its optional transaction. Explicit commit/rollback clear the transaction only on success. Scope disposal still disposes the held handle.",
+      "test_evidence": "DependencyInjectionContractTests.cs:249 onward and UnitOfWorkTransactionTests source. No Npgsql explicit transaction exercise in this batch.",
+      "conclusion": "BE-001 remains an atomic write boundary issue, not a DI mismatch.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Planora.Category.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 29"
+      ],
+      "line_count": 29,
+      "sha256": "9e4e5364f745926adfe78922e7ec8ffdbd6b2875f1f06221ceb7bcb7b0fe446a",
+      "purpose_and_callers": "Category Infrastructure net10.0 package/project manifest.",
+      "trust_state_errors_concurrency": "Declares EF Core Design as PrivateAssets, Npgsql, gRPC, Redis and EF health-check packages, plus local Category/shared/GrpcContracts references. Compile/restore concerns only.",
+      "test_evidence": "Compared project graph and T08 migration evidence. No restore or package inspection rerun.",
+      "conclusion": "T12 owns dependency findings.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CategoryApi/Planora.Category.Infrastructure/Services/CurrentUserService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 41"
+      ],
+      "line_count": 41,
+      "sha256": "a03ef76edc4328511350be17112864597433909b06af92c19c23db1fe4f10538",
+      "purpose_and_callers": "Category adapter for the shared persistence ICurrentUserService.",
+      "trust_state_errors_concurrency": "Read-only HTTP identity/metadata accessor. Prefers NameIdentifier over sub and returns nullable ID. Extracts email, remote IP, user agent and roles. Category command handlers instead take the shared ICurrentUserContext, which has different claim precedence.",
+      "test_evidence": "DependencyInjectionContractTests.cs:249 onward checks registration. CONT035001 previously traced actual create ownership.",
+      "conclusion": "Presence of an adapter does not make the gRPC service key a user principal.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 104"
+      ],
+      "line_count": 104,
+      "sha256": "e69b1e9f4620306851546ea54c646d689d0457129a6de445afa699a94aa34c8c",
+      "purpose_and_callers": "Bearer-protected REST controller for GET/POST/PUT/DELETE branch comments. Route IDs feed MediatR; optional reply carries type and ID only.",
+      "trust_state_errors_concurrency": "Sends the HTTP cancellation token. Successful responses are 200/201/200/204, explicit failed Result is 400, thrown domain authorization/not-found/downstream errors use global middleware. Todo access is in handlers. Delete's author-versus-current-access asymmetry is already AZ-03. GET returns page totals used directly by clients.",
+      "test_evidence": "CommentCommandHandlerTests covers author/branch permissions with mocks. Docs/API.md:1333–1409 and 1447–1454 describe actual statuses and asymmetry.",
+      "conclusion": "A multi-page contract must keep totals coherent while rendering the Author's Note only on the first page.",
+      "finding_ids": [
+        "CONT036003"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 42"
+      ],
+      "line_count": 42,
+      "sha256": "1cfa7b8d6ee98264f8415bcfb55e56f3a37c2593621612dcdd337470ac6de95c",
+      "purpose_and_callers": "Multi-stage Linux .NET 10 Docker image for Collaboration API.",
+      "trust_state_errors_concurrency": "Copies shared and service project manifests, restores, then copies source and builds/publishes Release. Installs curl and runs final process as non-root appuser. Image healthcheck uses aggregate /health on port 80; Compose/Fly use separately configured checks. No deploy secrets embedded in this Dockerfile.",
+      "test_evidence": "T08 Docker context proof verifies allowlisted migration sources, not a complete image build. T14 deployment smoke remains open.",
+      "conclusion": "Separate Dockerfile, Compose and Fly effective probes during rollout.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 10"
+      ],
+      "line_count": 10,
+      "sha256": "1e19babb5dc227d22995e30b6876a3d99db7b1b83621a0f3ea6f2568e90bbff5",
+      "purpose_and_callers": "API global imports for ASP.NET MVC, auth, MediatR, validation and logging.",
+      "trust_state_errors_concurrency": "Compile-time aliases only. Authentication policy and middleware order are configured by Program.",
+      "test_evidence": "Compared use by Program and CommentsController. Build not run.",
+      "conclusion": "No runtime gate specific to imports.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 39"
+      ],
+      "line_count": 39,
+      "sha256": "2d8f7395a4bfb0c1493f266315f9c4abf3be98d7ebf342c20ce456b9fa6821ec",
+      "purpose_and_callers": "Collaboration API net10.0 Web SDK project with Linux Docker target, user-secrets identifier, and local references.",
+      "trust_state_errors_concurrency": "Identity is an identifier for development secrets storage, not secret content. EF Design private assets, bearer auth, Swagger, MediatR, validation and telemetry packages are declared.",
+      "test_evidence": "Package references and project paths checked. No secrets store, restore or build accessed.",
+      "conclusion": "T12 and T14 own dependency and image provenance.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 227"
+      ],
+      "line_count": 227,
+      "sha256": "b723619450fa8dd22d4a22f5f1829557477da5b49240923270f9ad1da3f177cc",
+      "purpose_and_callers": "Collaboration composition root for HTTP, migrations, dependency waits, five inbox subscriptions, authorization and health.",
+      "trust_state_errors_concurrency": "JWT revocation, authenticated rate limiting and CSRF precede controllers. Non-Testing startup provisions a fixed DB name, waits for Redis, applies T08 guarded migration and subscribes with stable T05 IDs. Redis probe resolves different inputs than shared runtime. Shared Database is tagged ready from T01. Failures reach outer fatal path.",
+      "test_evidence": "ReadinessContractTests.cs:24 onward checks shared registration. T05 verifies real disposable broker routing; T08 verifies migration chain. No Collaboration host started here.",
+      "conclusion": "Extend BE-017 to this startup. Redis config resolution has its own gate. Effective listeners, drainer count and deployment smoke remain T14.",
+      "finding_ids": [
+        "CONT036001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/Properties/launchSettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 24"
+      ],
+      "line_count": 24,
+      "sha256": "3ac9eec57aac80616c67202202721863a416f3d36a514ece31f7aeeba8832901",
+      "purpose_and_callers": "Development launch profile for the Collaboration host.",
+      "trust_state_errors_concurrency": "Declares environment, listener, DB and Redis/Rabbit/JWT config keys. String values masked. REDIS_CONNECTION is not read by this Program waiter or shared Redis configuration path. Profile is not evidence of effective deployed config.",
+      "test_evidence": "Compared declared keys with Program and shared Infrastructure registration. Launch profile not executed.",
+      "conclusion": "Local execution matrix should compare config key precedence, with no production resource use.",
+      "finding_ids": [
+        "CONT036001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.Docker.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 36"
+      ],
+      "line_count": 36,
+      "sha256": "864944726221221102c816f5ebaec3221dbde58757be2eab0c71d850570b556a",
+      "purpose_and_callers": "Docker environment appsettings overlay for the Collaboration host.",
+      "trust_state_errors_concurrency": "Declares named DB and Redis connections, JWT and broker keys, Todo/Auth URLs and an HTTP endpoint. String values masked. Keys form an overlay; effective values depend on environment and overrides.",
+      "test_evidence": "Compared with Program and Collaboration Infrastructure DI. No container launch or env interpolation.",
+      "conclusion": "Verify effective Docker listener and Redis source in T14.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 53"
+      ],
+      "line_count": 53,
+      "sha256": "68e7d806950beaf8ad96da546aec932ec89e00a7e19687de4b7788f0af1216e4",
+      "purpose_and_callers": "Base Collaboration appsettings for logging, DB, Redis, broker, cache, REST, JWT, CORS, gRPC clients and health.",
+      "trust_state_errors_concurrency": "Base declares Redis:Configuration while startup waiter looks only at named Redis connection or fallback. Shared cache and stamp DI include Redis:Configuration. Values masked. CORS and gRPC config consumed through Program and Infrastructure.",
+      "test_evidence": "Compared key paths, no effective configuration materialized. A runtime probe requires disposable Redis plus PostgreSQL.",
+      "conclusion": "T14 should prove startup and runtime target the same configured endpoint.",
+      "finding_ids": [
+        "CONT036001"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Common/OutboxExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 28"
+      ],
+      "line_count": 28,
+      "sha256": "001a149dd727f275d29cf4fca8b9d6bba1a76dd7581da82f132617f4d49269d5",
+      "purpose_and_callers": "Collaboration helper serializes an integration event into an OutboxMessage and calls AddAsync.",
+      "trust_state_errors_concurrency": "Uses assembly-qualified event type and runtime JSON type. Existing AddAsync is save-through. Comment Add/Update/Delete call this after owner SaveChanges, and Add fans out separate notification writes. Known BE-002.",
+      "test_evidence": "CommentCommandHandlerTests.cs:26–45 checks expected interactions with mocks. T01 OutboxStagingContractTests defines compatible StageAsync. No staged-commit provider test run in this review.",
+      "conclusion": "T03 should stage a complete durable set before one owner save.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/DTOs/CommentDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 40"
+      ],
+      "line_count": 40,
+      "sha256": "0c3cf504d297d607ee7233c0601cca96ad09d877d19dee7d1b5b045cc41f26ae",
+      "purpose_and_callers": "Comment timeline DTO shared by GET/POST/PUT, keeping TodoItemId for wire compatibility.",
+      "trust_state_errors_concurrency": "Plain comments have null/false reply fields. A reply includes target and quoted-author metadata. GET refreshes live comment excerpts, then falls back to snapshots when targets disappear. UserDeleted cleanup currently leaves copies in other authors' replies. T08 owns persisted reply columns.",
+      "test_evidence": "CommentCommandHandlerTests.cs:74–200, 295 onward covers reply creation/response. No account-deletion snapshot test found in inspected scope.",
+      "conclusion": "Distinguish ordinary target deletion from account erasure and preserve unrelated replies.",
+      "finding_ids": [
+        "CONT036002"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 41"
+      ],
+      "line_count": 41,
+      "sha256": "3dc854dbbfc36bde33a7d143060b58d27ad6ef3b618aa5aa06504d389cc2ab94",
+      "purpose_and_callers": "Collaboration application registrations for CQRS behaviors, validation, mapping and inbox handlers.",
+      "trust_state_errors_concurrency": "Logging/validation/performance behavior order is explicit. Scoped five consumer types are registered; queue bindings are established by Program with stable IDs. Registration alone gives no delivery or atomicity proof.",
+      "test_evidence": "IntegrationEventConsumerTests.cs:23–201 exercise handler behavior by source. T05 transport evidence is separate.",
+      "conclusion": "Known BE-006 cleanup uses titles. Full account-erasure scope remains wider than message delivery.",
+      "finding_ids": [
+        "CONT036002"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Exceptions/ExternalServiceUnavailableException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 25"
+      ],
+      "line_count": 25,
+      "sha256": "2a5ff8014d6859841fb9e28561ade30f2d6c9c0b4eb42d9c9812ac6c64b0fd2d",
+      "purpose_and_callers": "DomainException carrying downstream service and operation names.",
+      "trust_state_errors_concurrency": "Category ServiceUnavailable is mapped by shared error middleware to 503. Required Todo access and subtask verification wrap RPC errors and fail closed. Optional Auth profile adapter uses an empty result fallback and does not invoke this exception on that path.",
+      "test_evidence": "TaskAccessGrpcClient.cs:63–75,97–108 and UserGrpcService.cs:50–63 show current call paths. No real downstream failure injected.",
+      "conclusion": "Preserve distinction between access authority and optional enrichment.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 18"
+      ],
+      "line_count": 18,
+      "sha256": "a98563b5b2f9f7e9004c46aaff12a5bda8e07999cef94a9d6e584ab8984b4cee",
+      "purpose_and_callers": "AddComment command receives task, content, optional reply type and ID from REST.",
+      "trust_state_errors_concurrency": "The client supplies no author ID or excerpt. Handler checks current Todo access and server-resolves same-branch user comments or parent-scoped subtasks. Reply quote capture precedes save. Save and subsequent sync/notification writes have separate boundaries (BE-002).",
+      "test_evidence": "CommentCommandHandlerTests.cs:26–200 checks access, reply target scoping and snapshots with mocks.",
+      "conclusion": "Account deletion must account for the stored snapshots created on this path.",
+      "finding_ids": [
+        "CONT036002"
+      ]
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 31"
+      ],
+      "line_count": 31,
+      "sha256": "9fe866ac1ad67253db06baa39803562d67d3b6234deb72ef343ed617615a7d2f",
+      "purpose_and_callers": "FluentValidation rules for add command, registered through MediatR.",
+      "trust_state_errors_concurrency": "Requires nonempty TaskId/content, max 2000, case-insensitive comment/subtask reply type and paired nonempty reference ID/type. Existence, authorization and branch match are checked by the handler after validation.",
+      "test_evidence": "CommentTests.cs:35–85 covers domain content limits. Handler tests cover eligible reply types and cross-branch denial. No HTTP validation run.",
+      "conclusion": "Binding validates shape before the domain snapshot check.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/DeleteComment/DeleteCommentCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 7"
+      ],
+      "line_count": 7,
+      "sha256": "f8f9f263649578f69e45c19b0df3620fbc35bc5cfb8711ed814c89cecf3e3dc6",
+      "purpose_and_callers": "Delete command carries task and comment route IDs to MediatR.",
+      "trust_state_errors_concurrency": "Handler loads tracked comment, matches branch, forbids ordinary system comments and tests author/task-owner identity. Task existence is checked. Existing AZ-03 records omission of HasAccess for revoked authors. Saves soft-delete before outbox sync (BE-002).",
+      "test_evidence": "CommentCommandHandlerTests.cs:202–244 covers system/author/stranger cases. The revoked-author case is already documented in security-idor-coverage.md.",
+      "conclusion": "Existing authorization asymmetry and atomicity are linked without new IDs.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 8"
+      ],
+      "line_count": 8,
+      "sha256": "25cce0333308ee828e2eaafe83df5ec933c86a88a0375493082ddea8dc9d7b3e",
+      "purpose_and_callers": "Update command carries task/comment route IDs plus user text.",
+      "trust_state_errors_concurrency": "Handler validates branch match and live Todo access; domain enforces author and regular-comment mutation. Saves update, then separately enqueues sync, then enriches response. xmin is tracked on load.",
+      "test_evidence": "CommentCommandHandlerTests.cs:246–320 covers successful, revoked access, wrong-task and reply response scenarios.",
+      "conclusion": "BE-002 covers split write; preserve current authorization and reply response.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 16"
+      ],
+      "line_count": 16,
+      "sha256": "870c608a7c40a89b23cad6c05a0e4f37ae5580b2f98ba298ebd4f1d5d769f918",
+      "purpose_and_callers": "FluentValidation on UpdateComment command.",
+      "trust_state_errors_concurrency": "Requires both IDs and nonempty text of at most 2000 characters. Domain repeats content and ownership checks. No external calls in validator.",
+      "test_evidence": "UpdateCommentCommandValidatorTests.cs:18–44 exercises exact length and rejection cases.",
+      "conclusion": "No new validator regression identified.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 12"
+      ],
+      "line_count": 12,
+      "sha256": "8bdd2db10f954d26dbe56a72b4f127a5e69707076282e4ce482b4e3ef7c4acb5",
+      "purpose_and_callers": "GetComments query envelope with page number default 1 and page size default 50.",
+      "trust_state_errors_concurrency": "Handler checks live task access then reads a filtered comment page. Shared normalization caps size but leaves large positive page values, so current repository Skip can overflow Int32 (BE-008 analogue). Separately, first-page Author's Note changes TotalCount across pages and the UI drops the final item at certain boundaries.",
+      "test_evidence": "GetCommentsQueryHandler.cs:34–55,182–184 and CommentRepository.cs:19–39 establish source path. Frontend worker-and-comments test at line 492 covers the load-more interaction using a mocked page shape.",
+      "conclusion": "Add a provider count/page test plus both branch UI consumers with a description present.",
+      "finding_ids": [
+        "CONT036003"
+      ]
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT036001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Collaboration проверяет Redis при запуске по другим настройкам, чем runtime",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+          "lines": "108–114"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.json",
+          "lines": "13–15"
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+          "lines": "41–60, 88–97",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+          "lines": "109–118, 133–161",
+          "supplemental": true
+        }
+      ],
+      "trigger": "В изолированной конфигурации задать только Redis:Configuration на тестовый Redis с отдельным адресом. ConnectionStrings:Redis отсутствует.",
+      "impact": "Cache и multiplexer для security stamp получают тестовый адрес из Redis:Configuration, а обязательный startup waiter проверяет localhost. При пустом fallback endpoint процесс исчерпывает попытки до старта. Доступный посторонний fallback endpoint может дать ложное подтверждение готовности.",
+      "repro": "Использовать два контролируемых endpoint в изолированной среде. Оставить доступным только Redis:Configuration, проверить, что startup соединяется именно с ним. Добавить сценарий приоритета именованной строки подключения и ложного успеха на другом Redis.",
+      "fix": "Передать одинаковый результат разрешения Redis-конфигурации в startup waiter, cache/stamp DI и health. Передать T09/T14 матрицу для Collaboration, Auth, Category, Todo и Messaging, где найден аналогичный fallback."
+    },
+    {
+      "id": "CONT036002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Удаление аккаунта оставляет цитату и имя пользователя в ответах других авторов",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/DTOs/CommentDto.cs",
+          "lines": "23–38"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+          "lines": "66–73, 137–159",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/UserDeletedEventConsumer.cs",
+          "lines": "29–46",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+          "lines": "56–69, 95–108",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+          "lines": "44–52",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+          "lines": "128–158, 173–179",
+          "supplemental": true
+        }
+      ],
+      "trigger": "A оставляет комментарий в доступной B ветке. B отвечает с цитатой A. После UserDeleted для A открывается та же ветка как B или другой разрешённый участник.",
+      "impact": "Consumer скрывает исходные комментарии A, но не меняет строки B. В живом ответе сохраняются ReplyToAuthorId, snapshot-имя и excerpt. GET возвращает snapshot при отсутствии исходной строки и Auth-профиля, в том числе после физического удаления исходного комментария. Успешная доставка T05 не закрывает эти производные данные.",
+      "repro": "На PostgreSQL с двумя синтетическими авторами создать исходное сообщение и ответ, обработать UserDeleted дважды, очистить профильный кеш в fixture и прочитать ветку. Проверить сохранение текста B и судьбу цитаты, включая повтор после retention purge исходной строки.",
+      "fix": "Согласовать в T02/T03 требуемую политику для копий при удалении аккаунта. Проверять атомарную идемпотентную обработку производных полей отдельно от удаления одного комментария, где сохранение snapshot задокументировано."
+    },
+    {
+      "id": "CONT036003",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Заметка автора меняет TotalCount между страницами и скрывает последнюю страницу",
+      "evidence": [
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+          "lines": "30–42"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQuery.cs",
+          "lines": "8–11"
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+          "lines": "48–55, 91–109, 182–184",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+          "lines": "19–39",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs",
+          "lines": "5–25",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/components/todos/task-comments.tsx",
+          "lines": "44–50, 70–77",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+          "lines": "452–460, 526–528, 599–601",
+          "supplemental": true
+        }
+      ],
+      "trigger": "В ветке есть Author’s Note и ровно 101 обычный комментарий. Клиент загружает страницы по 50 обычных комментариев.",
+      "impact": "На первой странице totalCount равен 102. На второй он падает до 101, хотя набор данных прежний. Клиент хранит заметку с первой страницы и вычитает её из нового значения. После 100 обычных элементов выражение 100 < 100 ложно, поэтому кнопка загрузки третьей страницы скрывается.",
+      "repro": "На неизменяемом наборе с заметкой проверить GET страниц 1/2/3 и отсутствие ложной следующей страницы для ровно 50 обычных комментариев. В обоих клиентах загрузить 101 обычный комментарий и проверить доступность последнего через Load more.",
+      "fix": "Развести счётчик пагинируемых комментариев и показ заметки либо согласованно закрепить стабильные metadata. Изменение backend и чтение frontend проверять вместе, сохранив синтез заметки только на первой странице."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Охват включает только 25 manifest paths. Дополнительные пути вызова, тесты и документы в счётчик не входят.",
+    "SHA-256 вычислены по байтам рабочего дерева. Diff по READ-036 к снимку пуст.",
+    "Строковые значения конфигурации и резервная строка подключения скрыты. Рабочие env-файлы, user secrets и auth/credentials не загружались.",
+    "Build, unit/provider tests, Docker image, Collaboration host, RabbitMQ, PostgreSQL, Redis и браузер не запускались.",
+    "BE-002 и BE-006 подтверждены на прежних путях. Фиксированный DB target Collaboration расширяет BE-017. CommentRepository:19–39 использует тот же Int32 offset, что BE-008. AZ-03 уже описывает удаление автором после отзыва доступа.",
+    "Проверенные отдельно T05 stable subscriptions и T08 миграции не подтверждают production rollout. Эффективные listener, health, Redis и drainer topology остаются воротами T14."
+  ]
+}

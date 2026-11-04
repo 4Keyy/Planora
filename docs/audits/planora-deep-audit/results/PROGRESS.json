@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "6feea16f939affdaf14ab533bebd35f247645512",
+  "current_sha": "d4f37674c4ae55f5879448958f08cd3a1ebb6542",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -157,7 +157,9 @@
     "docs/audits/planora-deep-audit/results/evidence/t02-friendship-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-035-review.json",
     "docs/audits/planora-deep-audit/results/evidence/read-035-review.md",
-    "docs/audits/planora-deep-audit/results/evidence/t02-login-reset-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-login-reset-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-036-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-036-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -179,7 +181,8 @@
     "T02 BE-008/BE-011/BE-012 and Auth DbContext readiness verified. Corrected legacy wiring test endpoint that could contact working Redis. BE-016 disposable RED reproduced; remedy open.",
     "BE-014 PostgreSQL RED 5, isolated GREEN 68 and broad 1459, zero skips. Unordered-pair lock coordinates the two application writers; no schema change or historical data cleanup. Outgoing email listing privacy is a separate boundary.",
     "READ-035 completed 25 Category paths, 699 source lines. Added BE-018 and BE-019 with pending runtime gates and extended DIST-011. Current source review coverage 430/1558, 72 batches pending.",
-    "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips."
+    "BE-020 fixed with verified credential snapshot and advisory/owner/session lock order. PostgreSQL RED 2, Auth GREEN 465, broad 1461 and ErrorHandling 94, zero skips.",
+    "READ-036 completed 25 paths and 1067 source lines. OPS-014 Redis endpoint parity, BE-021 derived reply erasure and BE-022 author-note count are static findings pending runtime. Coverage 455/1558, 71 batches pending."
   ],
   "next_step": "Verify BE-016 avatar publication and lock behavior. Reproduce persisted refresh survival in ChangePassword and RevokeAllSessions.",
   "commands": [
@@ -2199,9 +2202,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 72,
+    "pending_batches": 71,
     "complete": false,
-    "current_read_or_reviewed": 430,
+    "current_read_or_reviewed": 455,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2210,7 +2213,8 @@
       "READ-040",
       "READ-012",
       "READ-034",
-      "READ-035"
+      "READ-035",
+      "READ-036"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2256,7 +2260,9 @@
     "results/evidence/t02-friendship-verification.json",
     "results/evidence/read-035-review.json",
     "results/evidence/read-035-review.md",
-    "results/evidence/t02-login-reset-verification.json"
+    "results/evidence/t02-login-reset-verification.json",
+    "results/evidence/read-036-review.json",
+    "results/evidence/read-036-review.md"
   ],
   "local_commits": [
     {
@@ -2308,6 +2314,11 @@
       "task": "READ-035 Category command and owner review",
       "sha": "6feea16f939affdaf14ab533bebd35f247645512",
       "pushed": false
+    },
+    {
+      "task": "T02 login/reset credential generation",
+      "sha": "d4f37674c4ae55f5879448958f08cd3a1ebb6542",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2351,6 +2362,9 @@
     "BE-017",
     "BE-018",
     "BE-019",
-    "BE-020"
+    "BE-020",
+    "OPS-014",
+    "BE-021",
+    "BE-022"
   ]
 }

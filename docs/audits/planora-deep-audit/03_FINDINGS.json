@@ -1573,6 +1573,11 @@
         "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
         "lines": "345-361",
         "observation": "Authenticated bound query returns page result."
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "lines": "19-39",
+        "observation": "READ-036 traces the equivalent Int32 offset in Collaboration. The Auth fix does not cover this path."
       }
     ],
     "trigger": "Authenticated me/login-history request with PageNumber=2147483647 and PageSize=100.",
@@ -2070,6 +2075,11 @@
         "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
         "lines": "23–53, 63–101",
         "supplemental": true
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+        "lines": "104",
+        "observation": "READ-036 also traces the fixed Collaboration startup database target."
       }
     ],
     "trigger": "В ConnectionStrings:CategoryDatabase указана отсутствующая БД с отличающимся именем и запускается обычный startup.",
@@ -2240,5 +2250,166 @@
       "note": "Two deterministic PostgreSQL RED and GREEN outcomes. Broad 1461 and ErrorHandling 94 without skips."
     },
     "limitations": "Focused verification uses a stamp mock. Other authenticated revocation paths and prior-policy deployment are separate gates."
+  },
+  {
+    "id": "OPS-014",
+    "title": "Collaboration startup and runtime can resolve different Redis endpoints",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs",
+        "lines": "108–114",
+        "observation": "CONT036001"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/appsettings.json",
+        "lines": "13–15",
+        "observation": "CONT036001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+        "lines": "41–60, 88–97",
+        "supplemental": true,
+        "observation": "CONT036001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs",
+        "lines": "109–118, 133–161",
+        "supplemental": true,
+        "observation": "CONT036001"
+      }
+    ],
+    "trigger": "В изолированной конфигурации задать только Redis:Configuration на тестовый Redis с отдельным адресом. ConnectionStrings:Redis отсутствует.",
+    "impact": "Cache и multiplexer для security stamp получают тестовый адрес из Redis:Configuration, а обязательный startup waiter проверяет localhost. При пустом fallback endpoint процесс исчерпывает попытки до старта. Доступный посторонний fallback endpoint может дать ложное подтверждение готовности.",
+    "fix": "Передать одинаковый результат разрешения Redis-конфигурации в startup waiter, cache/stamp DI и health. Передать T09/T14 матрицу для Collaboration, Auth, Category, Todo и Messaging, где найден аналогичный fallback.",
+    "tests": [
+      "Использовать два контролируемых endpoint в изолированной среде. Оставить доступным только Redis:Configuration, проверить, что startup соединяется именно с ним. Добавить сценарий приоритета именованной строки подключения и ложного успеха на другом Redis."
+    ],
+    "dependencies": [
+      "T09"
+    ],
+    "limitations": "Static review CONT036001; runtime NOT_VERIFIED. See results/evidence/read-036-review.json."
+  },
+  {
+    "id": "BE-021",
+    "title": "Reply snapshots retain personal data after account erasure",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/DTOs/CommentDto.cs",
+        "lines": "23–38",
+        "observation": "CONT036002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+        "lines": "66–73, 137–159",
+        "supplemental": true,
+        "observation": "CONT036002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/UserDeletedEventConsumer.cs",
+        "lines": "29–46",
+        "supplemental": true,
+        "observation": "CONT036002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "lines": "56–69, 95–108",
+        "supplemental": true,
+        "observation": "CONT036002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs",
+        "lines": "44–52",
+        "supplemental": true,
+        "observation": "CONT036002"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+        "lines": "128–158, 173–179",
+        "supplemental": true,
+        "observation": "CONT036002"
+      }
+    ],
+    "trigger": "A оставляет комментарий в доступной B ветке. B отвечает с цитатой A. После UserDeleted для A открывается та же ветка как B или другой разрешённый участник.",
+    "impact": "Consumer скрывает исходные комментарии A, но не меняет строки B. В живом ответе сохраняются ReplyToAuthorId, snapshot-имя и excerpt. GET возвращает snapshot при отсутствии исходной строки и Auth-профиля, в том числе после физического удаления исходного комментария. Успешная доставка T05 не закрывает эти производные данные.",
+    "fix": "Согласовать в T02/T03 требуемую политику для копий при удалении аккаунта. Проверять атомарную идемпотентную обработку производных полей отдельно от удаления одного комментария, где сохранение snapshot задокументировано.",
+    "tests": [
+      "На PostgreSQL с двумя синтетическими авторами создать исходное сообщение и ответ, обработать UserDeleted дважды, очистить профильный кеш в fixture и прочитать ветку. Проверить сохранение текста B и судьбу цитаты, включая повтор после retention purge исходной строки."
+    ],
+    "dependencies": [
+      "T02",
+      "T05"
+    ],
+    "limitations": "Static review CONT036002; runtime NOT_VERIFIED. See results/evidence/read-036-review.json."
+  },
+  {
+    "id": "BE-022",
+    "title": "Author note makes comment pagination hide the final page",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs",
+        "lines": "30–42",
+        "observation": "CONT036003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQuery.cs",
+        "lines": "8–11",
+        "observation": "CONT036003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs",
+        "lines": "48–55, 91–109, 182–184",
+        "supplemental": true,
+        "observation": "CONT036003"
+      },
+      {
+        "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs",
+        "lines": "19–39",
+        "supplemental": true,
+        "observation": "CONT036003"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs",
+        "lines": "5–25",
+        "supplemental": true,
+        "observation": "CONT036003"
+      },
+      {
+        "path": "frontend/src/components/todos/task-comments.tsx",
+        "lines": "44–50, 70–77",
+        "supplemental": true,
+        "observation": "CONT036003"
+      },
+      {
+        "path": "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx",
+        "lines": "452–460, 526–528, 599–601",
+        "supplemental": true,
+        "observation": "CONT036003"
+      }
+    ],
+    "trigger": "В ветке есть Author’s Note и ровно 101 обычный комментарий. Клиент загружает страницы по 50 обычных комментариев.",
+    "impact": "На первой странице totalCount равен 102. На второй он падает до 101, хотя набор данных прежний. Клиент хранит заметку с первой страницы и вычитает её из нового значения. После 100 обычных элементов выражение 100 < 100 ложно, поэтому кнопка загрузки третьей страницы скрывается.",
+    "fix": "Развести счётчик пагинируемых комментариев и показ заметки либо согласованно закрепить стабильные metadata. Изменение backend и чтение frontend проверять вместе, сохранив синтез заметки только на первой странице.",
+    "tests": [
+      "На неизменяемом наборе с заметкой проверить GET страниц 1/2/3 и отсутствие ложной следующей страницы для ровно 50 обычных комментариев. В обоих клиентах загрузить 101 обычный комментарий и проверить доступность последнего через Load more."
+    ],
+    "dependencies": [
+      "T10"
+    ],
+    "limitations": "Static review CONT036003; runtime NOT_VERIFIED. See results/evidence/read-036-review.json."
   }
 ]

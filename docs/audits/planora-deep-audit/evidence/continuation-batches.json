@@ -767,8 +767,10 @@
       "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommandValidator.cs",
       "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQuery.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-036-review.json",
+    "notes": "25 full files and 1067 lines. Redis, erasure and pagination findings require separate runtime gates."
   },
   {
     "batch_id": "READ-037",

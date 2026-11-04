@@ -1006,3 +1006,15 @@ after password verification and completed a reset. Before the fix, login
 created a new active session in both variants and restored the old password
 in the rehash variant. The guarded transaction now rejects both attempts.
 [T02 evidence](results/T02.md)
+
+## READ-036 — Collaboration startup, erasure and pagination
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| OPS-014 | P2 | CONFIRMED, static | The Redis startup waiter and runtime can select different endpoints. Verify both configuration inputs in isolated services. |
+| BE-021 | P2 | CONFIRMED, static | Replies retain a deleted account's ID, name and quoted text. Verify derived data after account erasure while preserving ordinary comment deletion behavior. |
+| BE-022 | P2 | CONFIRMED, static | The author's note makes the total vary across comment pages. Verify the final page through the API and both comment views. |
+
+READ-036 also traced the Collaboration paths for fixed database provisioning
+and Int32 pagination offsets. Runtime verification remains open.
+[READ-036](results/evidence/read-036-review.md)
