@@ -1,3 +1,5 @@
+using Planora.Auth.Domain.Entities;
+
 namespace Planora.Auth.Domain.Repositories
 {
     public interface IAuthUnitOfWork : IUnitOfWork
@@ -11,5 +13,10 @@ namespace Planora.Auth.Domain.Repositories
         IPasswordHistoryRepository PasswordHistory { get; }
 
         IUserRecoveryCodeRepository RecoveryCodes { get; }
+
+        Task<bool> TryCommitLoginAsync(
+            RefreshToken session,
+            string? previousTokenHash,
+            CancellationToken cancellationToken = default);
     }
 }

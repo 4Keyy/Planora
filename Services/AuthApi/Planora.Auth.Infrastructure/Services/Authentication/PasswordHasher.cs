@@ -23,8 +23,9 @@ public sealed class PasswordHasher : IPasswordHasher
 
     // Current policy. Raise CurrentIterations to harden; old hashes keep verifying and are
     // flagged for rehash. OWASP's 2023 PBKDF2-HMAC-SHA512 floor is 210,000 iterations.
-    private const int CurrentVersion = 1;
+    private const string VersionMarker = "v=1";
     private const int CurrentIterations = 210_000;
+    private const int MaxSupportedIterations = 1_000_000;
 
     // Iteration count used by the pre-versioning format, kept solely for verifying legacy hashes.
     private const int LegacyIterations = 100_000;
@@ -39,15 +40,20 @@ public sealed class PasswordHasher : IPasswordHasher
         var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, CurrentIterations, Algorithm, HashSize);
 
         return string.Create(CultureInfo.InvariantCulture,
-            $"{Prefix}v={CurrentVersion}$i={CurrentIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}");
+            $"{Prefix}{VersionMarker}$i={CurrentIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}");
     }
 
     public bool VerifyPassword(string password, string passwordHash)
     {
         if (passwordHash.StartsWith(Prefix, StringComparison.Ordinal))
         {
-            var (iterations, salt, expected) = ParseVersioned(passwordHash);
-            var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algorithm, expected.Length);
+            Span<byte> salt = stackalloc byte[SaltSize];
+            Span<byte> expected = stackalloc byte[HashSize];
+            if (!TryParseVersioned(passwordHash, salt, expected, out var iterations))
+                return false;
+
+            Span<byte> actual = stackalloc byte[HashSize];
+            Rfc2898DeriveBytes.Pbkdf2(password, salt, actual, iterations, Algorithm);
             return CryptographicOperations.FixedTimeEquals(actual, expected);
         }
 
@@ -60,43 +66,36 @@ public sealed class PasswordHasher : IPasswordHasher
         if (!passwordHash.StartsWith(Prefix, StringComparison.Ordinal))
             return true;
 
-        var (version, iterations) = ParseParameters(passwordHash);
-        return version != CurrentVersion || iterations != CurrentIterations;
+        Span<byte> salt = stackalloc byte[SaltSize];
+        Span<byte> hash = stackalloc byte[HashSize];
+        return !TryParseVersioned(passwordHash, salt, hash, out var iterations) || iterations != CurrentIterations;
     }
 
     // --- legacy format: base64(salt(16) || key(32)), 100k iterations, SHA-512 ---
     private static bool VerifyLegacy(string password, string passwordHash)
     {
-        var hashBytes = Convert.FromBase64String(passwordHash);
+        Span<byte> hashBytes = stackalloc byte[SaltSize + HashSize];
+        if (!DecodeExactSize(passwordHash, hashBytes))
+            return false;
 
-        var salt = new byte[SaltSize];
-        Array.Copy(hashBytes, 0, salt, 0, SaltSize);
-
-        var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, LegacyIterations, Algorithm, HashSize);
-        return CryptographicOperations.FixedTimeEquals(actual, hashBytes.AsSpan(SaltSize, HashSize));
+        Span<byte> actual = stackalloc byte[HashSize];
+        Rfc2898DeriveBytes.Pbkdf2(password, hashBytes[..SaltSize], actual, LegacyIterations, Algorithm);
+        return CryptographicOperations.FixedTimeEquals(actual, hashBytes[SaltSize..]);
     }
 
-    private static (int Iterations, byte[] Salt, byte[] Hash) ParseVersioned(string passwordHash)
+    private static bool TryParseVersioned(string passwordHash, Span<byte> salt, Span<byte> hash, out int iterations)
     {
-        // $pbkdf2-sha512$v=1$i=210000$<salt>$<hash>
-        var parts = passwordHash.Split('$');
-        if (parts.Length != 6)
-            throw new FormatException("Malformed PBKDF2 hash: unexpected segment count.");
-
-        var iterations = int.Parse(parts[3].AsSpan("i=".Length), CultureInfo.InvariantCulture);
-        var salt = Convert.FromBase64String(parts[4]);
-        var hash = Convert.FromBase64String(parts[5]);
-        return (iterations, salt, hash);
+        iterations = 0;
+        var parts = passwordHash.Split('$', 7);
+        return parts.Length == 6 &&
+            parts[2] == VersionMarker &&
+            parts[3].StartsWith("i=", StringComparison.Ordinal) &&
+            int.TryParse(parts[3].AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out iterations) &&
+            iterations is > 0 and <= MaxSupportedIterations &&
+            DecodeExactSize(parts[4], salt) &&
+            DecodeExactSize(parts[5], hash);
     }
 
-    private static (int Version, int Iterations) ParseParameters(string passwordHash)
-    {
-        var parts = passwordHash.Split('$');
-        if (parts.Length != 6)
-            throw new FormatException("Malformed PBKDF2 hash: unexpected segment count.");
-
-        var version = int.Parse(parts[2].AsSpan("v=".Length), CultureInfo.InvariantCulture);
-        var iterations = int.Parse(parts[3].AsSpan("i=".Length), CultureInfo.InvariantCulture);
-        return (version, iterations);
-    }
+    private static bool DecodeExactSize(string value, Span<byte> decoded) =>
+        Convert.TryFromBase64String(value, decoded, out var written) && written == decoded.Length;
 }

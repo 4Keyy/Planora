@@ -6,11 +6,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
 {
     public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, Result<TokenDto>>
     {
-        // Mirror of RefreshTokenCommandHandler's own rotation reason — kept in sync
-        // with the call to refreshToken.Revoke(..., "Replaced by new token", ...).
-        // Detecting this exact reason on a presented refresh token tells us the
-        // legitimate client already rotated past this value; any presenter is a
-        // replay attack and we must invalidate the entire chain.
+        // The persisted reason identifies a rotated value for replay handling.
         private const string RotationRevokeReason = "Replaced by new token";
         private const string ReuseDetectedReason = "Reuse detected — chain invalidated";
 
@@ -40,8 +36,6 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
         {
             try
             {
-                // Load user WITH refresh tokens in ONE query
-                // This ensures proper EF tracking and avoids concurrency issues
                 var user = await _unitOfWork.Users.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
 
                 if (user == null)
@@ -51,7 +45,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                         Error.NotFound("INVALID_REFRESH_TOKEN", "Refresh token not found or expired"));
                 }
 
-                // Get the refresh token from user's collection (properly tracked). Tokens are stored
+                // Get the refresh token from the user's snapshot. Tokens are stored
                 // hashed, so match the presented raw value against the stored hash via Matches().
                 var refreshToken = user.RefreshTokens.FirstOrDefault(rt => rt.Matches(command.RefreshToken));
 
@@ -68,24 +62,10 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                 // own refresh. Either way, the safe response is to invalidate every active
                 // refresh token for this user AND rotate the security stamp so any already-
                 // minted access tokens become invalid on their next authenticated call.
-                if (refreshToken.IsRevoked
-                    && string.Equals(refreshToken.RevokedReason, RotationRevokeReason, StringComparison.Ordinal))
+                if (WasRotated(refreshToken))
                 {
-                    var attackerIp = _currentUserService.IpAddress ?? "unknown";
-                    _logger.LogWarning(
-                        "Refresh-token reuse detected for user {UserId} from IP {Ip}; revoking chain and rotating stamp.",
-                        user.Id, attackerIp);
-
-                    foreach (var live in user.RefreshTokens.Where(rt => rt.IsActive).ToList())
-                    {
-                        live.Revoke(attackerIp, ReuseDetectedReason);
-                        _unitOfWork.RefreshTokens.Update(live);
-                    }
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    await _securityStamp.SetStampAsync(user.Id, cancellationToken);
-
-                    return Result.Failure<TokenDto>(
-                        Error.Unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is no longer valid"));
+                    await InvalidateReusedChainAsync(user.Id, cancellationToken);
+                    return InvalidToken();
                 }
 
                 if (!refreshToken.IsActive)
@@ -107,13 +87,11 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
 
                 var ipAddress = _currentUserService.IpAddress ?? "unknown";
                 
+                // A concurrent replay may rotate the security stamp as soon as this write commits.
+                // The candidate access token must predate that stamp, and is returned only on commit.
                 var newAccessToken = _tokenService.GenerateAccessToken(user);
                 var newRefreshTokenValue = _tokenService.GenerateRefreshToken();
                 var newRefreshTokenExpiry = DateTime.UtcNow.Add(_tokenService.GetRefreshTokenLifetime());
-
-                // Manually revoke ONLY current token to avoid EF tracking conflicts
-                refreshToken.Revoke(ipAddress, "Replaced by new token", string.Empty);
-                _unitOfWork.RefreshTokens.Update(refreshToken);
 
                 // Create new refresh token directly, preserving the original RememberMe intent
                 // and inheriting device association from the rotated token (both params are string?)
@@ -125,9 +103,15 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                     refreshToken.RememberMe,
                     refreshToken.DeviceFingerprint,
                     refreshToken.DeviceName);
-                await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken, cancellationToken);
+                if (!await _unitOfWork.RefreshTokens.TryRotateAsync(
+                        refreshToken, newRefreshToken, RotationRevokeReason, cancellationToken))
+                {
+                    var latest = await _unitOfWork.Users.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
+                    if (latest != null && latest.RefreshTokens.Any(row => row.Matches(command.RefreshToken) && WasRotated(row)))
+                        await InvalidateReusedChainAsync(latest.Id, cancellationToken);
 
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    return InvalidToken();
+                }
 
                 _logger.LogInformation(
                     "Refresh token rotated for user: {UserId}",
@@ -144,12 +128,30 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
 
                 return Result.Success(response);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error refreshing token");
                 return Result.Failure<TokenDto>(
                     Error.InternalServer("REFRESH_ERROR", "An error occurred while refreshing token"));
             }
+        }
+
+        private static bool WasRotated(RefreshTokenEntity token) =>
+            token.IsRevoked && string.Equals(token.RevokedReason, RotationRevokeReason, StringComparison.Ordinal);
+
+        private static Result<TokenDto> InvalidToken() =>
+            Result.Failure<TokenDto>(Error.Unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is no longer valid"));
+
+        private async Task InvalidateReusedChainAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            var attackerIp = _currentUserService.IpAddress ?? "unknown";
+            _logger.LogWarning(
+                "Refresh-token reuse detected for user {UserId} from IP {Ip}; revoking chain and rotating stamp.",
+                userId, attackerIp);
+
+            await _unitOfWork.RefreshTokens.RevokeActiveAfterReplayAsync(
+                userId, attackerIp, ReuseDetectedReason, cancellationToken);
+            await _securityStamp.SetStampAsync(userId, cancellationToken);
         }
     }
 }

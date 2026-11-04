@@ -37,6 +37,7 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             // Tokens are stored hashed; look up by the hash of the presented raw token.
             var tokenHash = RefreshTokenHash.Of(refreshToken);
             return await _context.Users
+                .AsNoTracking()
                 .Include(u => u.RefreshTokens)
                 .FirstOrDefaultAsync(u => u.RefreshTokens.Any(rt => rt.Token == tokenHash), cancellationToken);
         }

@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "baseline_head": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
+  "head": "1f8ef5d403f3f2957bc8b4d5764b3095d58fdc99",
+  "sdk": "10.0.300",
+  "commands": [
+    {
+      "id": "t02-session-red-valid",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~AuthSessionPostgresTests' --logger 'trx;LogFileName=t02-session-red-valid.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 1,
+      "total": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.LoginAsync_RetiresExpiredDeviceToken_AndPreservesOtherSessions": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesDeviceTokenOnce": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesLegacyTokenOnce": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-session-red-valid.txt",
+      "log_sha256": "7966253348bddbdda5f42c1577c5dc42d6719e39d6213bf6b004cb8a8a713505",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-session-red-valid.trx",
+      "trx_sha256": "362d6a33e223fc7af9e3714d8d4c535afa19ffecb31437e15fc2062028b82865"
+    },
+    {
+      "id": "t02-refresh-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~AuthSessionPostgresTests.RefreshAsync|FullyQualifiedName~AuthLifecycleHandlerTests.RefreshToken' --logger 'trx;LogFileName=t02-refresh-green.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 1,
+      "total": 6,
+      "passed": 4,
+      "failed": 2,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesDeviceTokenOnce": 1,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesLegacyTokenOnce": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-refresh-green.txt",
+      "log_sha256": "db8ab89f9fb4bf4543933258f2a29c4bb10610a7c233a3e72e5680d97ff217fb",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-refresh-green.trx",
+      "trx_sha256": "be19118679b7f02977725755a01992e97aed1f297db28ee2e184ec4d771de745"
+    },
+    {
+      "id": "t02-session-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~AuthSessionPostgresTests|FullyQualifiedName~AuthLifecycleHandlerTests|FullyQualifiedName~LoginCommandHandlerTests' --logger 'trx;LogFileName=t02-session-green.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 0,
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-session-green.txt",
+      "log_sha256": "6f5a6b3f1181594c65b785d39ad0748bcf795b046b96c9baaf814b4f616a9253",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-session-green.trx",
+      "trx_sha256": "105824387fe55c33359e7b775ecb98b61d4c519a6973100ec37575cd238967f8"
+    },
+    {
+      "id": "t02-replay-descendant-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~AuthSessionPostgresTests.RefreshAsync_RejectsReplay' --logger 'trx;LogFileName=t02-replay-descendant-red.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 1,
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_RejectsReplay_AndRevokesAConcurrentDescendant": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-replay-descendant-red.txt",
+      "log_sha256": "0d4ccc6da12c22f9c5e6fb9ce0f9d994734ede6f882813ac46900f869c4f738c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-replay-descendant-red.trx",
+      "trx_sha256": "d0b0b2ac45fa644f7369ae19c2cfc2e16dd2f3fa74a1147feff4385a906f82e7"
+    },
+    {
+      "id": "t02-replay-and-hash-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~AuthSessionPostgresTests.RefreshAsync_RejectsReplay|FullyQualifiedName~PasswordHasherTests' --logger 'trx;LogFileName=t02-replay-and-hash-red.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 1,
+      "total": 16,
+      "passed": 5,
+      "failed": 11,
+      "skipped": 0,
+      "failed_test_methods": {
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.PasswordHasherTests.VerifyPassword_ShouldRejectUnsupportedMetadata_EvenWhenTheDerivedKeyMatches": 4,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication.PasswordHasherTests.VerifyPassword_ShouldRejectMalformedHashes": 6,
+        "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_RejectsReplay_AndRevokesAConcurrentDescendant": 1
+      },
+      "log": ".buildcheck/deep-audit-t02/t02-replay-and-hash-red.txt",
+      "log_sha256": "b6b03d5ef13de59db1971dfb2d61f3d3a6dfaaf8739556ecf0f313a4841e667e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-replay-and-hash-red.trx",
+      "trx_sha256": "f59d9c431a76fd4396d76d358b475c5341ccfeec1ed0f28813b44259e37f64de"
+    },
+    {
+      "id": "t02-auth-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-auth-green.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 0,
+      "total": 447,
+      "passed": 447,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-auth-green.txt",
+      "log_sha256": "2f3b604f054a3fe03486ba1041f602965dae06395bd77a167b28504c555eaf9a",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-auth-green.trx",
+      "trx_sha256": "6178865ab4f7f09d36a26e5bbd2f3a7b0a0019af6622a17459c5c6a63289da1b"
+    },
+    {
+      "id": "t02-unit-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\unit\\\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t02-unit-broad.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 0,
+      "total": 1443,
+      "passed": 1443,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-unit-broad.txt",
+      "log_sha256": "32be34edbfa8285dab3f2bf721cd2371cd930489276e7fbd84d4592790efdfcd",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-unit-broad.trx",
+      "trx_sha256": "65eed92b8142285bbbd83b40cfdcbb7f9e2ed2875ae8968a635fd57be3b11157"
+    },
+    {
+      "id": "t02-errors",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\errors\\\" --logger 'trx;LogFileName=t02-errors.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\results'",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_methods": {},
+      "log": ".buildcheck/deep-audit-t02/t02-errors.txt",
+      "log_sha256": "da445e3121fb0dde180bc4519eb84eda9c76b041b6fb1308ae6bb4b185c8fd62",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-errors.trx",
+      "trx_sha256": "1066b2e6f3d475040d44772b39180942f9c64896a28df3a897f487dbd21e2aab"
+    },
+    {
+      "id": "t02-session-red",
+      "exit_code": 1,
+      "test_executed": 0,
+      "classification": "BUILD_FAILURE",
+      "reason": "CS0246, missing repository namespace",
+      "log": ".buildcheck/deep-audit-t02/t02-session-red.txt",
+      "log_sha256": "5ded458a3bb4f116910091af27e9c4074e45cd68cba4fef41b9bff9e8b5261a1"
+    },
+    {
+      "id": "t02-session-red-retry",
+      "exit_code": 1,
+      "test_executed": 0,
+      "classification": "BUILD_FAILURE",
+      "reason": "CS7036, omitted context dispatcher",
+      "log": ".buildcheck/deep-audit-t02/t02-session-red-retry.txt",
+      "log_sha256": "f8b7760f0bc5048189c759c8d2c20ef55684f01cdb14ffcf7fa69d6fe0219288"
+    },
+    {
+      "id": "t02-auth-build",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' build Services/AuthApi/Planora.Auth.Api/Planora.Auth.Api.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t02\\api\\\"",
+      "exit_code": 0,
+      "warnings": 6,
+      "errors": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-auth-build.txt",
+      "log_sha256": "3a252035d27196b3b6e7907624debd35d4c1e470c793627f63090575150d1cc0"
+    }
+  ],
+  "provider_tests": [
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesLegacyTokenOnce",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_RollsBackConsume_WhenSuccessorInsertFails",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_RejectsReplay_AndRevokesAConcurrentDescendant",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ConsumesDeviceTokenOnce",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_RollsBackConsume_WhenSuccessorInsertIsCancelled",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.LoginAsync_RetiresExpiredDeviceToken_AndPreservesOtherSessions",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.LoginAsync_ConcurrentActiveDeviceSession_ReturnsOneSuccess",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.RefreshAsync_ReplayWaitsForInFlightRotationBeforeRevoking",
+      "outcome": "Passed"
+    },
+    {
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionPostgresTests.LoginAsync_ConcurrentExpiredDeviceSession_ReturnsOneSuccess",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "review_scope": "Independent source review of refresh/login transactions, replay, stamp and HTTP result mapping. No test execution by reviewer.",
+    "source_sha256": {
+      "LoginCommandHandler.cs": "03034f6a9ad221db81737b0003b0034b269e07cd11e69d0c414d7a0cae7cf583",
+      "RefreshTokenCommandHandler.cs": "62b9891bb4774f0b7446f8e18473ab21163a06c98f57eba02aca1a440a18bf5f",
+      "AuthUnitOfWork.cs": "a944a827e31574f07dabe6ed4092ec7030de5ba31aca7c69d2a8be4fe2a98401",
+      "RefreshTokenRepository.cs": "b3c153b1da18e23671dcdb76e270d196e3bb2d7129627370c0e8791bb3d4b470",
+      "UserRepository.cs": "f1397f3c583ca3387b3f28770c6ce6943734f1bc1b290b1d08bedae97a38668e"
+    },
+    "outcome": "No blocking finding in the final reviewed production refresh/login delta. Rollback fault and pg_locks assertions verified by executor.",
+    "limits": "Lost COMMIT acknowledgement and Redis failure paths were reviewed by source. Login/logout/manual revoke writers remain outside the refresh/replay advisory lock."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs": "03034f6a9ad221db81737b0003b0034b269e07cd11e69d0c414d7a0cae7cf583",
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs": "62b9891bb4774f0b7446f8e18473ab21163a06c98f57eba02aca1a440a18bf5f",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IAuthUnitOfWork.cs": "cef0e36363a0d86b721441eab00fbd562a1269c1bdc9d38668e8a179c9fa61ea",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IRefreshTokenRepository.cs": "d759da4d086fdb91535da0a61d71bffe5c43a7f65674a17ec32d58ad728b2fda",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs": "a944a827e31574f07dabe6ed4092ec7030de5ba31aca7c69d2a8be4fe2a98401",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs": "b3c153b1da18e23671dcdb76e270d196e3bb2d7129627370c0e8791bb3d4b470",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs": "f1397f3c583ca3387b3f28770c6ce6943734f1bc1b290b1d08bedae97a38668e",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordHasher.cs": "f08ea868e0169e71d7683755eaf50ef17c22eae992251ea2a25870630c947526",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs": "f56782198e10e8a57419f0429d3718c5684c03fe969a83f83bdde1729bd83b14",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/LoginCommandHandlerTests.cs": "441756903fef6c59c970286b7352185a86c13c3b87f1e0be21b93a85e41d4343",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/Authentication/PasswordHasherTests.cs": "780ac398633af9f09be60ecb01424f041681e40a2040d50278d6a8f3bc1c7f8d",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSessionPostgresTests.cs": "6b62e61b3122ccae8c253eb3ea45c0d0110c01c1da194d0583d9f5ff35d4b70f"
+  },
+  "notes": [
+    "Initial t02-refresh-green test tried to read failure Value. The app Result throws on that access. Corrected in final verification.",
+    "RED replay first observed the overwritten reason. Combined RED directly confirmed the live descendant.",
+    "PostgreSQL and RabbitMQ fixture identities verified before provider runs. Two broker restart cases are recorded in T05."
+  ]
+}

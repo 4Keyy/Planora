@@ -101,7 +101,7 @@
   {
     "id": "BE-003",
     "title": "Конкурентное потребление refresh token не защищено CAS/row concurrency",
-    "confidence": "LIKELY",
+    "confidence": "CONFIRMED",
     "priority": "P1",
     "severity": "high",
     "likelihood": "medium",
@@ -150,7 +150,13 @@
       "Нет raw token в логах/evidence."
     ],
     "dependencies": [],
-    "limitations": "Эксплуатация и PostgreSQL race не запускались; подтверждён отсутствующий механизм, runtime outcome LIKELY."
+    "limitations": "Эксплуатация и PostgreSQL race не запускались; подтверждён отсутствующий механизм, runtime outcome LIKELY.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "RED/GREEN confirmed. See t02-session-verification.json for provider or synthetic hash scope.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-004",
@@ -197,7 +203,13 @@
       "Сохранены RememberMe и session listing contracts."
     ],
     "dependencies": [],
-    "limitations": "Подтверждено чтением model/query/handler. Наличие индекса на фактической deployed DB NOT_VERIFIED; InMemory не выявит дефект."
+    "limitations": "Подтверждено чтением model/query/handler. Наличие индекса на фактической deployed DB NOT_VERIFIED; InMemory не выявит дефект.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "RED/GREEN confirmed. See t02-session-verification.json for provider or synthetic hash scope.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-005",
@@ -1805,7 +1817,13 @@
       "Legacy and older supported work factors still verify and request rehash."
     ],
     "dependencies": [],
-    "limitations": "Source review CONT033-003; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json."
+    "limitations": "Source review CONT033-003; runtime reproduction NOT_RUN. See results/evidence/read-033-review.json.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T02.md",
+      "note": "RED/GREEN confirmed. See t02-session-verification.json for provider or synthetic hash scope.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "BE-014",

@@ -44,11 +44,31 @@ public class PasswordHasherTests
     [Theory]
     [InlineData("")]
     [InlineData("not-base64")]
+    [InlineData("AA==")]
+    [InlineData("$pbkdf2-sha512$v=1$i=1$AAAAAAAAAAAAAAAAAAAAAA==$")]
+    [InlineData("$pbkdf2-sha512$v=1$i=0$AAAAAAAAAAAAAAAAAAAAAA==$")]
+    [InlineData("$pbkdf2-sha512$v=1$i=1$$")]
     public void VerifyPassword_ShouldRejectMalformedHashes(string hash)
     {
         var hasher = new PasswordHasher();
 
-        Assert.ThrowsAny<Exception>(() => hasher.VerifyPassword("password", hash));
+        Assert.False(hasher.VerifyPassword("password", hash));
+    }
+
+    [Theory]
+    [InlineData("v=2", "i=", 100_000)]
+    [InlineData("version=1", "i=", 100_000)]
+    [InlineData("v=1", "x=", 100_000)]
+    [InlineData("v=1", "i=", 1_000_001)]
+    public void VerifyPassword_ShouldRejectUnsupportedMetadata_EvenWhenTheDerivedKeyMatches(
+        string version, string iterationMarker, int iterations)
+    {
+        var salt = new byte[16];
+        var key = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+            "synthetic-test-password", salt, iterations, System.Security.Cryptography.HashAlgorithmName.SHA512, 32);
+        var hash = $"$pbkdf2-sha512${version}${iterationMarker}{iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(key)}";
+
+        Assert.False(new PasswordHasher().VerifyPassword("synthetic-test-password", hash));
     }
 
     [Fact]

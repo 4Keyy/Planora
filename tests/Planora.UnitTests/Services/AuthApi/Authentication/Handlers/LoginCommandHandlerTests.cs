@@ -180,7 +180,9 @@ public sealed class LoginCommandHandlerTests
         Assert.NotNull(addedRefreshToken);
         Assert.Equal("Chrome", addedRefreshToken!.DeviceName);
         Assert.Equal("10.0.0.1", addedRefreshToken.CreatedByIp);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        fixture.UnitOfWork.Verify(x => x.TryCommitLoginAsync(
+            addedRefreshToken!, null, It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         fixture.LoginHistory.Verify(x => x.AddAsync(
             It.Is<LoginHistory>(history => history.IsSuccessful),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -275,7 +277,7 @@ public sealed class LoginCommandHandlerTests
         var fixture = CreateFixture();
         ConfigureSuccessfulCredentialAndTokenFlow(fixture, user);
         fixture.UnitOfWork
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryCommitLoginAsync(It.IsAny<RefreshToken>(), null, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException("concurrency"));
 
         var exception = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
@@ -298,7 +300,7 @@ public sealed class LoginCommandHandlerTests
         var fixture = CreateFixture();
         ConfigureSuccessfulCredentialAndTokenFlow(fixture, user);
         fixture.UnitOfWork
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryCommitLoginAsync(It.IsAny<RefreshToken>(), null, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("primary save failed"));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -351,6 +353,8 @@ public sealed class LoginCommandHandlerTests
         unitOfWork.SetupGet(x => x.Users).Returns(users.Object);
         unitOfWork.SetupGet(x => x.RefreshTokens).Returns(refreshTokens.Object);
         unitOfWork.SetupGet(x => x.LoginHistory).Returns(loginHistory.Object);
+        unitOfWork.Setup(x => x.TryCommitLoginAsync(
+            It.IsAny<RefreshToken>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         currentUser.SetupGet(x => x.UserAgent).Returns(userAgent);
         currentUser.SetupGet(x => x.IpAddress).Returns(ipAddress);
         tokenService.Setup(x => x.GetRefreshTokenLifetime()).Returns(TimeSpan.FromDays(7));

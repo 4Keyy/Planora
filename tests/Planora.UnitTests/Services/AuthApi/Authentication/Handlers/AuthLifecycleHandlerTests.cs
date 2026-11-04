@@ -244,7 +244,9 @@ public class AuthLifecycleHandlerTests
         Assert.NotNull(loginHistory);
         Assert.True(loginHistory!.IsSuccessful);
         Assert.Equal("127.0.0.1", loginHistory.IpAddress);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        fixture.UnitOfWork.Verify(x => x.TryCommitLoginAsync(
+            It.IsAny<RefreshTokenEntity>(), null, It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         fixture.BusinessLogger.Verify(
             x => x.LogBusinessEvent(
                 BusinessEvents.UserLoggedIn,
@@ -367,9 +369,10 @@ public class AuthLifecycleHandlerTests
         fixture.TokenService.Setup(x => x.GenerateAccessToken(user)).Returns("new-access-token");
         fixture.TokenService.Setup(x => x.GenerateRefreshToken()).Returns("new-refresh-token");
         fixture.TokenService.Setup(x => x.GetRefreshTokenLifetime()).Returns(TimeSpan.FromDays(7));
-        fixture.RefreshTokens.Setup(x => x.AddAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
-            .Callback<RefreshTokenEntity, CancellationToken>((token, _) => newToken = token)
-            .ReturnsAsync((RefreshTokenEntity token, CancellationToken _) => token);
+        fixture.RefreshTokens.Setup(x => x.TryRotateAsync(
+                oldToken, It.IsAny<RefreshTokenEntity>(), "Replaced by new token", It.IsAny<CancellationToken>()))
+            .Callback<RefreshTokenEntity, RefreshTokenEntity, string, CancellationToken>((_, token, _, _) => newToken = token)
+            .ReturnsAsync(true);
 
         var result = await fixture.CreateRefreshTokenHandler().Handle(
             new RefreshTokenCommand { RefreshToken = "old-refresh-token" },
@@ -379,13 +382,12 @@ public class AuthLifecycleHandlerTests
         Assert.Equal("new-access-token", result.Value!.AccessToken);
         Assert.Equal("new-refresh-token", result.Value.RefreshToken);
         Assert.True(result.Value.RememberMe);
-        Assert.False(oldToken.IsActive);
         Assert.NotNull(newToken);
         Assert.True(newToken!.RememberMe);
         Assert.Equal("device-fingerprint", newToken.DeviceFingerprint);
         Assert.Equal("Chrome", newToken.DeviceName);
-        fixture.RefreshTokens.Verify(x => x.Update(oldToken), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.RefreshTokens.Verify(x => x.TryRotateAsync(
+            oldToken, newToken!, "Replaced by new token", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -463,18 +465,11 @@ public class AuthLifecycleHandlerTests
             new RefreshTokenCommand { RefreshToken = "rotated-value" },
             CancellationToken.None);
 
-        // Then: result is Unauthorized, both live siblings become revoked,
-        // SaveChangesAsync persists the chain revocation, and the security stamp
-        // is rotated so any minted access tokens are rejected on next use.
+        // Then: the repository revokes the live chain before the security stamp is updated.
         Assert.True(result.IsFailure);
         Assert.Equal("INVALID_REFRESH_TOKEN", result.Error!.Code);
-        Assert.False(live1.IsActive);
-        Assert.False(live2.IsActive);
-        Assert.Equal("Reuse detected — chain invalidated", live1.RevokedReason);
-        Assert.Equal("Reuse detected — chain invalidated", live2.RevokedReason);
-        fixture.RefreshTokens.Verify(x => x.Update(live1), Times.Once);
-        fixture.RefreshTokens.Verify(x => x.Update(live2), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.RefreshTokens.Verify(x => x.RevokeActiveAfterReplayAsync(
+            user.Id, "9.9.9.9", "Reuse detected — chain invalidated", It.IsAny<CancellationToken>()), Times.Once);
         fixture.SecurityStamp.Verify(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -563,6 +558,8 @@ public class AuthLifecycleHandlerTests
             UnitOfWork.SetupGet(x => x.LoginHistory).Returns(LoginHistory.Object);
             UnitOfWork.SetupGet(x => x.PasswordHistory).Returns(PasswordHistory.Object);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            UnitOfWork.Setup(x => x.TryCommitLoginAsync(
+                It.IsAny<RefreshTokenEntity>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
             CurrentUser.SetupGet(x => x.IpAddress).Returns("127.0.0.1");
             CurrentUser.SetupGet(x => x.UserAgent).Returns("Mozilla/5.0 Chrome/120.0");
             EmailService

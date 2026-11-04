@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Storage;
 using Planora.Auth.Domain.Security;
 
 namespace Planora.Auth.Infrastructure.Persistence.Repositories
@@ -14,6 +15,76 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             var tokenHash = RefreshTokenHash.Of(token);
             return await _context.RefreshTokens
                 .FirstOrDefaultAsync(rt => rt.Token == tokenHash, cancellationToken);
+        }
+
+        public async Task<bool> TryRotateAsync(
+            RefreshToken current,
+            RefreshToken successor,
+            string rotationReason,
+            CancellationToken cancellationToken = default)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            var successorEntry = _context.RefreshTokens.Add(successor);
+            try
+            {
+                return await strategy.ExecuteInTransactionAsync(
+                    _context,
+                    async (context, token) =>
+                    {
+                        await LockRefreshChainAsync(context, current.UserId, token);
+                        var now = DateTime.UtcNow;
+                        var consumed = await context.RefreshTokens
+                            .Where(row => row.Id == current.Id && row.Token == current.Token &&
+                                row.RevokedAt == null && row.ExpiresAt > now)
+                            .ExecuteUpdateAsync(update => update
+                                .SetProperty(row => row.RevokedAt, now)
+                                .SetProperty(row => row.RevokedByIp, successor.CreatedByIp)
+                                .SetProperty(row => row.RevokedReason, rotationReason)
+                                .SetProperty(row => row.ReplacedByToken, string.Empty), token);
+                        if (consumed == 0)
+                            return false;
+
+                        // Flush the successor only after the old device row leaves the unique index.
+                        // Keep the same successor pending if the execution strategy retries.
+                        await context.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
+                        return true;
+                    },
+                    (context, token) => context.RefreshTokens.AsNoTracking()
+                        .AnyAsync(row => row.Id == successor.Id && row.Token == successor.Token, token),
+                    cancellationToken);
+            }
+            finally
+            {
+                successorEntry.State = EntityState.Detached;
+            }
+        }
+
+        public Task RevokeActiveAfterReplayAsync(
+            Guid userId,
+            string ipAddress,
+            string reason,
+            CancellationToken cancellationToken = default) =>
+            _context.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync(token);
+                await LockRefreshChainAsync(_context, userId, token);
+                var now = DateTime.UtcNow;
+                await _context.RefreshTokens
+                    .Where(row => row.UserId == userId && row.RevokedAt == null && row.ExpiresAt > now)
+                    .ExecuteUpdateAsync(update => update
+                        .SetProperty(row => row.RevokedAt, now)
+                        .SetProperty(row => row.RevokedByIp, ipAddress)
+                        .SetProperty(row => row.RevokedReason, reason)
+                        .SetProperty(row => row.ReplacedByToken, (string?)null), token);
+                await transaction.CommitAsync(token);
+            }, cancellationToken);
+
+        // The active-row scan must take its snapshot after any in-flight rotation commits.
+        private static Task<int> LockRefreshChainAsync(AuthDbContext context, Guid userId, CancellationToken token)
+        {
+            var lockName = $"planora.auth.refresh:{userId:N}";
+            return context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended({lockName}, 0))", token);
         }
 
         public async Task<IReadOnlyList<RefreshToken>> GetActiveTokensByUserIdAsync(

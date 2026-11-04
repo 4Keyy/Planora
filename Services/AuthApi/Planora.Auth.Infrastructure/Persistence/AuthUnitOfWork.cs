@@ -1,3 +1,5 @@
+using Npgsql;
+
 namespace Planora.Auth.Infrastructure.Persistence
 {
     public sealed class AuthUnitOfWork : IAuthUnitOfWork
@@ -32,6 +34,74 @@ namespace Planora.Auth.Infrastructure.Persistence
             _recoveryCodes ??= new UserRecoveryCodeRepository(_context);
 
         public bool HasActiveTransaction => _currentTransaction != null;
+
+        public async Task<bool> TryCommitLoginAsync(
+            RefreshToken session,
+            string? previousTokenHash,
+            CancellationToken cancellationToken = default)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            try
+            {
+                var committed = await strategy.ExecuteInTransactionAsync(
+                    _context,
+                    async (context, token) =>
+                    {
+                        var now = DateTime.UtcNow;
+                        if (previousTokenHash is null)
+                        {
+                            // The unique index covers all non-revoked rows, including expired ones.
+                            await context.RefreshTokens
+                                .Where(row => row.UserId == session.UserId &&
+                                    row.DeviceFingerprint == session.DeviceFingerprint &&
+                                    row.RevokedAt == null && row.ExpiresAt <= now)
+                                .ExecuteUpdateAsync(update => update
+                                    .SetProperty(row => row.RevokedAt, now)
+                                    .SetProperty(row => row.RevokedByIp, session.CreatedByIp)
+                                    .SetProperty(row => row.RevokedReason, "Expired session replaced"), token);
+                        }
+                        else
+                        {
+                            // Pin the generation validated by the handler until SaveChanges commits.
+                            // A competing refresh, logout or login may have changed it since the read.
+                            var current = await context.Database.SqlQuery<int>($"""
+                                SELECT 1 AS "Value"
+                                FROM public."RefreshTokens" AS session
+                                WHERE session."Id" = {session.Id}
+                                  AND session."Token" = {previousTokenHash}
+                                  AND session."RevokedAt" IS NULL
+                                  AND session."ExpiresAt" > {now}
+                                  AND NOT session."IsDeleted"
+                                  AND EXISTS (
+                                    SELECT 1 FROM public."Users" AS owner
+                                    WHERE owner."Id" = session."UserId" AND NOT owner."IsDeleted"
+                                  )
+                                FOR UPDATE OF session
+                                """).ToListAsync(token);
+                            if (current.Count == 0)
+                                return false;
+                        }
+
+                        await context.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
+                        return true;
+                    },
+                    (context, token) => context.RefreshTokens.AsNoTracking()
+                        .AnyAsync(row => row.Id == session.Id && row.Token == session.Token, token),
+                    cancellationToken);
+                if (committed)
+                    _context.ChangeTracker.AcceptAllChanges();
+
+                return committed;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+                {
+                    SqlState: PostgresErrorCodes.UniqueViolation,
+                    ConstraintName: "ix_refresh_tokens_user_device_active"
+                })
+            {
+                return false;
+            }
+        }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

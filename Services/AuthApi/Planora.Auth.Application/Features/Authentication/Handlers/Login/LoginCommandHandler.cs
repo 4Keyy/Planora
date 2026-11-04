@@ -145,15 +145,18 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             // Session deduplication — same device reuses the existing token record
             var existingToken = await _unitOfWork.RefreshTokens
                 .FindActiveByUserAndDeviceAsync(user.Id, deviceFingerprint, cancellationToken);
+            var previousTokenHash = existingToken?.Token;
 
+            RefreshTokenEntity session;
             if (existingToken != null)
             {
                 existingToken.UpdateForReLogin(refreshTokenValue, refreshTokenExpiry, command.RememberMe, ipAddress);
                 _unitOfWork.RefreshTokens.Update(existingToken);
+                session = existingToken;
             }
             else
             {
-                var newToken = new RefreshTokenEntity(
+                session = new RefreshTokenEntity(
                     user.Id,
                     refreshTokenValue,
                     ipAddress,
@@ -161,7 +164,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                     command.RememberMe,
                     deviceFingerprint,
                     deviceName);
-                await _unitOfWork.RefreshTokens.AddAsync(newToken, cancellationToken);
+                await _unitOfWork.RefreshTokens.AddAsync(session, cancellationToken);
             }
 
             try
@@ -178,7 +181,12 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                     user.UpgradePasswordHash(_passwordHasher.HashPassword(command.Password));
                 }
 
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                if (!await _unitOfWork.TryCommitLoginAsync(session, previousTokenHash, cancellationToken))
+                {
+                    _logger.LogWarning("Concurrent session change during login for user {UserId}.", user.Id);
+                    return BuildingBlocks.Domain.Result<LoginResponse>.Failure(BuildingBlocks.Domain.Error.Unauthorized(
+                        "LOGIN_SESSION_CHANGED", "Session changed during sign-in."));
+                }
             }
             catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
             {
