@@ -54,6 +54,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
 
         public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var prefix = ExtractPrefix(key);
             try
             {
@@ -86,7 +87,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
                 RecordCacheOperation(prefix, "hit_l2");
                 return value;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error getting cache for key: {Key}", key);
                 RecordCacheOperation(prefix, "error");
@@ -143,7 +144,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
             {
                 return await _redis.GetDatabase().KeyTimeToLiveAsync(RedisInstanceName + key);
             }
-            catch
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return null;
             }
@@ -155,6 +156,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
             TimeSpan? expiration = null,
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var prefix = ExtractPrefix(key);
@@ -177,7 +179,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
 
                 _logger.LogDebug("Cache set for key: {Key}, Expiration: {Expiration}", key, expirationTime);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error setting cache for key: {Key}", key);
             }
@@ -187,23 +189,26 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await _distributedCache.RemoveAsync(key, cancellationToken);
-
+                _logger.LogDebug("Distributed cache removed for key: {Key}", key);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Error removing cache for key: {Key}", key);
+            }
+            finally
+            {
                 if (_options.UseLocalCache)
                 {
                     _memoryCache.Remove(key);
                 }
-
-                _logger.LogDebug("Cache removed for key: {Key}", key);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error removing cache for key: {Key}", key);
             }
         }
 
         public async Task RemoveByPatternAsync(string pattern, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(pattern))
             {
                 return;

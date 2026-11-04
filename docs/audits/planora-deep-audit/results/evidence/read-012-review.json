@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-012",
+  "reviewed_date_local": "2026-11-04",
+  "source_head": "24c9b070faea68685e0616692b76ab8cf03cfb8b",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 25,
+  "source_lines_read": 1418,
+  "files": [
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/EntityNotFoundException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          20
+        ]
+      ],
+      "line_count": 20,
+      "sha256": "63ab9fb6906dc9e82005a15ea8541d6a1bcf57aa5819d0940262833ec1f1b6db",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain callers can create a 404 with typed entity name and ID/identifier details.",
+      "trust_state_errors_concurrency": "Both overloads embed the supplied identifier in diagnostic text and details. Check caller-provided identifiers before exposing them.",
+      "test_evidence": "ErrorHandlingTests/Domain/ExceptionTests.cs and middleware status coverage."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ErrorCode.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          89
+        ]
+      ],
+      "line_count": 89,
+      "sha256": "58e4942ac8175964a8ba08111dee7b688a2cc8a2de1f20a7aa7b6e4e6d55deca",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Shared constant groups consumed by ResultExtensions and GrpcExceptionInterceptor.",
+      "trust_state_errors_concurrency": "Constants are immutable. Catalog grouping is documentation; actual transport mapping is controlled by consumers.",
+      "test_evidence": "GrpcExceptionInterceptor and ErrorHandlingTests map representative codes."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ForbiddenException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          16
+        ]
+      ],
+      "line_count": 16,
+      "sha256": "1e4efaf5ae7a34ae27174c9a7401da216ab69e2182ee6ab9c75b6e31230ce2fe",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain and ResultExtensions represent a permission refusal.",
+      "trust_state_errors_concurrency": "Category remains Forbidden for both constructors. Message and optional inner exception are supplied by callers.",
+      "test_evidence": "ExceptionTests and error-handling integration source."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/InvalidValueObjectException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          12
+        ]
+      ],
+      "line_count": 12,
+      "sha256": "dfa74864fcde59bec20131ee1b0a59d7a4462dbb6db7cf9c77780a7b71f97eca",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "ResultExtensions and domain callers use the validation exception.",
+      "trust_state_errors_concurrency": "Value object type and caller message are attached. No user input sanitization occurs in this constructor.",
+      "test_evidence": "ExceptionTests and middleware status coverage."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/MappedDomainException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          16
+        ]
+      ],
+      "line_count": 16,
+      "sha256": "a0f851770a64f87c91f630125581ba5e6c994d77f10c702ec0c48742439bf035",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "ResultExtensions uses this bridge for failed NotFound and Conflict results.",
+      "trust_state_errors_concurrency": "Retains supplied code, category and message. Central middleware owns exposure decisions.",
+      "test_evidence": "ErrorHandlingTests/Integration/ErrorHandlingIntegrationTests.cs provides transport coverage."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/ProblemDetailsContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          96
+        ]
+      ],
+      "line_count": 96,
+      "sha256": "d69dced8edf912eb924ccf7c7ab8335e088af98134d8002ce0758f4c6a1f26e6",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Shared mutable request diagnostics and ErrorCategory HTTP mappings.",
+      "trust_state_errors_concurrency": "Extensions and validation dictionaries are request data, not synchronized. Includes optional inner exception and user identity; serializers control exposure. Fallback status 500.",
+      "test_evidence": "ErrorHandlingTests/Infrastructure/MiddlewareTests.cs exercises problem-details behavior."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "dbda5f60d1fa1eaa75257d23c3d217e1414cca8e4eb4921f95aaa453b50c48dd",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain-wide imports for BCL and interfaces.",
+      "trust_state_errors_concurrency": "Compile-time only; cancellation/task namespaces visible throughout project.",
+      "test_evidence": "Compilation in T09 broad run."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IAggregateRoot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          8
+        ]
+      ],
+      "line_count": 8,
+      "sha256": "ce290767bc0ffa82b7e0c0c8e67ace6eefc7991118ca7d7b883364f8508b5b22",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "BaseAggregateRoot exposes events consumed by the application/outbox path.",
+      "trust_state_errors_concurrency": "Collection is read-only in the interface; clear is explicit. Persistence ownership and deduplication are in callers.",
+      "test_evidence": "T01 staging tests cover the related outbox boundary, not every aggregate implementation."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          8
+        ]
+      ],
+      "line_count": 8,
+      "sha256": "6cf8f3022cb895daab8aa3cd0c7788434f0ea768b703926db83218faae5c57f9",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain event identity and time consumed by DomainEventDispatcher.",
+      "trust_state_errors_concurrency": "EventId, OccurredOn and EventType have no enforcement at interface level. Dispatch and persistence own cancellation and delivery.",
+      "test_evidence": "T01/T05 outbox and dispatch controls are separately scoped."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          39
+        ]
+      ],
+      "line_count": 39,
+      "sha256": "155c82feee9b1fd6d5b9b5dbea351a1874727a68a2a9a904bc65455d60a0dc2a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "CRUD and paging contract for BaseRepository and service repositories.",
+      "trust_state_errors_concurrency": "No owner/predicate, paging bound or concurrency invariant is enforced by the interface. Async cancellation is explicitly passed by callers.",
+      "test_evidence": "Service repository/provider suites; pagination overflow tracked as BE-008."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Interfaces/IUnitOfWork.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "b810c03f359885658e9bf373dde05fa8f3d22ea8c940d850c6812e69a8d38c47",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Service UoW contracts expose save, transaction lifecycle and active flag.",
+      "trust_state_errors_concurrency": "Contract does not coordinate contexts or guarantee one durable write. Transaction ownership is implementation-specific.",
+      "test_evidence": "T01/T05 integration tests cover the specific exercised contexts."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Planora.BuildingBlocks.Domain.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "622c9ccb36a7bde61fd99bb28468e3e612fd63c351a817cb4791f9fba933c555",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Domain library with net10.0, nullable and implicit usings.",
+      "trust_state_errors_concurrency": "Compile settings only; no dependencies, custom targets or runtime parameters in this project file.",
+      "test_evidence": "Built transitively by T09 UnitTests and ErrorHandlingTests."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Result.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          141
+        ]
+      ],
+      "line_count": 141,
+      "sha256": "718aaace05ae95abb2b1554c81cd46b57d6d4a6421d6e5badb2c9fd615a02aa9",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Result/Result<T> and Error are shared by CQRS and HTTP adapters.",
+      "trust_state_errors_concurrency": "Success and failure factories set state; Map/Bind/Match invoke the chosen delegate and let caller errors escape. ErrorType is later mapped by transport.",
+      "test_evidence": "Behavior and error-handling suites cover representative result conversions."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Specifications/BaseSpecification.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          66
+        ]
+      ],
+      "line_count": 66,
+      "sha256": "54ff6b6030fce816f26c753049afd203d99fde112e9ab4f5c0830f636c955b69",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Protected methods configure a specification consumed by SpecificationEvaluator.",
+      "trust_state_errors_concurrency": "Criteria replacement, mutable include lists and page/sort/EF flags are caller-controlled. No paging cap or predicate composition here.",
+      "test_evidence": "BehaviorAndSpecificationTests.cs."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Specifications/ISpecification.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          16
+        ]
+      ],
+      "line_count": 16,
+      "sha256": "c26f7ab70204cfd07a0ba8c3f01811a4fe71265668f585b5a6f08512a47a63be",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Contract used by SpecificationEvaluator.",
+      "trust_state_errors_concurrency": "Public List properties permit caller mutation. Treat specification instances as per-operation configuration.",
+      "test_evidence": "BehaviorAndSpecificationTests.cs covers concrete evaluation."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ValueObject.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          58
+        ]
+      ],
+      "line_count": 58,
+      "sha256": "729e8b11b9a512c07345ff9ac6b4ccf301eca341b92a7efac692a57b710e7d4a",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Base equality and hash contract for Money and Email.",
+      "trust_state_errors_concurrency": "Requires same runtime type and equality components; Clone is shallow. ToString prints components, so callers decide whether to log.",
+      "test_evidence": "No direct type-specific regression confirmed during this batch."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/ValueObjects.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          52
+        ]
+      ],
+      "line_count": 52,
+      "sha256": "1049cbed63aac36394bf890686ea6df9063d3fa5d210fc30f0d0c11afd8b25bc",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Money and Email domain helpers derived from ValueObject.",
+      "trust_state_errors_concurrency": "Money requires nonnegative amount and nonblank currency, same currency for addition. Email normalizes case and performs only a minimal @ check. No live caller for these helper types was established here.",
+      "test_evidence": "No direct type-specific regression confirmed during this batch."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/ICacheInvalidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          10
+        ]
+      ],
+      "line_count": 10,
+      "sha256": "238d3fc67a122633a79cfada32cfd44c093725c44e2435df0bca4c1f8b2b592c",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Registered singleton facade to ICacheService. No application invocation found by repository search.",
+      "trust_state_errors_concurrency": "Best-effort Task API, no distributed outcome result. Token forwarded by concrete facade.",
+      "test_evidence": "CacheInvalidationTests and existing cache metrics tests."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/ICacheService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          19
+        ]
+      ],
+      "line_count": 19,
+      "sha256": "3ffe58ca90ef11a71c4f5d4152f4125b230d0121f8b0cf37068b3e784e94e549",
+      "matches_head_text_after_line_ending_normalization": false,
+      "purpose_and_callers": "Registered singleton shared cache abstraction, used by CacheInvalidator and tests.",
+      "trust_state_errors_concurrency": "T09 documentation describes local eviction and logged L2 errors. Token and exact/pattern methods preserve existing signatures.",
+      "test_evidence": "T09 fault/cancellation/two-instance controls."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Compatibility/CompatibilityStubs.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          2
+        ]
+      ],
+      "line_count": 2,
+      "sha256": "a6278b1cc93bb86352c7d65f181632a24dcaf6f2f4489aefaf344dc504e27088",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Two historical comments without compiled declarations.",
+      "trust_state_errors_concurrency": "No runtime behavior or trust boundary.",
+      "test_evidence": "Included in project compilation."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          79
+        ]
+      ],
+      "line_count": 79,
+      "sha256": "b48fbcb648ac3d2a9860e448b28e7fce6c5ca175649b30c43a7d7d0c67b66b42",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Startup helpers for JWT, database, Redis and RabbitMQ settings.",
+      "trust_state_errors_concurrency": "Presence and minimum length checks avoid echoing values. Unused Redis method checks Redis:Configuration only; active registration also reads named Redis connection.",
+      "test_evidence": "Source caller search; no runtime coverage of unused Redis validator asserted."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          212
+        ]
+      ],
+      "line_count": 212,
+      "sha256": "8300705de05e9995a3ed606767e164c5fd93335255ce357e03062f13d3548d28",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Common Swashbuckle registration for six APIs and offline OpenAPI CLI workflow.",
+      "trust_state_errors_concurrency": "Bearer declaration documents security; middleware mounted only in Development/Staging. Sanitizer is deterministic for given reflection input; punctuation collapse is not a general injectivity proof. Current schema collisions were not shown.",
+      "test_evidence": "PlanoraSwaggerSchemaIdTests.cs; no new OpenAPI extraction in this batch."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/SecurityConstants.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          206
+        ]
+      ],
+      "line_count": 206,
+      "sha256": "86c49021980e7a44d5eb81887bd254a37c3b84215fc8825daaea340de649ca8c",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Shared claim, timing, policy, header and feature-name constants.",
+      "trust_state_errors_concurrency": "Source consumers determine effective rate limits and token policy; inert constants are not runtime enforcement.",
+      "test_evidence": "JWT and security tests cover concrete consumers."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          62
+        ]
+      ],
+      "line_count": 62,
+      "sha256": "d8b0565b4d91f5567f7a63d0ecbddf886d252a495ec01a929fa4878e78cbcf84",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Shared scoped identity context consumed by Todo, Messaging and Collaboration handlers.",
+      "trust_state_errors_concurrency": "Reads request principal, prefers sub then NameIdentifier, invalid ID becomes Guid.Empty. IsAuthenticated is separate. Handlers still own authorization; Name and role helpers are display/claim reads.",
+      "test_evidence": "Existing CurrentUserService and handler tests cover related identity boundaries. No full request matrix asserted."
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ResultExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          161
+        ]
+      ],
+      "line_count": 161,
+      "sha256": "a137d5189696ccd2f04bb83e6e768fa4d5aca8a58d4bf7aa089f35385e9541fc",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Controllers adapt CQRS results to success responses or exceptions for middleware.",
+      "trust_state_errors_concurrency": "NotFound/Conflict preserve supplied code, while default and permission branches use generic exceptions. No independent authorization or retry behavior.",
+      "test_evidence": "ErrorHandlingTests middleware and integration coverage."
+    }
+  ],
+  "new_findings": [],
+  "source_changes": [
+    "ICacheService.cs includes the T09 XML documentation delta in the reviewed working snapshot."
+  ],
+  "limits": [
+    "Source ranges and runtime claims are tracked separately.",
+    "A parallel reviewer hit the agent usage limit. Root performed the complete semantic read and verified the manifest and hashes."
+  ]
+}

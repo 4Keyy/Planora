@@ -766,7 +766,13 @@
       "T01"
     ],
     "package": "T09",
-    "limitations": "Дефект primitive confirmed static; продуктовое воздействие NOT_VERIFIED. Сервисы используют отдельные IMemoryCache/Redis implementations, не этот wrapper."
+    "limitations": "Дефект primitive confirmed static; продуктовое воздействие NOT_VERIFIED. Сервисы используют отдельные IMemoryCache/Redis implementations, не этот wrapper.",
+    "local_remediation_checkpoint": {
+      "status": "LOCAL_FIX_VERIFIED",
+      "report": "results/T09.md",
+      "note": "Failure and cancellation regression verified. L1 eviction applies to the calling instance.",
+      "authority": "Local implementation"
+    }
   },
   {
     "id": "DIST-009",
@@ -1914,5 +1920,57 @@
       "T08"
     ],
     "limitations": "Static source evidence CONT040002; runtime reproduction NOT_RUN. See results/evidence/read-040-review.json."
+  },
+  {
+    "id": "OPS-013",
+    "title": "Shared Compose Redis can evict the Auth Data Protection key ring",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "high",
+    "likelihood": "Conditional on shared Redis memory pressure",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "docker-compose.yml",
+        "lines": "77-99,188-205",
+        "observation": "Auth uses the Compose Redis endpoint, which is capped with allkeys-lru and AOF."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs",
+        "lines": "55-69",
+        "observation": "Data Protection key storage is configured from the same named Redis connection."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs",
+        "lines": "58-73",
+        "observation": "The persisted TOTP secret uses Data Protection and returns null on cryptographic unprotect failure."
+      },
+      {
+        "path": "docs/audits/planora-deep-audit/results/evidence/t09-redis-policy-verification.json",
+        "lines": "full",
+        "observation": "Owned Redis pressure run evicted a synthetic non-expiring list with AOF enabled."
+      }
+    ],
+    "trigger": "Memory pressure reaches the cap of the shared evicting instance holding the key ring.",
+    "impact": "Loss of the key required to decrypt stored TOTP secrets can disrupt 2FA. Production incidence is unverified.",
+    "root_cause": "Security-critical Data Protection keys share the cache eviction domain.",
+    "fix": "Verify and migrate to dedicated durable key storage with compatible replicas, capacity/error handling and restore.",
+    "alternatives": [
+      "Dedicated noeviction Redis with durable backup and OOM monitoring",
+      "Durable shared Data Protection repository with key protection"
+    ],
+    "tests": [
+      "Bounded eviction and noeviction synthetic controls PASS.",
+      "Rehearse decrypting a pre-existing synthetic TOTP secret after migration, restart and restore."
+    ],
+    "acceptance": [
+      "Old ciphertext decrypts after migration and restore on every supported replica.",
+      "Key store write failures are visible and its capacity and permissions are verified."
+    ],
+    "dependencies": [
+      "T02",
+      "T09"
+    ],
+    "limitations": "Compose source and synthetic Redis runtime only. Deployed Redis policy, actual keys and real TOTP are outside verification."
   }
 ]

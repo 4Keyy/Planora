@@ -10,6 +10,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
             TimeSpan? expiration = null,
             CancellationToken cancellationToken = default);
 
+        /// <summary>Evicts this instance's local entry and attempts distributed removal.</summary>
+        /// <remarks>Distributed failures are logged. Cancellation propagates after local eviction.</remarks>
         Task RemoveAsync(string key, CancellationToken cancellationToken = default);
 
         Task RemoveByPatternAsync(string pattern, CancellationToken cancellationToken = default);

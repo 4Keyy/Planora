@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "exit_code": 0,
+  "image": "sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065",
+  "purpose": "Synthetic non-expiring Redis list under bounded memory pressure. AOF enabled for both policies.",
+  "command": "python -X utf8 .buildcheck/deep-audit-t09/verify_redis_policy.py",
+  "observations": [
+    {
+      "container_id": "3efd9f8a25a5ecd3799bef97e53a03456922bb63e87346397fab5d7546c6df99",
+      "image_id": "sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065",
+      "owner_label": "deepaudit-t09-9b6dd83d5e-allkeys-lru",
+      "network_mode": "none",
+      "mounts": [],
+      "tmpfs": [
+        "/data"
+      ],
+      "policy": "allkeys-lru",
+      "config": {
+        "maxmemory": "4194304",
+        "maxmemory-policy": "allkeys-lru",
+        "appendonly": "yes",
+        "maxmemory-samples": "64"
+      },
+      "redis_version": "7.4.8",
+      "initial_key_ttl": -1,
+      "final_key_exists": false,
+      "evicted_keys": 32,
+      "writes_successful": 48,
+      "writes_rejected_oom": 0,
+      "bytes_per_write": 131072,
+      "removed_by_auto_remove": true
+    },
+    {
+      "container_id": "fb5111cdd65d61595772056b43ac70416de0bdf6d927f3f6e2d0a1f4bcb1b3f8",
+      "image_id": "sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065",
+      "owner_label": "deepaudit-t09-9b6dd83d5e-noeviction",
+      "network_mode": "none",
+      "mounts": [],
+      "tmpfs": [
+        "/data"
+      ],
+      "policy": "noeviction",
+      "config": {
+        "maxmemory": "4194304",
+        "maxmemory-policy": "noeviction",
+        "appendonly": "yes",
+        "maxmemory-samples": "64"
+      },
+      "redis_version": "7.4.8",
+      "initial_key_ttl": -1,
+      "final_key_exists": true,
+      "evicted_keys": 0,
+      "writes_successful": 17,
+      "writes_rejected_oom": 31,
+      "bytes_per_write": 131072,
+      "removed_by_auto_remove": true
+    }
+  ],
+  "limits": "No application or working Redis was contacted. Small test memory cap and higher LRU sample count make the synthetic pressure case deterministic. No claim about deployed capacity, key migration, production encryption or restore."
+}

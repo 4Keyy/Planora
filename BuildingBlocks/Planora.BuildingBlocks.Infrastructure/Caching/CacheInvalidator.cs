@@ -16,13 +16,13 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
         public async Task InvalidateAsync(string key, CancellationToken cancellationToken = default)
         {
             await _cacheService.RemoveAsync(key, cancellationToken);
-            _logger.LogInformation("Cache invalidated for key: {Key}", key);
+            _logger.LogDebug("Cache invalidation attempted for key: {Key}", key);
         }
 
         public async Task InvalidateByPatternAsync(string pattern, CancellationToken cancellationToken = default)
         {
             await _cacheService.RemoveByPatternAsync(pattern, cancellationToken);
-            _logger.LogInformation("Cache invalidated for pattern: {Pattern}", pattern);
+            _logger.LogDebug("Cache invalidation attempted for pattern: {Pattern}", pattern);
         }
 
         public async Task InvalidateEntityAsync<TEntity>(Guid id, CancellationToken cancellationToken = default)

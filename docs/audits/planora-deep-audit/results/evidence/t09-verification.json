@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "head": "24c9b070faea68685e0616692b76ab8cf03cfb8b",
+  "sdk": "10.0.300",
+  "commands": [
+    {
+      "id": "t09-red",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\unit\\\" --filter 'FullyQualifiedName~CacheInvalidationTests|FullyQualifiedName~CacheServiceMetricsTests' --logger 'trx;LogFileName=t09-red.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 1,
+      "total": 12,
+      "passed": 6,
+      "failed": 6,
+      "skipped": 0,
+      "failed_test_names": [
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.CancelledToken_IsObservedWithoutRedisAndOnLocalHit",
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.RemoveAsync_EvictsLocalEntry_WhenDistributedRemoveFails",
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.SetAsync_PropagatesProviderCancellation",
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.RemoveAsync_EvictsLocalEntry_AndPropagatesProviderCancellation",
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.GetAsync_PropagatesProviderCancellation",
+        "Planora.UnitTests.Services.Infrastructure.CacheInvalidationTests.Invalidator_DoesNotReportSuccess_WhenDistributedRemoveFails"
+      ],
+      "log": ".buildcheck/deep-audit-t09/t09-red.txt",
+      "log_sha256": "e889b06464c2d8f942e23eacd2f51c40e77fa4633eb6fc13706ef92429cacdd1",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-red.trx",
+      "trx_sha256": "91e69d50a1e002f5ff3f88acbe1a4a60edf4250ebb5cf7b56323c9f529bf0482"
+    },
+    {
+      "id": "t09-green",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\unit\\\" --filter 'FullyQualifiedName~CacheInvalidationTests|FullyQualifiedName~CacheServiceMetricsTests' --logger 'trx;LogFileName=t09-green.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 0,
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_names": [],
+      "log": ".buildcheck/deep-audit-t09/t09-green.txt",
+      "log_sha256": "dc00eea4feda9c7d0196ef71ce6f1ea752048a636cd899c064b8a42c0dfe1a3b",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-green.trx",
+      "trx_sha256": "e7d3327efbce3eb85538df7686291eabb606fc6cf9c1bd06d592a278b61e78de"
+    },
+    {
+      "id": "t09-unit-broad",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\unit\\\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t09-unit-broad.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 0,
+      "total": 1426,
+      "passed": 1426,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_names": [],
+      "log": ".buildcheck/deep-audit-t09/t09-unit-broad.txt",
+      "log_sha256": "e3bae281d575c01c0ae5560cd75ccde6389eccfde2a6ceb410b9740169e5fca5",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-unit-broad.trx",
+      "trx_sha256": "927d278e2a8d11b3cf5e38ec0aeb86219062f33cf63da57c327e4b5a57558cd1"
+    },
+    {
+      "id": "t09-errors",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\errors\\\" --logger 'trx;LogFileName=t09-errors.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_names": [],
+      "log": ".buildcheck/deep-audit-t09/t09-errors.txt",
+      "log_sha256": "0dc6c1bb55af161687ef73779972edb8e2988625275e66f5854b838bc5b95eab",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-errors.trx",
+      "trx_sha256": "20664163d833c30f510e6275a76061947eed5cc1ec1e9d168b73a4907a30d1a2"
+    },
+    {
+      "id": "t09-green-final",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\unit\\\" --filter 'FullyQualifiedName~CacheInvalidationTests|FullyQualifiedName~CacheServiceMetricsTests' --logger 'trx;LogFileName=t09-green-final.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 0,
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_names": [],
+      "log": ".buildcheck/deep-audit-t09/t09-green-final.txt",
+      "log_sha256": "6900a97378ca85ff8c43b48d8b52c7409e0b0c0157931d3db4e33eb26b7c7216",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-green-final.trx",
+      "trx_sha256": "414c172df2cf5183077b0342398ecade703a84b3c1a97daf5e1b72687e325952"
+    },
+    {
+      "id": "t09-unit-broad-final",
+      "command": "& 'C:\\Users\\fkeyy\\.dotnet\\dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-restore --configuration Release --no-build \"-p:OutDir=F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\unit\\\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t09-unit-broad-final.trx' --results-directory 'F:\\Projects\\Planora\\.buildcheck\\deep-audit-t09\\results'",
+      "exit_code": 0,
+      "total": 1426,
+      "passed": 1426,
+      "failed": 0,
+      "skipped": 0,
+      "failed_test_names": [],
+      "log": ".buildcheck/deep-audit-t09/t09-unit-broad-final.txt",
+      "log_sha256": "d9d28b734717da78a893d6b35d246fc9bcdf1cb3c11f62d98c1b361b020e326c",
+      "trx": ".buildcheck/deep-audit-t09/results/t09-unit-broad-final.trx",
+      "trx_sha256": "424623e383c574242450e75bcf8bae27afd9bd3605cb8812c83e323d9e5d9bf5"
+    }
+  ],
+  "excluded": [
+    "T05 RestartSeed",
+    "T05 RestartVerify"
+  ],
+  "notes": [
+    "Initial RED/GREEN precede the test-only nonparallel collection change. Final targeted and broad runs include it.",
+    "Owned PostgreSQL and RabbitMQ fixtures match T08 verification. No working service used.",
+    "Full tracked and working C# reference inventory has zero domain/application calls to ICacheService or ICacheInvalidator."
+  ]
+}

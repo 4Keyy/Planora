@@ -189,8 +189,10 @@
       "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Context/CurrentUserContext.cs",
       "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ResultExtensions.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-012-review.json",
+    "notes": "Full semantic review. Recorded hashes include the T09 interface documentation change."
   },
   {
     "batch_id": "READ-013",

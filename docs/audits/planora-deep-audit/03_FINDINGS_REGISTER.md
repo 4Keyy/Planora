@@ -967,3 +967,13 @@ pending. [READ-033](results/evidence/read-033-review.md)
 Runtime effects remain unverified for both findings. BE-015 concerns the existing
 Realtime legacy helper. T08 introduced versioned schema comparison for four
 other services. [READ-040](results/evidence/read-040-review.md)
+
+## OPS-013 — Redis eviction can remove the Auth key ring
+
+Priority P2, severity high, CONFIRMED for the Compose binding and synthetic Redis
+policy. Auth Data Protection uses the same configured endpoint as the cache.
+The disposable `allkeys-lru` run evicted a non-expiring list with AOF enabled.
+The `noeviction` control kept the list and rejected writes under memory pressure.
+Deployment policy, working key availability and real TOTP decryption remain
+unverified. T02/T14 own the dedicated durable store and migration rehearsal.
+[T09 evidence](results/T09.md)
