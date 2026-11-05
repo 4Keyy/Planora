@@ -5,6 +5,11 @@ namespace Planora.Auth.Domain.Repositories
     public interface IRefreshTokenRepository : IRepository<RefreshToken>
     {
         Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default);
+        Task<bool> TryRevokeAsync(
+            RefreshToken current,
+            string ipAddress,
+            string reason,
+            CancellationToken cancellationToken = default);
         Task<bool> TryRotateAsync(
             RefreshToken current,
             RefreshToken successor,

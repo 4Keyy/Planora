@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "40855085d1b32addd9abc103c643c49d605dea2b",
+  "current_sha": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -178,7 +178,12 @@
     "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSessions/RevokeAllSessionsCommandHandler.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSessionRevocationPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t02-revocation-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-revocation-verification.json",
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Logout/LogoutCommandHandler.cs",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSession/RevokeSessionCommandHandler.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthSessionHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSingleSessionRevocationPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t02-single-session-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -205,9 +210,10 @@
     "READ-037 completed 25 paths and 1291 source lines. DIST-012 ordering, BE-023 author width and BE-024 Unicode preview await runtime. Coverage 480/1558, 70 batches pending.",
     "BE-016 preserves the old avatar through profile save. Filesystem coordination, staged account deletion and independent bounded cleanup passed 55 targeted and 1464 broad tests without skips.",
     "READ-039 completed 25 Realtime paths and 713 lines. Extended DIST-012 with Realtime deduplication after cleanup and added BE-025/OPS-015 with separate runtime gates. Coverage 505/1558, 69 batches pending.",
-    "BE-026 PostgreSQL RED 2 and GREEN 3. Auth 471 and broad 1467 without skips. Shared lock and fresh session state close durable account-wide revocation."
+    "BE-026 PostgreSQL RED 2 and GREEN 3. Auth 471 and broad 1467 without skips. Shared lock and fresh session state close durable account-wide revocation.",
+    "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved."
   ],
-  "next_step": "Reproduce stale logout after a committed device re-login and verify cross-owner revoke boundaries. Record READ-041 once verified.",
+  "next_step": "Record completed READ-041 evidence, then T03 atomic mutation/outbox regression and account-erasure continuation.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2350,6 +2356,45 @@
       "log_sha256": "dabdc682ab72a18c96c937635d13b5284a796772829cbb310d0738e84fb04812",
       "trx": ".buildcheck/deep-audit-t02/results/t02-revocation-broad.trx",
       "trx_sha256": "2f09482f1b729a60a03510da1224c6bd7b018533e0024b691c1991c677cd3704"
+    },
+    {
+      "id": "t02-single-session-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName~AuthSingleSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-single-session-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-red.txt",
+      "log_sha256": "592ef5a1e3a606749cb1acc28d153486cd1b531190c625dbf9a6a66e35098c7a",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-red.trx",
+      "trx_sha256": "5a8c48c50cc928bf1161315f6fba28ec320c709ded393c5bac713d68ac1a92d4"
+    },
+    {
+      "id": "t02-single-session-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-single-session-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 475,
+      "passed": 475,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-green.txt",
+      "log_sha256": "8700fe5e55b1000b02a13ab5c03aa608841e4211c7b57f4c279ac6f0aee6a87e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-green.trx",
+      "trx_sha256": "2ab32572fd531dc11652afeadc919dd74d797736aae2b0701ffdf8844a8cc16e"
+    },
+    {
+      "id": "t02-single-session-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t02-single-session-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1471,
+      "passed": 1471,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-broad.txt",
+      "log_sha256": "5924e14a66524f19e48cf1b48cdd56663dda47baedd4162746235386b4040082",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-broad.trx",
+      "trx_sha256": "22cb610e5d21d10576cb6bec3322e87028f0683e6c355b88a3e3ab0dbaa59917"
     }
   ],
   "audit_coverage": {
@@ -2423,7 +2468,8 @@
     "results/evidence/t02-avatar-verification.json",
     "results/evidence/read-039-review.json",
     "results/evidence/read-039-review.md",
-    "results/evidence/t02-revocation-verification.json"
+    "results/evidence/t02-revocation-verification.json",
+    "results/evidence/t02-single-session-verification.json"
   ],
   "local_commits": [
     {
@@ -2500,6 +2546,11 @@
       "task": "READ-039 Realtime state and logging",
       "sha": "40855085d1b32addd9abc103c643c49d605dea2b",
       "pushed": false
+    },
+    {
+      "task": "T02 durable account-wide session revocation",
+      "sha": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2526,7 +2577,7 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "Single-session logout/revoke concurrency and ownership, access stamp availability, outgoing invitation privacy, BE-021 derived erasure, T14 key-ring/volume deployment."
+    "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment."
   },
   "new_findings": [
     "BE-008",
@@ -2552,6 +2603,7 @@
     "BE-024",
     "BE-025",
     "OPS-015",
-    "BE-026"
+    "BE-026",
+    "BE-027"
   ]
 }

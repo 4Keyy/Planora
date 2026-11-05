@@ -52,14 +52,13 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Logout
                 if (refreshToken.IsActive)
                 {
                     var ipAddress = _currentUserService.IpAddress ?? "unknown";
-                    refreshToken.Revoke(ipAddress, "Logged out");
-
-                    _unitOfWork.RefreshTokens.Update(refreshToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                    _logger.LogInformation(
-                        "User logged out and refresh token revoked: {UserId}",
-                        refreshToken.UserId);
+                    if (await _unitOfWork.RefreshTokens.TryRevokeAsync(
+                        refreshToken, ipAddress, "Logged out", cancellationToken))
+                    {
+                        _logger.LogInformation(
+                            "User logged out and refresh token revoked: {UserId}",
+                            refreshToken.UserId);
+                    }
                 }
 
                 return Result.Success();

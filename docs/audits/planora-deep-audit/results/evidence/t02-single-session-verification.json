@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "head": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Owned disposable PostgreSQL 16.13 and RabbitMQ. Synthetic login credentials and token service.",
+  "commands": [
+    {
+      "id": "t02-single-session-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName~AuthSingleSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-single-session-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-red.txt",
+      "log_sha256": "592ef5a1e3a606749cb1acc28d153486cd1b531190c625dbf9a6a66e35098c7a",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-red.trx",
+      "trx_sha256": "5a8c48c50cc928bf1161315f6fba28ec320c709ded393c5bac713d68ac1a92d4"
+    },
+    {
+      "id": "t02-single-session-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-single-session-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 475,
+      "passed": 475,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-green.txt",
+      "log_sha256": "8700fe5e55b1000b02a13ab5c03aa608841e4211c7b57f4c279ac6f0aee6a87e",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-green.trx",
+      "trx_sha256": "2ab32572fd531dc11652afeadc919dd74d797736aae2b0701ffdf8844a8cc16e"
+    },
+    {
+      "id": "t02-single-session-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/single-session-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t02-single-session-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1471,
+      "passed": 1471,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-single-session-broad.txt",
+      "log_sha256": "5924e14a66524f19e48cf1b48cdd56663dda47baedd4162746235386b4040082",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-broad.trx",
+      "trx_sha256": "22cb610e5d21d10576cb6bec3322e87028f0683e6c355b88a3e3ab0dbaa59917"
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t02-single-session-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAndRevokeOneAsync_ForeignSessionRemainsUnchanged",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAsync_StaleGenerationDoesNotOverwriteOrRevokeSameDeviceRelogin",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-single-session-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.RevokeAsync_CancellationPreservesStateAndSuccessfulRetryChangesOnlyRevocation",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAndRevokeOneAsync_ForeignSessionRemainsUnchanged",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAsync_StaleGenerationDoesNotOverwriteOrRevokeSameDeviceRelogin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.RevokeOneAsync_StaleGenerationDoesNotOverwriteOrRevokeSameDeviceRelogin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAsync_StaleGenerationDoesNotOverwriteOrRevokeSameDeviceRelogin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.RevokeOneAsync_StaleGenerationDoesNotOverwriteOrRevokeSameDeviceRelogin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.RevokeAsync_CancellationPreservesStateAndSuccessfulRetryChangesOnlyRevocation",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-single-session-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSingleSessionRevocationPostgresTests.LogoutAndRevokeOneAsync_ForeignSessionRemainsUnchanged",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "single_session_review",
+    "result": "No blocker. Reviewed exact generation CAS, query filters, owner guards, field-only update, concurrent login/refresh/reset and controller behavior.",
+    "limits": "Lost UPDATE acknowledgement may produce SESSION_INACTIVE on retry after successful revoke. Fault was not injected. Access-token stamp policy is a separate gate."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Logout/LogoutCommandHandler.cs": "0d9aaf831973fd3cdeac7611a330a18692c9c7d9ebc6bef4c662d4725c25600d",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSession/RevokeSessionCommandHandler.cs": "fdf35c631b0284fb14f690aa1ceacdfe522d21459a5c05c8a556b95d739fa658",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IRefreshTokenRepository.cs": "08b3e5d1b7a0a83208111f84cba8ac833e97f6a79bba8386ef145591f3137810",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs": "1d2a9d9fa5621dcae67ce14e7e01a19500b6158c593a5ca1e4b2742e6251e43d",
+    "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthSessionHandlerTests.cs": "58c872a5c9eb9c32aa1ebc9b016abd2d6fc0e45ac974fb383ea9ca67b453c7bd",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs": "1cf01c4fa94732d95597774dd44b3a6c6c10f4731b47c8346a84acdffe0d0ade",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSingleSessionRevocationPostgresTests.cs": "b16be47189b801c0902c50c14fd80ae8cd76943cd6eac5cc52ee1b6411f1e9e1"
+  }
+}

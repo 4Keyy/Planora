@@ -529,6 +529,8 @@ public class UserSecurityHandlerTests
         Assert.Equal("ACCESS_DENIED", result.Error!.Code);
         // Critical: the attacker's call must not have mutated the victim's token.
         Assert.False(victimToken.IsRevoked, "the victim's token must not be revoked by an attacker's request");
+        fixture.RefreshTokens.Verify(x => x.TryRevokeAsync(
+            It.IsAny<RefreshTokenEntity>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         fixture.RefreshTokens.Verify(
             x => x.Update(It.IsAny<RefreshTokenEntity>()),
             Times.Never,

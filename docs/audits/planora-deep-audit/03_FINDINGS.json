@@ -2807,5 +2807,41 @@
       "note": "471 Auth and 1467 broad tests passed without skips."
     },
     "limitations": "No actual Redis failure or acknowledgement-loss injection in the focused checks. Single-session writers remain separate."
+  },
+  {
+    "id": "BE-027",
+    "title": "Single-session revocation can overwrite a newer device login",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Logout/LogoutCommandHandler.cs",
+        "observation": "Original logout saved the previously loaded entity after concurrent re-login."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSession/RevokeSessionCommandHandler.cs",
+        "observation": "Revoke by ID used the same full-root update pattern."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSingleSessionRevocationPostgresTests.cs",
+        "observation": "Real login and logout in independent PostgreSQL contexts reproduce the overwrite."
+      }
+    ],
+    "trigger": "Pause single-session revocation after the row read and commit a same-device re-login before resuming.",
+    "impact": "Revocation can restore old session metadata and invalidate the newer generation.",
+    "fix": "Update revocation fields conditionally against the observed ID, owner, hash and active state.",
+    "tests": [
+      "Four provider checks cover stale logout, stale revoke-one, foreign ownership, cancellation and retry."
+    ],
+    "dependencies": [],
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/t02-single-session-verification.json",
+      "note": "RED 1 failed and 1 passed. Auth 475 and broad 1471 passed without skips."
+    },
+    "limitations": "Lost acknowledgement response semantics and access stamp availability are separate gates."
   }
 ]

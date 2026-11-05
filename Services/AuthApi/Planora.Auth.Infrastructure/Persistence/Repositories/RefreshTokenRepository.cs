@@ -17,6 +17,24 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(rt => rt.Token == tokenHash, cancellationToken);
         }
 
+        public async Task<bool> TryRevokeAsync(
+            RefreshToken current,
+            string ipAddress,
+            string reason,
+            CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.UtcNow;
+            var changed = await _context.RefreshTokens
+                .Where(row => row.Id == current.Id && row.UserId == current.UserId &&
+                    row.Token == current.Token && row.RevokedAt == null && row.ExpiresAt > now)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(row => row.RevokedAt, now)
+                    .SetProperty(row => row.RevokedByIp, ipAddress)
+                    .SetProperty(row => row.RevokedReason, reason)
+                    .SetProperty(row => row.ReplacedByToken, (string?)null), cancellationToken);
+            return changed == 1;
+        }
+
         public async Task<bool> TryRotateAsync(
             RefreshToken current,
             RefreshToken successor,

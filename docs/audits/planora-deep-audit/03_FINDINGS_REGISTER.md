@@ -1047,3 +1047,11 @@ refresh tokens surviving password change and revoke-all. The transaction
 now reloads active sessions and preserves other accounts and history.
 A stale password change cannot overwrite a completed reset.
 [T02 evidence](results/T02.md)
+
+## BE-027 — Single session generation preservation
+
+Priority P2, CONFIRMED and PASS_LOCAL. PostgreSQL reproduced a delayed
+logout overwriting a committed device re-login. Conditional revocation now
+preserves the new generation and metadata. Ownership, cancellation and
+the corresponding revoke-by-ID path passed provider checks.
+[T02 evidence](results/T02.md)

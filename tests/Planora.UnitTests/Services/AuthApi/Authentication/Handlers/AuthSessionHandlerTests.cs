@@ -29,17 +29,16 @@ public class AuthSessionHandlerTests
         fixture.RefreshTokens
             .Setup(x => x.GetByTokenAsync("refresh-token", It.IsAny<CancellationToken>()))
             .ReturnsAsync(token);
+        fixture.RefreshTokens.Setup(x => x.TryRevokeAsync(token, "127.0.0.1", "Logged out", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await fixture.CreateLogoutHandler().Handle(
             new LogoutCommand { RefreshToken = "refresh-token" },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.True(token.IsRevoked);
-        Assert.Equal("127.0.0.1", token.RevokedByIp);
-        Assert.Equal("Logged out", token.RevokedReason);
-        fixture.RefreshTokens.Verify(x => x.Update(token), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.RefreshTokens.Verify(x => x.TryRevokeAsync(
+            token, "127.0.0.1", "Logged out", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -135,16 +134,16 @@ public class AuthSessionHandlerTests
         fixture.RefreshTokens
             .Setup(x => x.GetByIdAsync(token.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(token);
+        fixture.RefreshTokens.Setup(x => x.TryRevokeAsync(token, "127.0.0.1", "Revoked by user", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await fixture.CreateRevokeSessionHandler().Handle(
             new RevokeSessionCommand { TokenId = token.Id },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.True(token.IsRevoked);
-        Assert.Equal("Revoked by user", token.RevokedReason);
-        fixture.RefreshTokens.Verify(x => x.Update(token), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.RefreshTokens.Verify(x => x.TryRevokeAsync(
+            token, "127.0.0.1", "Revoked by user", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

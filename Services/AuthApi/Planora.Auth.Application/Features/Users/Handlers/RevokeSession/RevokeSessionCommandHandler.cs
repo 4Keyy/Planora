@@ -49,10 +49,12 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSession
             }
 
             var ipAddress = _currentUserService.IpAddress ?? "unknown";
-            token.Revoke(ipAddress, "Revoked by user");
-
-            _unitOfWork.RefreshTokens.Update(token);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (!await _unitOfWork.RefreshTokens.TryRevokeAsync(
+                token, ipAddress, "Revoked by user", cancellationToken))
+            {
+                return Result.Failure(
+                    Error.Conflict("SESSION_INACTIVE", "Session is already inactive"));
+            }
 
             _logger.LogInformation(
                 "Session revoked: TokenId={TokenId}, UserId={UserId}",
