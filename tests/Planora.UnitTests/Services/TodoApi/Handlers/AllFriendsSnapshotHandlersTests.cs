@@ -614,6 +614,9 @@ public sealed class AllFriendsSnapshotHandlersTests
             _preferences.Setup(x => x.GetByViewerIdForTodosAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new Dictionary<Guid, UserTodoViewPreference>());
             _profiles.Setup(x => x.GetProfilesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new Dictionary<Guid, UserProfileInfo>());
             _outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>())).Callback<OutboxMessage, CancellationToken>((m, _) => OutboxMessages.Add(m)).Returns(Task.CompletedTask);
+            _outbox.Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<OutboxMessage, CancellationToken>((message, _) => OutboxMessages.Add(message))
+                .Returns(Task.CompletedTask);
         }
 
         private (IReadOnlyList<TodoItem>, int) Page(Expression<Func<TodoItem, bool>> predicate, int page, int size)

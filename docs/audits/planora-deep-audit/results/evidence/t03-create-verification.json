@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "head": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Owned isolated PostgreSQL 16.13 with reviewed Todo migration chain. Broad tests also used owned RabbitMQ. No live Redis endpoint.",
+  "commands": [
+    {
+      "id": "t03-create-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName~CreateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-create-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-red.txt",
+      "log_sha256": "6eaa13d4304e0d49b4a662ca889e6e4965d86ec7e3e14182cabbe2db6df355e7",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-red.trx",
+      "trx_sha256": "04e4468e694a0e797496c0acc606525fbffbf364e23bcca68ead383c34c941ca"
+    },
+    {
+      "id": "t03-create-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-create-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 386,
+      "passed": 386,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-green.txt",
+      "log_sha256": "a29ed514d48b9e2340e52674dfb0be019869794f5611f297da00f058669e6057",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-green.trx",
+      "trx_sha256": "18912e7666b4de7ec068c1778ce17ae10a4715eb121c0303681e28df25f432a5"
+    },
+    {
+      "id": "t03-create-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-create-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1474,
+      "passed": 1474,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-broad.txt",
+      "log_sha256": "c73c255eaab1444392e4ae82396c9acb47e7cedf25e88cdf9941e1bed9c0f5a3",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-broad.trx",
+      "trx_sha256": "ec831985bac5ff41f9585fc01800eb9b3f920d78ba4c64aeb5a9d5615471cad6"
+    },
+    {
+      "id": "t03-create-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-errors/\" --logger 'trx;LogFileName=t03-create-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-errors.txt",
+      "log_sha256": "3fc42f05f54e61a4fa8545da66fe5ff3d35158c97f3b99960cb75d1eeb8182ee",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-errors.trx",
+      "trx_sha256": "d00b494918065441d75b53d0d8169ad60198e9c4022f13c960ce83260e47c4ee"
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-create-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_CommitsTaskAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_SecondEventFailureLeavesNoTaskOrOutboxRows",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-create-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_SecondEventFailureLeavesNoTaskOrOutboxRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_CommitsTaskAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_RejectedFeedInsertRollsBackTaskSharesAndCreationEvent",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_CommitsTaskAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_SecondEventFailureLeavesNoTaskOrOutboxRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-create-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateTodoOutboxPostgresTests.CreateAsync_RejectedFeedInsertRollsBackTaskSharesAndCreationEvent",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "t03_scope",
+    "result": "No blocker in the first CreateTodo slice. Traced HTTP owner assignment and MediatR without auto-save to the actual handler and shared scoped TodoDbContext.",
+    "limits": "Other producer paths, client retry idempotency, crash and acknowledgement-loss are separate. Enqueue remains immediate for legacy callers."
+  },
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Common/OutboxExtensions.cs": "9ea6a46217cd0ce268792c2700697107fbbde645427dbe15dab7ebf61793e86d",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs": "1d06abdca990de962be353d3766817197a23120b547ddf865ee51a0def1637e3",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/AllFriendsSnapshotHandlersTests.cs": "be121b2139e3159c9096ca50c95f4af87a0e139bfd54d3770191bd27fcf607db",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/CreateTodoOutboxPostgresTests.cs": "ab4b0d7dca6cfa0d9607dbe1c4e4814c44d6fd612a9055139c5791e91fdb045e"
+  }
+}

@@ -96,7 +96,12 @@
     "dependencies": [
       "T01"
     ],
-    "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity."
+    "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity.",
+    "verification": {
+      "status": "PARTIAL_LOCAL",
+      "evidence": "results/evidence/t03-create-verification.json",
+      "note": "CreateTodo RED failed on committed task after second-event failure. Three provider GREEN checks passed. Other Todo/Collaboration producers remain open."
+    }
   },
   {
     "id": "BE-003",

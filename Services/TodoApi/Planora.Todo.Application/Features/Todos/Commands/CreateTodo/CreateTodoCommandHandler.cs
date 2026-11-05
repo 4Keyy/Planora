@@ -116,7 +116,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             // The task's activity timeline ("ветка") lives in the Collaboration service. Publish a
             // creation fact via the outbox; Collaboration materialises the "created the task" system
             // comment and the genesis comment (the description) from it. INV-COMM-3.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new TaskCreatedIntegrationEvent(todoItem.Id, userId, authorName, request.Description),
                 cancellationToken);
 
@@ -125,7 +125,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             // without a refresh. Emitted in the same unit of work as the create (INV-COMM-3).
             var audience = await RealtimeAudience.ResolveAsync(
                 todoItem, _friendshipService, cancellationToken, _logger);
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, todoItem.Id, userId, audienceUserIds: audience),
                 cancellationToken);

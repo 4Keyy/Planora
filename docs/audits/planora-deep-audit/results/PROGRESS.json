@@ -2,9 +2,9 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "9e30dbd3709ee15d8e596ceef46fac750b3851ed",
+  "current_sha": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
   "status": "in_progress",
-  "current_task": "T02",
+  "current_task": "T03",
   "completed_tasks": [
     "T01 local contract (deployment closure remains T14)",
     "T05 local transport (working topology transition and historical repair remain pending T14)",
@@ -13,12 +13,10 @@
   ],
   "in_progress_tasks": [
     "T12",
-    "T02"
+    "T02",
+    "T03"
   ],
   "pending_tasks": [
-    "T09",
-    "T02",
-    "T03",
     "T04",
     "T06",
     "T07",
@@ -185,7 +183,13 @@
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSingleSessionRevocationPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t02-single-session-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-041-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-041-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-041-review.md",
+    "Services/TodoApi/Planora.Todo.Application/Common/OutboxExtensions.cs",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/AllFriendsSnapshotHandlersTests.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/CreateTodoOutboxPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/T03.md",
+    "docs/audits/planora-deep-audit/results/evidence/t03-create-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -214,9 +218,10 @@
     "READ-039 completed 25 Realtime paths and 713 lines. Extended DIST-012 with Realtime deduplication after cleanup and added BE-025/OPS-015 with separate runtime gates. Coverage 505/1558, 69 batches pending.",
     "BE-026 PostgreSQL RED 2 and GREEN 3. Auth 471 and broad 1467 without skips. Shared lock and fresh session state close durable account-wide revocation.",
     "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved.",
-    "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending."
+    "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending.",
+    "T03 CreateTodo atomic staging verified by three provider checks. Todo/outbox 386, broad 1474 and ErrorHandling 94 passed without skips. BE-002 remains partial for other producers."
   ],
-  "next_step": "T03 real CreateTodo handler atomicity RED, then additive staging helper. Other lifecycle paths and owner reopen bulk update remain separate gates.",
+  "next_step": "T03 DuplicateTodo and CreateSubtask staging with provider failure controls. Review UpdateTodo owner-reopen bulk update before general helper conversion.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2398,6 +2403,58 @@
       "log_sha256": "5924e14a66524f19e48cf1b48cdd56663dda47baedd4162746235386b4040082",
       "trx": ".buildcheck/deep-audit-t02/results/t02-single-session-broad.trx",
       "trx_sha256": "22cb610e5d21d10576cb6bec3322e87028f0683e6c355b88a3e3ab0dbaa59917"
+    },
+    {
+      "id": "t03-create-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName~CreateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-create-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-red.txt",
+      "log_sha256": "6eaa13d4304e0d49b4a662ca889e6e4965d86ec7e3e14182cabbe2db6df355e7",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-red.trx",
+      "trx_sha256": "04e4468e694a0e797496c0acc606525fbffbf364e23bcca68ead383c34c941ca"
+    },
+    {
+      "id": "t03-create-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-create-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 386,
+      "passed": 386,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-green.txt",
+      "log_sha256": "a29ed514d48b9e2340e52674dfb0be019869794f5611f297da00f058669e6057",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-green.trx",
+      "trx_sha256": "18912e7666b4de7ec068c1778ce17ae10a4715eb121c0303681e28df25f432a5"
+    },
+    {
+      "id": "t03-create-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-create-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1474,
+      "passed": 1474,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-broad.txt",
+      "log_sha256": "c73c255eaab1444392e4ae82396c9acb47e7cedf25e88cdf9941e1bed9c0f5a3",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-broad.trx",
+      "trx_sha256": "ec831985bac5ff41f9585fc01800eb9b3f920d78ba4c64aeb5a9d5615471cad6"
+    },
+    {
+      "id": "t03-create-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/create-errors/\" --logger 'trx;LogFileName=t03-create-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-create-errors.txt",
+      "log_sha256": "3fc42f05f54e61a4fa8545da66fe5ff3d35158c97f3b99960cb75d1eeb8182ee",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-create-errors.trx",
+      "trx_sha256": "d00b494918065441d75b53d0d8169ad60198e9c4022f13c960ce83260e47c4ee"
     }
   ],
   "audit_coverage": {
@@ -2475,7 +2532,9 @@
     "results/evidence/t02-revocation-verification.json",
     "results/evidence/t02-single-session-verification.json",
     "results/evidence/read-041-review.json",
-    "results/evidence/read-041-review.md"
+    "results/evidence/read-041-review.md",
+    "results/T03.md",
+    "results/evidence/t03-create-verification.json"
   ],
   "local_commits": [
     {
@@ -2562,6 +2621,11 @@
       "task": "T02 single-session generation preservation",
       "sha": "9e30dbd3709ee15d8e596ceef46fac750b3851ed",
       "pushed": false
+    },
+    {
+      "task": "READ-041 Todo metadata and validation review",
+      "sha": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2588,7 +2652,8 @@
     "T12": "OPS-003 historical usage/revocation decisions; OPS-004 compatible dependency resolution and full frontend gates; backend SBOM/image provenance",
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
-    "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment."
+    "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment.",
+    "T03": "Other Todo and Collaboration producer commits, owner reopen bulk preferences, BE-005 workers, BE-006 activity identity and continuation findings."
   },
   "new_findings": [
     "BE-008",
