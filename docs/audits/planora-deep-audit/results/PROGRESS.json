@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "0b02cd29bdf421f2aa123b0ca7ac08e477a02e43",
+  "current_sha": "a693ab0f1b7582667cbcea0a7bfb90afff7caeb9",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -204,7 +204,9 @@
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DeleteTodoOutboxPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t03-delete-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-043-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-043-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-043-review.md",
+    "docs/audits/planora-deep-audit/results/evidence/read-044-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-044-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -240,7 +242,8 @@
     "READ-042 completed25paths/1991source lines. BE-030/031/032 are static findings, runtime NOT_VERIFIED. Coverage555/1558(35.62%),67batches pending.",
     "CreateSubtask atomic staged fanout: RED2F/1P, initial GREEN392P, cancellation extension393P, broad1481P and ErrorHandling94P without skips. Four PostgreSQL cases and independent source review passed. No schema or HTTP/DTO changes.",
     "DeleteTodo both branches: RED4F/2P; GREEN399P, broad1487P and ErrorHandling94P without skips. Six actual provider cases and independent source review. Downstream BE-006 remains open.",
-    "READ-043 completed25paths/935source lines. BE-033 ActualDate completion events is static, runtime NOT_VERIFIED. Coverage580/1558(37.23%),66batches pending."
+    "READ-043 completed25paths/935source lines. BE-033 ActualDate completion events is static, runtime NOT_VERIFIED. Coverage580/1558(37.23%),66batches pending.",
+    "READ-044 completed25paths/4278source lines, no new confirmed findings. Guarded legacy-comment drop hypothesis refuted in source; no runtime proof promoted. Coverage605/1558(38.83%),65batches pending."
   ],
   "next_step": "T03 JoinTodo and LeaveTodo staging with post-commit count failure control. UpdateTodo owner-reopen bulk preferences and Collaboration producers still need atomicity gates.",
   "commands": [
@@ -2801,14 +2804,23 @@
       "local_links": 1397,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "read044-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 124,
+      "local_links": 1424,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 66,
+    "pending_batches": 65,
     "complete": false,
-    "current_read_or_reviewed": 580,
+    "current_read_or_reviewed": 605,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2823,7 +2835,8 @@
       "READ-039",
       "READ-041",
       "READ-042",
-      "READ-043"
+      "READ-043",
+      "READ-044"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2889,7 +2902,9 @@
     "results/evidence/t03-subtask-verification.json",
     "results/evidence/t03-delete-verification.json",
     "results/evidence/read-043-review.json",
-    "results/evidence/read-043-review.md"
+    "results/evidence/read-043-review.md",
+    "results/evidence/read-044-review.json",
+    "results/evidence/read-044-review.md"
   ],
   "local_commits": [
     {
@@ -3005,6 +3020,11 @@
     {
       "task": "T03 DeleteTodo atomic deletion checkpoint",
       "sha": "0b02cd29bdf421f2aa123b0ca7ac08e477a02e43",
+      "pushed": false
+    },
+    {
+      "task": "READ-043 Todo domain completion review checkpoint",
+      "sha": "a693ab0f1b7582667cbcea0a7bfb90afff7caeb9",
       "pushed": false
     }
   ],

@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-044",
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read042",
+  "source_head": "a693ab0f1b7582667cbcea0a7bfb90afff7caeb9",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 25,
+  "source_lines_read": 4278,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Repositories/TodoFriendShareKey.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-5"
+      ],
+      "line_count": 5,
+      "sha256": "a2f43e486d78ed42da8599d767facfae133238e514719b2d2f14b520d0803aa0",
+      "purpose_and_callers": "Readonly directed share/activity projection used by friend affinity.",
+      "trust_state_errors_concurrency": "No authority, contents or side effects; repository predicate scopes owner/current-friend recipients.",
+      "test_evidence": "GetFriendAffinityQueryHandler.cs:40-67 and TodoRepository.GetFriendShareKeysAsync traced in READ-042.",
+      "conclusion": "No new independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/ValueObjects/TodoStatusExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-25"
+      ],
+      "line_count": 25,
+      "sha256": "d44ca3b99caa2442650b8b18c3724f390fa3687d9328b5141504ba9334bb5c39",
+      "purpose_and_callers": "Status display and tolerant string parsing.",
+      "trust_state_errors_concurrency": "Recognizes todo/pending, inprogress and done/completed case-insensitively after space removal; unsupported strings return null. Caller decides whether no-op is allowed.",
+      "test_evidence": "UpdateTodo uses FromString with HasValue, existing domain/handler tests.",
+      "conclusion": "Parser has no persistence or authorization. No unverified validation defect asserted.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-109"
+      ],
+      "line_count": 109,
+      "sha256": "cd33a78c12f5e4108bf2ab106b9fd6038a4b0e70c2802f519b4ce633b1b83656",
+      "purpose_and_callers": "Todo runtime dependency graph and service registrations.",
+      "trust_state_errors_concurrency": "Requires named Todo connection; shared scoped DbContext binds repository/UoW/outbox. Npgsql retries enabled, sensitive SQL logging disabled. Hosted drainer, retention and backfill have startup side effects; current-user context and service-key gRPC interceptors registered. Readiness adds DbContext.",
+      "test_evidence": "DependencyInjectionContractTests.cs:Todo registration; TodoDatabaseStartup and T08 result; runtime not started.",
+      "conclusion": "T01/T08/T14 operational gates remain: registration is not proof of active processors or effective deployment endpoints.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/DesignTime/TodoDbContextFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-24"
+      ],
+      "line_count": 24,
+      "sha256": "c4359c5af77f11878df669ed4ddfd5eec0ec37c52beb9b04939d92b757a91856",
+      "purpose_and_callers": "EF design-time construction of TodoDbContext.",
+      "trust_state_errors_concurrency": "Configuration reads optional cwd appsettings then environment. Named TodoDatabase takes precedence, with legacy hardcoded local fallback when absent. Constructing context does not connect; never invoked in this batch.",
+      "test_evidence": "DesignTimeDbContextFactoryTests.cs:76-94 tests env-created provider. T08 inventory records this 24-line factory.",
+      "conclusion": "Use explicit isolated target for authorized tooling; no live connection/default database safety inferred. Existing T08/T14 boundary, no new defect without a demonstrated mis-targeting path.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-31"
+      ],
+      "line_count": 31,
+      "sha256": "52fa5b0e6cfbc5908e43133cb0454a02f46b4cd3e1b964ed6fb3ac1f5e600c98",
+      "purpose_and_callers": "Infrastructure-wide compile imports.",
+      "trust_state_errors_concurrency": "Imports Todo/EF/Grpc/DI types; comments still say Category in places but do not alter runtime.",
+      "test_evidence": "Direct full-file read only.",
+      "conclusion": "No functional/security finding for stale import comments.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Grpc/CategoryGrpcClient.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-141"
+      ],
+      "line_count": 141,
+      "sha256": "230b57187b385f8d44f66db1e3ffac952a26860d4bde68cb739c0af03e0d3a3c",
+      "purpose_and_callers": "Owner-scoped Category RPC wrapper used for Todo enrichment/validation.",
+      "trust_state_errors_concurrency": "Passes token, parses returned IDs and rejects mismatched owner; missing/denied returns null, unavailable/deadline typed503, cancellation rethrows. Logs category display metadata. No check of returned category ID equality, but actual Category read selects requested ID under owner.",
+      "test_evidence": "TodoGrpcClientTests.cs:14-93; Category query owner lookup source; no RPC/runtime execution.",
+      "conclusion": "No concrete owner bypass. Log data minimization remains the existing operational logging review; a malformed trusted response is not asserted as current data disclosure.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-305"
+      ],
+      "line_count": 305,
+      "sha256": "bf48082984e325fca75f3fb2725f75203b3a78e59d3fe4409c43e75ba262f275",
+      "purpose_and_callers": "Initial historical target model after workers/comments/preferences were introduced.",
+      "trust_state_errors_concurrency": "Declares TodoItems, owned tags, share/worker composite keys, comment FK cascade and viewer preferences; no completion preferences yet. EF9 annotation is provenance of a historical stage, not the running SDK.",
+      "test_evidence": "Compared fully with adjacent Up and later target models; T08 local full-chain evidence only inherited.",
+      "conclusion": "Historical descriptor does not execute DDL or certify current schema.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-257"
+      ],
+      "line_count": 257,
+      "sha256": "5c1a858d77b56e390beb93bdd6523262b75663ef0c43048a34a80800d4dd85f0",
+      "purpose_and_callers": "Initial schema migration with tasks, workers, tags, shares, legacy comments and preferences.",
+      "trust_state_errors_concurrency": "Up creates todo schema/tables/keys/indexes. Down drops user-bearing tables and cannot be an automatic rollback on live data. No active connection or apply was executed.",
+      "test_evidence": "TodoDatabaseStartupTests.cs:40-51 and T08 report describe prior fresh-chain execution.",
+      "conclusion": "Reviewed historical DDL; operational apply/restore requires T14 and owner authorization.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-313"
+      ],
+      "line_count": 313,
+      "sha256": "0053e367332d8a9e74b5361757c56fd5b9138689fc4d9b15e15814054382052b",
+      "purpose_and_callers": "Historical target model after personal completion fields.",
+      "trust_state_errors_concurrency": "Adds CompletedByViewer=false and nullable timestamp to preferences; other initial tables and FK/index shapes retained.",
+      "test_evidence": "Compared fully with corresponding AddViewerCompletion Up/Down and later descriptors.",
+      "conclusion": "No independent descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-44"
+      ],
+      "line_count": 44,
+      "sha256": "1605ea94c435ae283f45a56f2c6394bf1940f67cc641b6f40de652c45bb05ead",
+      "purpose_and_callers": "Adds personal completion flag/time.",
+      "trust_state_errors_concurrency": "Up is additive with false default; Down removes stored preference completion data. No concurrency token added here, matching existing BE-031 scope.",
+      "test_evidence": "Current preference mapping and T08 chain evidence; no new provider execution.",
+      "conclusion": "Do not duplicate preference race finding or assume Down preserves these fields.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-318"
+      ],
+      "line_count": 318,
+      "sha256": "d65ef709e0e85c663e539e8b42d4edbcb7cbea7d94fc855a45f86af7b6f56762",
+      "purpose_and_callers": "Historical target model for system comments.",
+      "trust_state_errors_concurrency": "Adds IsSystemComment=false to legacy comment model; owner task/share/worker/preferences retained.",
+      "test_evidence": "Corresponding AddSystemComment migration fully read.",
+      "conclusion": "No independent descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-31"
+      ],
+      "line_count": 31,
+      "sha256": "53a998be691d7f05f325e91ed049ebf0a5f296205de7c4eeff70fb0624f4d0b0",
+      "purpose_and_callers": "Adds the legacy system-comment marker.",
+      "trust_state_errors_concurrency": "AddColumn bool default false; Down drops marker information. Does not replay/create existing timeline entries.",
+      "test_evidence": "Historical model paired with its Up/Down; no database execution.",
+      "conclusion": "Legacy stage only; Collaboration owns current comments.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-323"
+      ],
+      "line_count": 323,
+      "sha256": "8fa30117ba1fd219f89271887269563ee7f3b08828941bec754db440ddb318d5",
+      "purpose_and_callers": "Historical target model for genesis comments.",
+      "trust_state_errors_concurrency": "Legacy Content widened 2000→5000 and IsGenesisComment=false added; user/category/worker/preferences unchanged.",
+      "test_evidence": "Paired AddGenesisComment migration and subsequent snapshots.",
+      "conclusion": "No independent descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-53"
+      ],
+      "line_count": 53,
+      "sha256": "38a07dc96c561fe7edc60695f495d7c4fe944b4acb365ca6fc09d7af227f17d7",
+      "purpose_and_callers": "Adds genesis marker and widens legacy comment content.",
+      "trust_state_errors_concurrency": "Up preserves existing values while widening. Down drops genesis and narrows content to 2000, so compatibility/data preservation needs separate review before use.",
+      "test_evidence": "Full Up/Down read and T08 operational rollback caveat.",
+      "conclusion": "Do not issue automatic Down; no demonstrated current data loss in guarded startup.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-333"
+      ],
+      "line_count": 333,
+      "sha256": "0fb8642f94ea18934eea0ae40e09e8fc27285d6e7a6746e47b783b401c62e98e",
+      "purpose_and_callers": "Historical target model after avatar snapshot and xmin mapping.",
+      "trust_state_errors_concurrency": "TodoItem xmin concurrency metadata appears; legacy comments add nullable AuthorAvatarUrl2048. Existing composite/FK/index structures retained.",
+      "test_evidence": "Compared with AddCommentAvatarUrl and current TodoDbContext xmin mapping; T08 prior fresh-chain result.",
+      "conclusion": "Not treating metadata AddColumn xmin as an invented application column conflict; provider SQL not regenerated here.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-45"
+      ],
+      "line_count": 45,
+      "sha256": "dc21c9000264f8059c6607f2a8034c13b8e15fd7802bf6a884123983b6144ab0",
+      "purpose_and_callers": "Historical avatar/xmin migration.",
+      "trust_state_errors_concurrency": "Adds rowVersion xmin mapping and nullable legacy avatar snapshot. Down removes declarations; system-column generation behavior requires provider evidence for rollback.",
+      "test_evidence": "T08 prior full-chain PASS is historical evidence; no new Up/Down/SQL command executed.",
+      "conclusion": "No fresh claim that SQL fails or rollback works.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-329"
+      ],
+      "line_count": 329,
+      "sha256": "aed6deba4be6833be759dc732299111719e09680981a2ad78739d7df48546ee4",
+      "purpose_and_callers": "Historical target model after avatar snapshot removal.",
+      "trust_state_errors_concurrency": "Legacy comments retain author ID/name/content/system/genesis, avatar removed; task xmin remains.",
+      "test_evidence": "Corresponding RemoveCommentAvatarSnapshot migration and current live-profile service source.",
+      "conclusion": "No independent descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-35"
+      ],
+      "line_count": 35,
+      "sha256": "6b232dedeffb2e1ee3d23ac8d1c8e8919eb5dab0afa84dee42e23acc505b7450",
+      "purpose_and_callers": "Drops obsolete comment-avatar snapshot.",
+      "trust_state_errors_concurrency": "Up removes cached snapshot as live Auth enrichment becomes source of truth; Down re-adds nullable column without restoring historical values.",
+      "test_evidence": "Migration rationale and UserProfileGrpcService inspected in READ-043.",
+      "conclusion": "No new application data-loss claim for deliberately retired cosmetic cache field.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-324"
+      ],
+      "line_count": 324,
+      "sha256": "2ca6ef7d4771d5494ba99283df934edf630defe3f7b55eea639f701f243f98ed",
+      "purpose_and_callers": "Historical target model after comment table moved out and outbox introduced.",
+      "trust_state_errors_concurrency": "Legacy comment entity removed; outbox Pending/Retry fields and indexes added. Task xmin, shares, workers and completion preferences persist.",
+      "test_evidence": "Paired RemoveCommentsAddOutbox and TodoDatabaseStartup refusal guard.",
+      "conclusion": "Current outbox indexing difference remains documented; descriptor alone is not a claim of operational performance.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-107"
+      ],
+      "line_count": 107,
+      "sha256": "cd477cfcf6fe930bbd7c4125a631aba85682b1bf9bdc3c1ab6a5b90483f59b53",
+      "purpose_and_callers": "Replaces legacy Todo comments storage with durable outbox table.",
+      "trust_state_errors_concurrency": "Up DropTable comments is destructive in isolation; actual service startup and reviewed Migrator call TodoDatabaseStartup, which refuses nonempty legacy comments before this migration. Down drops outbox backlog and recreates empty comments.",
+      "test_evidence": "TodoDatabaseStartup.cs:72-75,92-98; tests:105-121; tools/Planora.Migrator/Program.cs:198-211; docs/database.md:358+.",
+      "conclusion": "Unconditional current comment loss hypothesis refuted for inspected guarded paths. Direct EF database update bypass and coordinated source cleanup/restore remain operational gates.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-336"
+      ],
+      "line_count": 336,
+      "sha256": "2c803cd151f092b4fd2e671d37fb75eb21993e51feafd653339cafb3269f08b8",
+      "purpose_and_callers": "Historical subtask target model.",
+      "trust_state_errors_concurrency": "Adds nullable parent FK NoAction and parent/deleted/created index; no child-specific creator/date-start/audience stamp at this stage. EF10 annotation reflects this reviewed descriptor.",
+      "test_evidence": "Paired AddSubtaskParentTodoId and following snapshot migration.",
+      "conclusion": "No independent descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-56"
+      ],
+      "line_count": 56,
+      "sha256": "609d608083b1794c52ca0502a8bacd18dde09fc9a6e30ffbf1ccc8ee37e52756",
+      "purpose_and_callers": "Adds nullable self-parent linkage and branch lookup index.",
+      "trust_state_errors_concurrency": "Existing tasks remain roots. NoAction FK preserves explicit application soft-delete policy; Down removes topology metadata.",
+      "test_evidence": "Current TodoItem parent contracts, T03 delete path owned by root and T08 full-chain result.",
+      "conclusion": "No automatic parent cascade claimed; application deletion must remain separately verified.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.Designer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-354"
+      ],
+      "line_count": 354,
+      "sha256": "bc322de0ed9015471580c01e0b78b7dff493dafce65cefc77adf3ff6157d1b89",
+      "purpose_and_callers": "Final reviewed target model with frozen All-friends metadata.",
+      "trust_state_errors_concurrency": "Adds AllFriendsSnapshotAt, CreatedByUserId, DueDateStart, title 1500 and completed/retention/audience batch indexes. Preferences lack xmin, matching BE-031; Todo outbox has Status/OccurredOn index.",
+      "test_evidence": "Compared entire final descriptor and model snapshot with current configurations.",
+      "conclusion": "Existing findings retain their IDs; no new descriptor defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-29"
+      ],
+      "line_count": 29,
+      "sha256": "b7b4b55188150916a51bca72ab863335fb4a430429cdd329e416c1d300897316",
+      "purpose_and_callers": "Reviewed additive snapshot/schema reconciliation step.",
+      "trust_state_errors_concurrency": "Preflight-dependent raw SQL widens title and adds nullable fields/indexes IF NOT EXISTS. No automatic audience materialization occurs here; separate backfill service handles it. Down explicitly refuses privacy-unsafe rollback.",
+      "test_evidence": "TodoDatabaseStartup schema preflight, AllFriendsSnapshotBackfillService and T08 prior provider evidence.",
+      "conclusion": "IF NOT EXISTS alone is not a drift proof. Inspected entrypoints perform preflight; direct EF tooling still requires an explicit migration plan.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/TodoDbContextModelSnapshot.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-351"
+      ],
+      "line_count": 351,
+      "sha256": "a2735326ca685fffaeef01bd099480c641d84dd7813cf9c84f72128c3e2a4707",
+      "purpose_and_callers": "Current EF migration snapshot.",
+      "trust_state_errors_concurrency": "Matches final migration target model at a historical compiled snapshot, including keys/indexes and TodoItem xmin. No connection, business validation, current-friend checks or deployment guarantees are encoded here.",
+      "test_evidence": "Full-file comparison to final Designer, current model mapping and T08 results.",
+      "conclusion": "Snapshot is model provenance, not operational certification; no new independent defect.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [],
+  "observations": [
+    {
+      "status": "REFUTED_FOR_INSPECTED_GUARDED_ENTRYPOINTS",
+      "hypothesis": "Historical RemoveCommentsAddOutbox blindly destroys nonempty legacy comments during normal reviewed startup/migrator.",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.cs",
+          "lines": "14-19"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDatabaseStartup.cs",
+          "lines": "72-76,92-98",
+          "supplemental": true
+        },
+        {
+          "path": "tools/Planora.Migrator/Program.cs",
+          "lines": "198-211",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/TodoDatabaseStartupTests.cs",
+          "lines": "105-121",
+          "supplemental": true
+        }
+      ],
+      "note": "Guard rejects nonempty source before applying removal. Test source asserts preserved comment/history. Test execution is only the earlier T08 result, not rerun here. Direct EF tooling bypass is outside this refutation."
+    },
+    {
+      "status": "NOT_VERIFIED_NO_FINDING",
+      "hypothesis": "Historical xmin AddColumn descriptor necessarily attempts an illegal application-column creation on PostgreSQL.",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.cs",
+          "lines": "13-20"
+        },
+        {
+          "path": "docs/audits/planora-deep-audit/results/T08.md",
+          "lines": "45-56",
+          "supplemental": true
+        }
+      ],
+      "note": "T08 already records the owned PostgreSQL full-chain execution. This source-only batch does not generate SQL or execute provider Up/Down, so it does not invent a contradictory runtime failure or claim rollback success."
+    },
+    {
+      "status": "EXISTING_OPERATIONAL_BOUNDARY",
+      "hypothesis": "Todo design-time factory without explicit settings is a safe disposable target.",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/DesignTime/TodoDbContextFactory.cs",
+          "lines": "7-21"
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/Infrastructure/DesignTimeDbContextFactoryTests.cs",
+          "lines": "76-94",
+          "supplemental": true
+        }
+      ],
+      "note": "No such guarantee: legacy fallback remains; tests construct a context with explicit synthetic env only. Nothing connects in this batch. All authorized migration commands must keep their explicit verified isolated connection; not promoted to a new stable finding without a new demonstrated failure."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Полностью прочитаны 25 manifest paths и 4278 строк, включая все 9 migration pairs и snapshot. Supplemental code/tests/docs не включены в счётчик.",
+    "SHA-256 рассчитаны по исходным байтам рабочего дерева; ranges 1-N. Source scope совпадает с a693ab0f1b7582667cbcea0a7bfb90afff7caeb9 с нормализацией CRLF. Текущий root Join/Leave diff не затронут.",
+    "Новые finding IDs не созданы: new_findings пуст. Проверенные исходные гипотезы и границы сохранены отдельными observations, а не представлены как runtime PASS.",
+    "T08.md прочитан как предыдущий проверочный отчёт. Его исторические counts не выданы за новый прогон, текущую рабочую схему, restore всего стека или разрешение на production apply.",
+    "Build, services, migration SQL generation/apply/rollback, базы, Redis, RabbitMQ, browser и нагрузка не запускались. Все новые runtime gates NOT_VERIFIED.",
+    "Legacy Down может удалять сохранённые данные/backlog или сужать колонки; последний privacy snapshot Down намеренно запрещён. Ни один rollback не выполнялся.",
+    "Активные .env/OAuth/credentials/user secrets не читались. Публичный код design-time fallback рассмотрен без использования подключения; значения не перенесены в evidence.",
+    "Изменены только read-044-review.md/.json; source, registry, index, manifest, PROGRESS и чужие файлы не редактировались. Следующая пачка не запускалась."
+  ]
+}
