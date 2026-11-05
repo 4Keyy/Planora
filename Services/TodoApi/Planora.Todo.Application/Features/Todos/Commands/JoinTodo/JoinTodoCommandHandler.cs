@@ -89,14 +89,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             if (!isSubtask)
             {
                 var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.StartedWorking),
                     cancellationToken);
 
                 // Live: worker count changed → refresh the card on every viewer's feed and the
                 // "started working" entry in the task's open branch.
                 var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audience),
@@ -105,7 +105,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                 // Notify every other participant that someone took the task into work. The actor is
                 // excluded inside the fan-out, so the person who clicked "take" never notifies themselves.
                 var contentAudience = await RealtimeAudience.ResolveContentAsync(todoItem, _friendshipService, cancellationToken, _logger);
-                await NotificationFanout.EnqueueAsync(
+                await NotificationFanout.StageAsync(
                     _outboxRepository, contentAudience, actorId: userId, taskId: todoItem.Id,
                     type: NotificationType.TaskStarted,
                     title: "Task picked up",
@@ -115,7 +115,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             else if (todoItem.ParentTodoId.HasValue)
             {
                 // A subtask's worker count shows on its card inside the parent's branch.
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
                         branchTaskId: todoItem.ParentTodoId.Value),
@@ -124,10 +124,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var activeWorkerTaskCount = await _repository.GetActiveWorkerTaskCountAsync(userId, cancellationToken);
             _logger.LogInformation(
-                "User {UserId} joined task {TodoId}. Active worker task count: {Count}",
-                userId, todoItem.Id, activeWorkerTaskCount);
+                "User {UserId} joined task {TodoId}",
+                userId, todoItem.Id);
 
             var dto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
             {

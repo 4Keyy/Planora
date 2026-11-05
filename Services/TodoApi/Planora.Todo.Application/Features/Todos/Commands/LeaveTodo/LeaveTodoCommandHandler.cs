@@ -57,13 +57,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             if (!isSubtask)
             {
                 var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Left),
                     cancellationToken);
 
                 // Live: worker count dropped → refresh the card everywhere and the branch timeline.
                 var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audience),
@@ -71,7 +71,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             }
             else if (todoItem.ParentTodoId.HasValue)
             {
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
                         branchTaskId: todoItem.ParentTodoId.Value),
@@ -80,10 +80,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var activeWorkerTaskCount = await _repository.GetActiveWorkerTaskCountAsync(userId, cancellationToken);
             _logger.LogInformation(
-                "User {UserId} left task {TodoId}. Active worker task count: {Count}",
-                userId, todoItem.Id, activeWorkerTaskCount);
+                "User {UserId} left task {TodoId}",
+                userId, todoItem.Id);
 
             return Result.Success();
         }

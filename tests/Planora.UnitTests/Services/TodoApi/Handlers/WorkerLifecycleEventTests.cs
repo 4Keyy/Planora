@@ -86,6 +86,7 @@ public sealed class WorkerLifecycleEventTests
             fixture.LeaveHandler().Handle(new LeaveTodoCommand(todo.Id), CancellationToken.None));
 
         fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        fixture.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private sealed class Fixture
@@ -109,9 +110,7 @@ public sealed class WorkerLifecycleEventTests
                 .ReturnsAsync(Array.Empty<Guid>());
             Friendship.Setup(x => x.GetFriendshipsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Array.Empty<FriendshipInfo>());
-            Repository.Setup(x => x.GetActiveWorkerTaskCountAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(1);
-            Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+            Outbox.Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
                 // Capture every enqueued message so assertions can pick out the TaskActivity event,
                 // the live-sync envelope, or the per-recipient NotificationEvent independently.
                 .Callback<OutboxMessage, CancellationToken>((m, _) => Messages.Add(m))

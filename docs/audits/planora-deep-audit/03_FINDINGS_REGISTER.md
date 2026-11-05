@@ -1025,6 +1025,10 @@ including the tracked parent touch. Cancellation before fan-out commit
 preserves the original parent and leaves no child or events.
 DeleteTodo stages both events for root and subtask deletion. Six provider
 cases verify rollback and full success without changing sibling or unrelated rows.
+JoinTodo and LeaveTodo stage all lifecycle events and Join notifications.
+Ten provider tests cover failures, cancellation, success, fresh-context Join
+retry and diagnostic count independence. The post-commit log-only count
+query is removed; remaining UpdateTodo and Collaboration paths are open.
 PostgreSQL regressions cover second-event failure, rejected outbox INSERT
 and the complete successful event set. Other Todo and Collaboration
 producers remain open. [T03 evidence](results/T03.md)

@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "head": "b7cb659d95750b97577cf23168ea984051e187de",
+  "red_head": "a693ab0f1b7582667cbcea0a7bfb90afff7caeb9",
+  "head_note": "Only READ-044 documentation changed HEAD while RED ran. No application changes before RED.",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Audit PostgreSQL immutable ID/label, loopback64345 and tmpfs/no persistent mounts verified. Broad also verified owned RabbitMQ ID/label/volume/ports and check_running. Redis test-only port1 unbound.",
+  "commands": [
+    {
+      "id": "t03-worker-lifecycle-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/worker-lifecycle-out/\" --filter 'FullyQualifiedName~WorkerLifecycleOutboxPostgresTests' --logger 'trx;LogFileName=t03-worker-lifecycle-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 10,
+      "passed": 5,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-worker-lifecycle-red.txt",
+      "log_sha256": "5e3118daf5847ea1bbe2900f3ca18582a2db9ebf046b537c0b8c37eaf2ba36ef",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-worker-lifecycle-red.trx",
+      "trx_sha256": "e2ea8fee5c70fed559631fb7dc3af6df6a05c58ac86f588ad0ee9f5136caace6",
+      "test_run_times": {
+        "creation": "2026-11-06T00:42:49.4994482+03:00",
+        "queuing": "2026-11-06T00:42:49.4994486+03:00",
+        "start": "2026-11-06T00:42:41.9613966+03:00",
+        "finish": "2026-11-06T00:42:55.1650103+03:00"
+      },
+      "test_run_seconds": 13.204
+    },
+    {
+      "id": "t03-worker-lifecycle-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/worker-lifecycle-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-worker-lifecycle-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 409,
+      "passed": 409,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-worker-lifecycle-green.txt",
+      "log_sha256": "d338e60c0c50e24ba638201a24fdf36368cec1dce0864923797f402744b3c00e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-worker-lifecycle-green.trx",
+      "trx_sha256": "cd0cd2fbc59f7e6cd63a71c254770a7d42fee5745c14099a1e4afccdeeab355c",
+      "test_run_times": {
+        "creation": "2026-11-06T00:44:24.9968396+03:00",
+        "queuing": "2026-11-06T00:44:24.9968404+03:00",
+        "start": "2026-11-06T00:44:23.9555831+03:00",
+        "finish": "2026-11-06T00:44:35.5266032+03:00"
+      },
+      "test_run_seconds": 11.571
+    },
+    {
+      "id": "t03-worker-lifecycle-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/worker-lifecycle-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-worker-lifecycle-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1497,
+      "passed": 1497,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-worker-lifecycle-broad.txt",
+      "log_sha256": "4d58f7086ec2e73f776544816eae0b16097aae9bd23c57d529452633345f3637",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-worker-lifecycle-broad.trx",
+      "trx_sha256": "6205fa6bd351b690a0de87de63c5710a1da3cf849a6ce5e709f611d03c1962f5",
+      "test_run_times": {
+        "creation": "2026-11-06T00:46:16.0087228+03:00",
+        "queuing": "2026-11-06T00:46:16.0087232+03:00",
+        "start": "2026-11-06T00:46:14.4295767+03:00",
+        "finish": "2026-11-06T00:46:46.9417601+03:00"
+      },
+      "test_run_seconds": 32.512
+    },
+    {
+      "id": "t03-worker-lifecycle-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/worker-lifecycle-errors/\" --logger 'trx;LogFileName=t03-worker-lifecycle-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-worker-lifecycle-errors.txt",
+      "log_sha256": "65ea3e4727256167fe60976fb2d5e15b7b929dc551df5b460d98ad82287257f5",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-worker-lifecycle-errors.trx",
+      "trx_sha256": "369312df422212cdcef03865685ec465d91e06af2d879e87773dcfc753a0991d",
+      "test_run_times": {
+        "creation": "2026-11-06T00:46:30.5578154+03:00",
+        "queuing": "2026-11-06T00:46:30.5578161+03:00",
+        "start": "2026-11-06T00:46:24.5882843+03:00",
+        "finish": "2026-11-06T00:46:42.0566371+03:00"
+      },
+      "test_run_seconds": 17.468
+    },
+    {
+      "id": "t03-worker-lifecycle-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 124,
+      "local_links": 1425,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.SubtaskMutationsAsync_RejectedBranchSignalRollsBackBothJoinAndLeave",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_RejectedNotificationInsertRollsBackWorkerActivityAndFeed",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_LastRecipientFailureRollsBackWorkerAndEveryEvent",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinSubtaskAsync_CommitsWorkerAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CommitsRemovalActivityAndFeedWithoutContentNotifications",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CancellationBeforeSecondEventRollsBackWorkerRemovalAndActivity",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveSubtaskAsync_CommitsWorkerRemovalAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_CommitsCompleteFanoutAndFreshContextRetryAddsNothing",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_RejectedNotificationInsertRollsBackWorkerActivityAndFeed",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CommitsRemovalActivityAndFeedWithoutContentNotifications",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinSubtaskAsync_CommitsWorkerAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveSubtaskAsync_CommitsWorkerRemovalAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_LastRecipientFailureRollsBackWorkerAndEveryEvent",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.SubtaskMutationsAsync_RejectedBranchSignalRollsBackBothJoinAndLeave",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CancellationBeforeSecondEventRollsBackWorkerRemovalAndActivity",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_CommitsCompleteFanoutAndFreshContextRetryAddsNothing",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CancellationBeforeSecondEventRollsBackWorkerRemovalAndActivity",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_RejectedNotificationInsertRollsBackWorkerActivityAndFeed",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_CommitsRemovalActivityAndFeedWithoutContentNotifications",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinSubtaskAsync_CommitsWorkerAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.SubtaskMutationsAsync_RejectedBranchSignalRollsBackBothJoinAndLeave",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_LastRecipientFailureRollsBackWorkerAndEveryEvent",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveRootAsync_DoesNotTurnCommittedMutationIntoCountLookupFailure",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.LeaveSubtaskAsync_CommitsWorkerRemovalAndOnlyParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-worker-lifecycle-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.WorkerLifecycleOutboxPostgresTests.JoinRootAsync_CommitsCompleteFanoutAndFreshContextRetryAddsNothing",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers in staging, preserved DTO/auth rules, real provider assertions, count sentinel boundary or fresh-context retry.",
+    "limits": "Count failure uses strict repository Moq over real aggregate load and writes, not a network failure. New provider cases do not model subtask owner or Leave after revoke. ACK loss, process crash and concurrent xmin not injected."
+  },
+  "doc_delta": "T15 updates docs/features.md Active worker task count: handlers no longer perform the log-only post-commit query.",
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/JoinTodo/JoinTodoCommandHandler.cs": "e789171d98ec2dd02415a587a8e16f1f6be628f481147d4a52b8307276f1dedb",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs": "ba38cbfdbfe55404f3193d420b0cae08f0f5840d53900b774ae1fef0c890c862",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/WorkerLifecycleEventTests.cs": "8e508609ad995347c803b277b3d3f6c9c5e1a285b049bcca7c606dd5a7def7a6",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/WorkerLifecycleOutboxPostgresTests.cs": "3bd650f2e9ccc908738d59f8cff1bbedf468f918c1f05d8c2434cd5538910609"
+  },
+  "trx_input_policy": "Owned local UTF-8 TRX only,16MiB bound, DTD/entity declarations rejected before parsing."
+}
