@@ -4,6 +4,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
 {
     public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordCommand, Result>
     {
+        private const int PasswordHistoryLimit = 5;
+
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IPasswordValidator _passwordValidator;
@@ -48,7 +50,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
                     Error.NotFound("USER_NOT_FOUND", "User not found"));
             }
 
-            if (!_passwordHasher.VerifyPassword(command.CurrentPassword, user.PasswordHash))
+            var verifiedPasswordHash = user.PasswordHash;
+            if (!_passwordHasher.VerifyPassword(command.CurrentPassword, verifiedPasswordHash))
             {
                 _logger.LogWarning("Invalid current password for user: {UserId}", user.Id);
                 return Result.Failure(
@@ -87,7 +90,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
             var isDifferent = await _passwordValidator.IsDifferentFromPreviousPasswordsAsync(
                 user.Id,
                 command.NewPassword,
-                5,
+                PasswordHistoryLimit,
                 cancellationToken);
 
             if (!isDifferent)
@@ -102,26 +105,21 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
                         }));
             }
 
-            var passwordHistory = new PasswordHistory(user.Id, user.PasswordHash);
-            await _unitOfWork.PasswordHistory.AddAsync(passwordHistory, cancellationToken);
-
             var newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
-            user.ChangePassword(newPasswordHash, user.Id);
-
-            _unitOfWork.Users.Update(user);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            await _unitOfWork.PasswordHistory.DeleteOldHistoryAsync(user.Id, 5, cancellationToken);
+            var updated = await _unitOfWork.TryChangePasswordAsync(
+                user.Id, verifiedPasswordHash, newPasswordHash, PasswordHistoryLimit, cancellationToken);
+            if (updated is null)
+                return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Current password is incorrect"));
 
             // Invalidate all access tokens issued before this point
-            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+            await _securityStamp.SetStampAsync(updated.Id, cancellationToken);
 
             await _emailService.SendPasswordChangedNotificationAsync(
-                user.Email.Value,
-                user.FirstName,
+                updated.Email.Value,
+                updated.FirstName,
                 cancellationToken);
 
-            _logger.LogInformation("Password changed successfully for user: {UserId}", user.Id);
+            _logger.LogInformation("Password changed successfully for user: {UserId}", updated.Id);
             return Result.Success();
         }
     }

@@ -46,7 +46,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
                         Error.NotFound("USER_NOT_FOUND", "User not found"));
                 }
 
-                if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+                var verifiedPasswordHash = user.PasswordHash;
+                if (!_passwordHasher.VerifyPassword(command.Password, verifiedPasswordHash))
                 {
                     _logger.LogWarning(
                         "Invalid password during session revocation: {UserId}",
@@ -56,10 +57,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
                 }
 
                 var ipAddress = _currentUserService.IpAddress ?? "unknown";
-                user.RevokeAllRefreshTokens(ipAddress);
-
-                _unitOfWork.Users.Update(user);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                if (!await _unitOfWork.TryRevokeAllSessionsAsync(user.Id, verifiedPasswordHash, ipAddress, cancellationToken))
+                    return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
 
                 // SECURITY: this command's raison d'être. Refresh-token revocation alone
                 // kills future refresh attempts but leaves outstanding access tokens
@@ -71,7 +70,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
                 _logger.LogInformation("All sessions revoked for user: {UserId}", user.Id);
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error revoking all sessions");
                 return Result.Failure(

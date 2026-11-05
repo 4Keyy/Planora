@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "head": "40855085d1b32addd9abc103c643c49d605dea2b",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Owned disposable PostgreSQL 16.13 and RabbitMQ. Synthetic users and mocked Redis security stamp.",
+  "commands": [
+    {
+      "id": "t02-avatar-and-revocation-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/avatar-out/\" --filter 'FullyQualifiedName~Avatar|FullyQualifiedName~AuthSessionRevocationPostgresTests' --logger 'trx;LogFileName=t02-avatar-and-revocation-red.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 44,
+      "passed": 41,
+      "failed": 3,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-avatar-and-revocation-red.txt",
+      "log_sha256": "6c9b58de9c7303b48124d67f77ab5005dc89549ec00c6ad9486b843df085d550",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-avatar-and-revocation-red.trx",
+      "trx_sha256": "4f90eddfd9751d019952adadf58a94b118760ddd5b249e915a755961a67572a4"
+    },
+    {
+      "id": "t02-revocation-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/revocation-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-revocation-green.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 471,
+      "passed": 469,
+      "failed": 2,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-revocation-green.txt",
+      "log_sha256": "c0d49ae9ff3f859f5f337ab8dbb27701aa6547de5b6673b272369c752ba4aec6",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-revocation-green.trx",
+      "trx_sha256": "014fbbca7a1b17655ecd7229276590f68a1dc7b955ad20395dcc290310ee06af"
+    },
+    {
+      "id": "t02-revocation-green-rerun",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/revocation-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-revocation-green-rerun.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 1,
+      "total": 471,
+      "passed": 469,
+      "failed": 2,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-revocation-green-rerun.txt",
+      "log_sha256": "f431aeb20bc46d64550844aa8d82c7611a4503bad4a0a655fe0b284c19f3ad8c",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-revocation-green-rerun.trx",
+      "trx_sha256": "de561b51a457b8da3cbd8f485b5045edfead41ed66f9ec7a305c9499fadfaec4"
+    },
+    {
+      "id": "t02-revocation-green-final",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/revocation-out/\" --filter 'FullyQualifiedName~Planora.UnitTests.Services.AuthApi' --logger 'trx;LogFileName=t02-revocation-green-final.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 471,
+      "passed": 471,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-revocation-green-final.txt",
+      "log_sha256": "a08fffa84a82f3107b1afa0bdd1a8a2b2b0a3f0e52be63990682d679bb6a79d6",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-revocation-green-final.trx",
+      "trx_sha256": "20c9eff1675eae3b8b042f83b515584e4b420de8a571cc0931e0296035dbd4e1"
+    },
+    {
+      "id": "t02-revocation-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t02/revocation-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t02-revocation-broad.trx' --results-directory .buildcheck/deep-audit-t02/results",
+      "exit_code": 0,
+      "total": 1467,
+      "passed": 1467,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t02/t02-revocation-broad.txt",
+      "log_sha256": "dabdc682ab72a18c96c937635d13b5284a796772829cbb310d0738e84fb04812",
+      "trx": ".buildcheck/deep-audit-t02/results/t02-revocation-broad.trx",
+      "trx_sha256": "2f09482f1b729a60a03510da1224c6bd7b018533e0024b691c1991c677cd3704"
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthDeletionOutboxTests.CancellationAfterDeletionCommit_DoesNotCancelAvatarCleanup",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-avatar-and-revocation-red",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-revocation-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserSecurityHandlerTests.RevokeAllSessions_ShouldRotateSecurityStamp_OnSuccess",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-revocation-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserSecurityHandlerTests.RevokeAllSessions_ShouldReturnInternalFailure_WhenPersistenceThrows",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-revocation-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_DoesNotReplacePasswordResetAfterCredentialCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserSecurityHandlerTests.Disable2FA_ShouldReturnInternalFailure_WhenPersistenceThrows",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-revocation-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Users.Handlers.UserSecurityHandlerTests.RevokeAllSessions_ShouldReturnInternalFailure_WhenPersistenceThrows",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t02-revocation-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_DoesNotReplacePasswordResetAfterCredentialCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-rerun",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-green-final",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_DoesNotReplacePasswordResetAfterCredentialCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_DoesNotReplacePasswordResetAfterCredentialCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t02-revocation-broad",
+      "test": "Planora.UnitTests.Services.AuthApi.Infrastructure.AuthSessionRevocationPostgresTests.ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "friendship_review",
+    "result": "Reviewed shared lock order, credential checks, active-session reload, password history and post-commit events. No blocker in the scoped change.",
+    "limits": "COMMIT acknowledgement loss and real Redis availability are separate. Revoke-all retry verifies reached state rather than a durable operation ID."
+  },
+  "owned_code_sha256": {
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/ChangePassword/ChangePasswordCommandHandler.cs": "bb88832cccc8d28432e5f00db4e24cbf985784449a2e90dee9c62fc3e023d95c",
+    "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSessions/RevokeAllSessionsCommandHandler.cs": "d024e5ec3c5dee789eb9ecf259b50b175233b9aac67b4cc2c8484313d66706c4",
+    "Services/AuthApi/Planora.Auth.Domain/Repositories/IAuthUnitOfWork.cs": "4c6fc14b01362b199643df401faaf3677efe59d16cc5972f0fa1633ba1180766",
+    "Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthUnitOfWork.cs": "ceeafdc68cb941c82a8570f38da7278a60d25b0d9a03b80e5d3916bf27eca70e",
+    "tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs": "9a29d808c8f4cf2b08f8b434a94e07464711d307b624a754bc950e92d7ce9f60",
+    "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSessionRevocationPostgresTests.cs": "049d2d46bd6faee436c4a6d08c6197da2b5f5173fecedf34e6e5893a98534e5b"
+  }
+}

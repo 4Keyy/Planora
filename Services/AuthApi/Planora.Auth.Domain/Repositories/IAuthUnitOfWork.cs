@@ -26,6 +26,19 @@ namespace Planora.Auth.Domain.Repositories
             string passwordHash,
             CancellationToken cancellationToken = default);
 
+        Task<User?> TryChangePasswordAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string passwordHash,
+            int passwordHistoryLimit,
+            CancellationToken cancellationToken = default);
+
+        Task<bool> TryRevokeAllSessionsAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string ipAddress,
+            CancellationToken cancellationToken = default);
+
         Task ClearExpiredPasswordResetAsync(
             Guid userId,
             string expectedTokenHash,

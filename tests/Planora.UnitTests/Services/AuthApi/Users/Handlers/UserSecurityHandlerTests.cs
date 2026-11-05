@@ -91,7 +91,6 @@ public class UserSecurityHandlerTests
         var userId = Guid.NewGuid();
         var fixture = new AuthUserFixture(userId);
         var user = CreateUser();
-        PasswordHistory? passwordHistory = null;
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("old-password", user.PasswordHash)).Returns(true);
         fixture.PasswordHasher.Setup(x => x.HashPassword("NewPassword927!")).Returns("new-hash");
@@ -102,10 +101,10 @@ public class UserSecurityHandlerTests
         fixture.PasswordValidator
             .Setup(x => x.IsDifferentFromPreviousPasswordsAsync(user.Id, "NewPassword927!", 5, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        fixture.PasswordHistory
-            .Setup(x => x.AddAsync(It.IsAny<PasswordHistory>(), It.IsAny<CancellationToken>()))
-            .Callback<PasswordHistory, CancellationToken>((history, _) => passwordHistory = history)
-            .ReturnsAsync((PasswordHistory history, CancellationToken _) => history);
+        fixture.UnitOfWork
+            .Setup(x => x.TryChangePasswordAsync(user.Id, "old-hash", "new-hash", 5, It.IsAny<CancellationToken>()))
+            .Callback(() => user.ChangePassword("new-hash", user.Id))
+            .ReturnsAsync(user);
 
         var result = await fixture.CreateChangePasswordHandler().Handle(
             new ChangePasswordCommand
@@ -118,11 +117,8 @@ public class UserSecurityHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("new-hash", user.PasswordHash);
-        Assert.NotNull(passwordHistory);
-        Assert.Equal("old-hash", passwordHistory!.PasswordHash);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        fixture.PasswordHistory.Verify(x => x.DeleteOldHistoryAsync(user.Id, 5, It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryChangePasswordAsync(
+            user.Id, "old-hash", "new-hash", 5, It.IsAny<CancellationToken>()), Times.Once);
         fixture.EmailService.Verify(
             x => x.SendPasswordChangedNotificationAsync(user.Email.Value, user.FirstName, It.IsAny<CancellationToken>()),
             Times.Once);
@@ -342,6 +338,10 @@ public class UserSecurityHandlerTests
         Assert.Equal("INVALID_PASSWORD", invalid.Error!.Code);
 
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+        fixture.UnitOfWork.Setup(x => x.TryRevokeAllSessionsAsync(
+                user.Id, user.PasswordHash, "10.0.0.5", It.IsAny<CancellationToken>()))
+            .Callback(() => user.RevokeAllRefreshTokens("10.0.0.5"))
+            .ReturnsAsync(true);
         var success = await fixture.CreateRevokeAllSessionsHandler().Handle(
             new RevokeAllSessionsCommand { Password = "password" },
             CancellationToken.None);
@@ -349,8 +349,8 @@ public class UserSecurityHandlerTests
         Assert.True(success.IsSuccess);
         Assert.False(active.IsActive);
         Assert.Equal("10.0.0.5", active.RevokedByIp);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryRevokeAllSessionsAsync(
+            user.Id, user.PasswordHash, "10.0.0.5", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -387,7 +387,7 @@ public class UserSecurityHandlerTests
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
         fixture.UnitOfWork
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryRevokeAllSessionsAsync(user.Id, user.PasswordHash, "10.0.0.5", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("save failed"));
 
         var result = await fixture.CreateRevokeAllSessionsHandler().Handle(
@@ -396,6 +396,7 @@ public class UserSecurityHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("REVOKE_ALL_ERROR", result.Error!.Code);
+        fixture.SecurityStamp.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -409,6 +410,9 @@ public class UserSecurityHandlerTests
         user.AddRefreshToken("refresh-token", "127.0.0.1", DateTime.UtcNow.AddDays(7));
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+        fixture.UnitOfWork.Setup(x => x.TryRevokeAllSessionsAsync(
+                user.Id, user.PasswordHash, "10.0.0.5", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await fixture.CreateRevokeAllSessionsHandler().Handle(
             new RevokeAllSessionsCommand { Password = "password" },

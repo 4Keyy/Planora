@@ -1,3 +1,4 @@
+using System.Data;
 using Npgsql;
 
 namespace Planora.Auth.Infrastructure.Persistence
@@ -118,22 +119,17 @@ namespace Planora.Auth.Infrastructure.Persistence
             return await _context.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task<User?> TryResetPasswordAsync(
+        public Task<User?> TryResetPasswordAsync(
             Guid userId,
             string expectedTokenHash,
             string passwordHash,
-            CancellationToken cancellationToken = default)
-        {
-            User? changedUser = null;
-            var committed = await _context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
-                _context,
-                async (context, token) =>
+            CancellationToken cancellationToken = default) =>
+            TryCommitSessionMutationAsync(
+                userId,
+                (context, token) =>
                 {
-                    // Each attempt reloads the reset target and its sessions from the database.
-                    context.ChangeTracker.Clear();
-                    await AuthSessionLock.AcquireAsync(context, userId, token);
                     var now = DateTime.UtcNow;
-                    changedUser = await context.Users.FromSqlInterpolated($"""
+                    return context.Users.FromSqlInterpolated($"""
                         SELECT * FROM public."Users"
                         WHERE "Id" = {userId}
                           AND "PasswordResetToken" = {expectedTokenHash}
@@ -141,16 +137,87 @@ namespace Planora.Auth.Infrastructure.Persistence
                           AND NOT "IsDeleted"
                         FOR NO KEY UPDATE
                         """).SingleOrDefaultAsync(token);
+                },
+                (_, user, _) =>
+                {
+                    user.ChangePassword(passwordHash, userId);
+                    return Task.CompletedTask;
+                },
+                (context, token) => HasPasswordAsync(context, userId, passwordHash, token),
+                cancellationToken);
+
+        public Task<User?> TryChangePasswordAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string passwordHash,
+            int passwordHistoryLimit,
+            CancellationToken cancellationToken = default) =>
+            TryCommitSessionMutationAsync(
+                userId,
+                (context, token) => LoadPasswordOwnerAsync(context, userId, verifiedPasswordHash, token),
+                async (context, user, token) =>
+                {
+                    var history = await context.PasswordHistory.Where(row => row.UserId == userId).ToListAsync(token);
+                    var previousPassword = new PasswordHistory(userId, verifiedPasswordHash);
+                    context.PasswordHistory.Add(previousPassword);
+                    context.PasswordHistory.RemoveRange(history.Append(previousPassword)
+                        .OrderByDescending(row => row.ChangedAt)
+                        .ThenByDescending(row => row.Id)
+                        .Skip(passwordHistoryLimit));
+                    user.ChangePassword(passwordHash, userId);
+                },
+                (context, token) => HasPasswordAsync(context, userId, passwordHash, token),
+                cancellationToken);
+
+        public async Task<bool> TryRevokeAllSessionsAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string ipAddress,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await TryCommitSessionMutationAsync(
+                userId,
+                (context, token) => LoadPasswordOwnerAsync(context, userId, verifiedPasswordHash, token),
+                (_, owner, _) =>
+                {
+                    owner.RevokeAllRefreshTokens(ipAddress);
+                    return Task.CompletedTask;
+                },
+                async (context, token) => !await context.RefreshTokens.AnyAsync(row =>
+                    row.UserId == userId && row.RevokedAt == null && row.ExpiresAt > DateTime.UtcNow, token),
+                cancellationToken);
+            return user is not null;
+        }
+
+        private async Task<User?> TryCommitSessionMutationAsync(
+            Guid userId,
+            Func<AuthDbContext, CancellationToken, Task<User?>> loadLockedUser,
+            Func<AuthDbContext, User, CancellationToken, Task> applyMutation,
+            Func<AuthDbContext, CancellationToken, Task<bool>> verifySucceeded,
+            CancellationToken cancellationToken)
+        {
+            User? changedUser = null;
+            var committed = await _context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
+                _context,
+                async (context, token) =>
+                {
+                    // A retry must reload the credential and the sessions committed by the preceding lock holder.
+                    context.ChangeTracker.Clear();
+                    await AuthSessionLock.AcquireAsync(context, userId, token);
+                    changedUser = await loadLockedUser(context, token);
                     if (changedUser is null)
                         return false;
 
-                    await context.Entry(changedUser).Collection(user => user.RefreshTokens).LoadAsync(token);
-                    changedUser.ChangePassword(passwordHash, userId);
+                    var now = DateTime.UtcNow;
+                    await context.Entry(changedUser).Collection(user => user.RefreshTokens).Query()
+                        .Where(row => row.RevokedAt == null && row.ExpiresAt > now)
+                        .LoadAsync(token);
+                    await applyMutation(context, changedUser, token);
                     await context.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
                     return true;
                 },
-                (context, token) => context.Users.AsNoTracking()
-                    .AnyAsync(user => user.Id == userId && user.PasswordHash == passwordHash, token),
+                verifySucceeded,
+                IsolationLevel.ReadCommitted,
                 cancellationToken);
 
             if (!committed || changedUser is null)
@@ -162,6 +229,20 @@ namespace Planora.Auth.Infrastructure.Persistence
             await _context.DispatchDomainEventsAsync(events, cancellationToken);
             return changedUser;
         }
+
+        private static Task<User?> LoadPasswordOwnerAsync(
+            AuthDbContext context, Guid userId, string verifiedPasswordHash, CancellationToken token) =>
+            context.Users.FromSqlInterpolated($"""
+                SELECT * FROM public."Users"
+                WHERE "Id" = {userId}
+                  AND "PasswordHash" = {verifiedPasswordHash}
+                  AND NOT "IsDeleted"
+                FOR NO KEY UPDATE
+                """).SingleOrDefaultAsync(token);
+
+        private static Task<bool> HasPasswordAsync(
+            AuthDbContext context, Guid userId, string passwordHash, CancellationToken token) =>
+            context.Users.AnyAsync(user => user.Id == userId && user.PasswordHash == passwordHash, token);
 
         public Task ClearExpiredPasswordResetAsync(
             Guid userId,

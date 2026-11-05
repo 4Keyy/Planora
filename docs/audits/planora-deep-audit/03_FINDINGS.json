@@ -2771,5 +2771,41 @@
       "T07"
     ],
     "limitations": "Static review CONT039003; runtime NOT_VERIFIED. See results/evidence/read-039-review.json."
+  },
+  {
+    "id": "BE-026",
+    "title": "Authenticated password change and revoke-all can leave active refresh tokens",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/ChangePassword/ChangePasswordCommandHandler.cs",
+        "observation": "Baseline loaded the user without sessions before invoking the domain password change."
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSessions/RevokeAllSessionsCommandHandler.cs",
+        "observation": "Baseline revoked the unloaded collection and returned success after setting the stamp."
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSessionRevocationPostgresTests.cs",
+        "observation": "Independent PostgreSQL contexts checked two active sessions, foreign rows, retained history and a concurrent reset."
+      }
+    ],
+    "trigger": "Change the password or revoke all sessions for an account with active refresh records.",
+    "impact": "An active refresh record can survive a successful session-revoking operation.",
+    "fix": "Use the shared Auth transaction and lock order to reload the verified user and active sessions before committing changes.",
+    "tests": [
+      "Two original PostgreSQL scenarios failed. Three corrected scenarios passed, including preservation of a concurrently reset password."
+    ],
+    "dependencies": [],
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/t02-revocation-verification.json",
+      "note": "471 Auth and 1467 broad tests passed without skips."
+    },
+    "limitations": "No actual Redis failure or acknowledgement-loss injection in the focused checks. Single-session writers remain separate."
   }
 ]

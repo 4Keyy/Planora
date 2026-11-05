@@ -1039,3 +1039,11 @@ The review traced existing inbox and outbox findings separately.
 | OPS-015 | P3 | CONFIRMED, static | Realtime gRPC logs full notification text. Verify routine logs retain metadata and omit message content. |
 
 Runtime verification remains open. [READ-039](results/evidence/read-039-review.md)
+
+## BE-026 — Durable session revocation
+
+Priority P1, CONFIRMED and PASS_LOCAL. PostgreSQL tests reproduced active
+refresh tokens surviving password change and revoke-all. The transaction
+now reloads active sessions and preserves other accounts and history.
+A stale password change cannot overwrite a completed reset.
+[T02 evidence](results/T02.md)
