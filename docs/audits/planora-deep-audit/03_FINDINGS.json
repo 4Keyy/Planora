@@ -99,8 +99,8 @@
     "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity.",
     "verification": {
       "status": "PARTIAL_LOCAL",
-      "evidence": "results/evidence/t03-subtask-verification.json",
-      "note": "CreateTodo and DuplicateTodo passed three provider cases each; CreateSubtask passed four, including request cancellation before fanout commit. Other Todo/Collaboration producers remain open."
+      "evidence": "results/evidence/t03-delete-verification.json",
+      "note": "CreateTodo3, DuplicateTodo3, CreateSubtask4 and DeleteTodo6 provider cases passed. Join/Leave/UpdateTodo and Collaboration producers remain open; deletion proof does not close BE-006."
     }
   },
   {

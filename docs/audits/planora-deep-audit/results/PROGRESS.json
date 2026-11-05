@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "5081f31296937f6b9db8adfbd065150132be85b5",
+  "current_sha": "11982882a452d1dc603ae67930d00d9b4774f91f",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -199,7 +199,10 @@
     "Services/TodoApi/Planora.Todo.Application/Common/NotificationFanout.cs",
     "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandHandler.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/CreateSubtaskOutboxPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-subtask-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-subtask-verification.json",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DeleteTodoOutboxPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t03-delete-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -233,9 +236,10 @@
     "Final checkpoint verifies 530/1558 reviewed or read paths and 68 remaining batches. T03 CreateTodo committed locally. Existing foreign frontend next-env hash preserved.",
     "DuplicateTodo atomic staging verified: RED 1F/1P; initial GREEN376P/13 provider failures after Docker stopped; retry389P. Initial broad1472P/5 broker connection failures, readiness recheck5P, broad retry1477P, ErrorHandling94P, no skips. Three actual PostgreSQL cases passed; independent source review no blocker.",
     "READ-042 completed25paths/1991source lines. BE-030/031/032 are static findings, runtime NOT_VERIFIED. Coverage555/1558(35.62%),67batches pending.",
-    "CreateSubtask atomic staged fanout: RED2F/1P, initial GREEN392P, cancellation extension393P, broad1481P and ErrorHandling94P without skips. Four PostgreSQL cases and independent source review passed. No schema or HTTP/DTO changes."
+    "CreateSubtask atomic staged fanout: RED2F/1P, initial GREEN392P, cancellation extension393P, broad1481P and ErrorHandling94P without skips. Four PostgreSQL cases and independent source review passed. No schema or HTTP/DTO changes.",
+    "DeleteTodo both branches: RED4F/2P; GREEN399P, broad1487P and ErrorHandling94P without skips. Six actual provider cases and independent source review. Downstream BE-006 remains open."
   ],
-  "next_step": "T03 DeleteTodo provider RED for task tree and subtask creator paths, then staged deletion events. Join/Leave post-commit counts and UpdateTodo owner-reopen bulk preferences remain open.",
+  "next_step": "T03 JoinTodo and LeaveTodo staging with post-commit count failure control. UpdateTodo owner-reopen bulk preferences and Collaboration producers still need atomicity gates.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2696,6 +2700,95 @@
       "local_links": 1368,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t03-delete-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName~DeleteTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-delete-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 6,
+      "passed": 2,
+      "failed": 4,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-red.txt",
+      "log_sha256": "08199492325d69914d75785163698f7c3dbea7eacbf0c1eb05208c72300e332e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-red.trx",
+      "trx_sha256": "408421130904f16a6d6bf6b2c0d7c9a80a827cbef4928bfaf3f502ddf1388ba6",
+      "test_run_times": {
+        "creation": "2026-11-05T21:51:47.0733309+03:00",
+        "queuing": "2026-11-05T21:51:47.0733313+03:00",
+        "start": "2026-11-05T21:51:40.0351441+03:00",
+        "finish": "2026-11-05T21:51:50.2293218+03:00"
+      },
+      "test_run_seconds": 10.194
+    },
+    {
+      "id": "t03-delete-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-delete-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 399,
+      "passed": 399,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-green.txt",
+      "log_sha256": "81c35c782efaffeed1d59ffb9a62b8a70757b25de55f63cc1767d97e16bee016",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-green.trx",
+      "trx_sha256": "3e58d4aab66d56cc53186f1f4f7e13172136d48d4496e8b2a9b136d76d0b2eae",
+      "test_run_times": {
+        "creation": "2026-11-05T21:52:57.5724571+03:00",
+        "queuing": "2026-11-05T21:52:57.5724575+03:00",
+        "start": "2026-11-05T21:52:56.5583592+03:00",
+        "finish": "2026-11-05T21:53:07.3370838+03:00"
+      },
+      "test_run_seconds": 10.779
+    },
+    {
+      "id": "t03-delete-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-delete-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1487,
+      "passed": 1487,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-broad.txt",
+      "log_sha256": "582fab2dec1e8b56d865de7499a9e8a5d839ec65452c8bfb2eea62113b5cdfe9",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-broad.trx",
+      "trx_sha256": "b85e7fae985b8cfc2d28b19bb68020c4e4520857aa4729bc623833b2eec953f1",
+      "test_run_times": {
+        "creation": "2026-11-05T21:54:17.2928747+03:00",
+        "queuing": "2026-11-05T21:54:17.2928755+03:00",
+        "start": "2026-11-05T21:54:15.8115286+03:00",
+        "finish": "2026-11-05T21:54:50.9552625+03:00"
+      },
+      "test_run_seconds": 35.144
+    },
+    {
+      "id": "t03-delete-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-errors/\" --logger 'trx;LogFileName=t03-delete-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-errors.txt",
+      "log_sha256": "da512d5e7470fef8cdfd3cde08a8b1eab1cda515ba5ddea7c3da0a05b4a37dd0",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-errors.trx",
+      "trx_sha256": "fc7ae7aa01e53ed0cf434164361f431a1e7c31e7bf85762a5494dbbd7e3072d0",
+      "test_run_times": {
+        "creation": "2026-11-05T21:54:33.3570850+03:00",
+        "queuing": "2026-11-05T21:54:33.3570855+03:00",
+        "start": "2026-11-05T21:54:27.1746966+03:00",
+        "finish": "2026-11-05T21:54:45.6574923+03:00"
+      },
+      "test_run_seconds": 18.483
+    },
+    {
+      "id": "t03-delete-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 122,
+      "local_links": 1369,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -2780,7 +2873,8 @@
     "results/evidence/t03-duplicate-verification.json",
     "results/evidence/read-042-review.json",
     "results/evidence/read-042-review.md",
-    "results/evidence/t03-subtask-verification.json"
+    "results/evidence/t03-subtask-verification.json",
+    "results/evidence/t03-delete-verification.json"
   ],
   "local_commits": [
     {
@@ -2886,6 +2980,11 @@
     {
       "task": "READ-042 viewer preferences and completion review",
       "sha": "5081f31296937f6b9db8adfbd065150132be85b5",
+      "pushed": false
+    },
+    {
+      "task": "T03 CreateSubtask atomic staged fanout checkpoint",
+      "sha": "11982882a452d1dc603ae67930d00d9b4774f91f",
       "pushed": false
     }
   ],

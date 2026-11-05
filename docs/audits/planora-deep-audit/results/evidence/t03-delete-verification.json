@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "head": "11982882a452d1dc603ae67930d00d9b4774f91f",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Verified immutable PostgreSQL audit container, loopback64345, tmpfs/no persistent mounts. Broad also verified owned RabbitMQ identity/label/volume/ports and check_running. Test-only Redis port1 was unbound.",
+  "commands": [
+    {
+      "id": "t03-delete-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName~DeleteTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-delete-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 6,
+      "passed": 2,
+      "failed": 4,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-red.txt",
+      "log_sha256": "08199492325d69914d75785163698f7c3dbea7eacbf0c1eb05208c72300e332e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-red.trx",
+      "trx_sha256": "408421130904f16a6d6bf6b2c0d7c9a80a827cbef4928bfaf3f502ddf1388ba6",
+      "test_run_times": {
+        "creation": "2026-11-05T21:51:47.0733309+03:00",
+        "queuing": "2026-11-05T21:51:47.0733313+03:00",
+        "start": "2026-11-05T21:51:40.0351441+03:00",
+        "finish": "2026-11-05T21:51:50.2293218+03:00"
+      },
+      "test_run_seconds": 10.194
+    },
+    {
+      "id": "t03-delete-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-delete-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 399,
+      "passed": 399,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-green.txt",
+      "log_sha256": "81c35c782efaffeed1d59ffb9a62b8a70757b25de55f63cc1767d97e16bee016",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-green.trx",
+      "trx_sha256": "3e58d4aab66d56cc53186f1f4f7e13172136d48d4496e8b2a9b136d76d0b2eae",
+      "test_run_times": {
+        "creation": "2026-11-05T21:52:57.5724571+03:00",
+        "queuing": "2026-11-05T21:52:57.5724575+03:00",
+        "start": "2026-11-05T21:52:56.5583592+03:00",
+        "finish": "2026-11-05T21:53:07.3370838+03:00"
+      },
+      "test_run_seconds": 10.779
+    },
+    {
+      "id": "t03-delete-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-delete-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1487,
+      "passed": 1487,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-broad.txt",
+      "log_sha256": "582fab2dec1e8b56d865de7499a9e8a5d839ec65452c8bfb2eea62113b5cdfe9",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-broad.trx",
+      "trx_sha256": "b85e7fae985b8cfc2d28b19bb68020c4e4520857aa4729bc623833b2eec953f1",
+      "test_run_times": {
+        "creation": "2026-11-05T21:54:17.2928747+03:00",
+        "queuing": "2026-11-05T21:54:17.2928755+03:00",
+        "start": "2026-11-05T21:54:15.8115286+03:00",
+        "finish": "2026-11-05T21:54:50.9552625+03:00"
+      },
+      "test_run_seconds": 35.144
+    },
+    {
+      "id": "t03-delete-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/delete-errors/\" --logger 'trx;LogFileName=t03-delete-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-delete-errors.txt",
+      "log_sha256": "da512d5e7470fef8cdfd3cde08a8b1eab1cda515ba5ddea7c3da0a05b4a37dd0",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-delete-errors.trx",
+      "trx_sha256": "fc7ae7aa01e53ed0cf434164361f431a1e7c31e7bf85762a5494dbbd7e3072d0",
+      "test_run_times": {
+        "creation": "2026-11-05T21:54:33.3570850+03:00",
+        "queuing": "2026-11-05T21:54:33.3570855+03:00",
+        "start": "2026-11-05T21:54:27.1746966+03:00",
+        "finish": "2026-11-05T21:54:45.6574923+03:00"
+      },
+      "test_run_seconds": 18.483
+    },
+    {
+      "id": "t03-delete-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 122,
+      "local_links": 1369,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_ByCreatorCommitsOnlyTargetDeletionAndParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_SecondEventFailureLeavesParentSiblingAndTargetAlive",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_RejectedFeedInsertRollsBackTreeAndDeletionFact",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_RejectedFeedInsertRollsBackTargetAndDeletionFact",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_SecondEventFailureLeavesTreeAliveAndNoEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-delete-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_CommitsTreeDeletionFactAndCompleteFeedAudience",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_RejectedFeedInsertRollsBackTargetAndDeletionFact",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_SecondEventFailureLeavesTreeAliveAndNoEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_CommitsTreeDeletionFactAndCompleteFeedAudience",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_ByCreatorCommitsOnlyTargetDeletionAndParentBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_SecondEventFailureLeavesParentSiblingAndTargetAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_RejectedFeedInsertRollsBackTreeAndDeletionFact",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_RejectedFeedInsertRollsBackTreeAndDeletionFact",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_CommitsTreeDeletionFactAndCompleteFeedAudience",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_RejectedFeedInsertRollsBackTargetAndDeletionFact",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_SecondEventFailureLeavesParentSiblingAndTargetAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteRootAsync_SecondEventFailureLeavesTreeAliveAndNoEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-delete-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DeleteTodoOutboxPostgresTests.DeleteSubtaskAsync_ByCreatorCommitsOnlyTargetDeletionAndParentBranchSignal",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers in both handler branches, actual provider assertions, authorization/payload preservation or IgnoreQueryFilters observation of soft-deleted rows.",
+    "limits": "BE-006 downstream activity identity is separate. Cancellation, concurrent writes, commit ACK loss and replay not injected for deletion."
+  },
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs": "bf992512ec735f31e2b042ffb40949161121058d672dbfdafedfa2b7468c2170",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs": "896276284fcac6ed6820b179371baeff2901a890863874064aaa62af0e4dd12f",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DeleteTodoOutboxPostgresTests.cs": "784d59d7ac24130b6fff7fcddf14732aa8d6d5230862315e84e160bd29cfe3ad"
+  },
+  "trx_input_policy": "Only owned local UTF-8 TRX,16MiB bound, DTD/entity declarations rejected before XML parsing."
+}

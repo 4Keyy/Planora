@@ -78,25 +78,25 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
                 var parentId = todoItem.ParentTodoId!.Value;
                 // A subtask has no branch of its own — its only footprint is the announcement
                 // comments it left in the PARENT's branch. Remove exactly those, not a whole branch.
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new SubtaskDeletedIntegrationEvent(parentId, todoItem.Id, userId, todoItem.Title),
                     cancellationToken);
 
                 // Live: the parent's open branch refreshes its subtask list.
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId, branchTaskId: parentId),
                     cancellationToken);
             }
             else
             {
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskDeletedIntegrationEvent(todoItem.Id, userId),
                     cancellationToken);
 
                 // Live: drop the card from every viewer's feed, and tell any open branch the task
                 // is gone so the view can close itself.
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.TaskDeleted, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audience),
