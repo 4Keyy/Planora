@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
+  "current_sha": "2b712023b92878815aa7935a37178f42f83b758b",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -219,7 +219,8 @@
     "BE-026 PostgreSQL RED 2 and GREEN 3. Auth 471 and broad 1467 without skips. Shared lock and fresh session state close durable account-wide revocation.",
     "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved.",
     "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending.",
-    "T03 CreateTodo atomic staging verified by three provider checks. Todo/outbox 386, broad 1474 and ErrorHandling 94 passed without skips. BE-002 remains partial for other producers."
+    "T03 CreateTodo atomic staging verified by three provider checks. Todo/outbox 386, broad 1474 and ErrorHandling 94 passed without skips. BE-002 remains partial for other producers.",
+    "Final checkpoint verifies 530/1558 reviewed or read paths and 68 remaining batches. T03 CreateTodo committed locally. Existing foreign frontend next-env hash preserved."
   ],
   "next_step": "T03 DuplicateTodo and CreateSubtask staging with provider failure controls. Review UpdateTodo owner-reopen bulk update before general helper conversion.",
   "commands": [
@@ -2455,6 +2456,15 @@
       "log_sha256": "3fc42f05f54e61a4fa8545da66fe5ff3d35158c97f3b99960cb75d1eeb8182ee",
       "trx": ".buildcheck/deep-audit-t03/results/t03-create-errors.trx",
       "trx_sha256": "d00b494918065441d75b53d0d8169ad60198e9c4022f13c960ce83260e47c4ee"
+    },
+    {
+      "id": "t03-create-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 121,
+      "local_links": 1338,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -2625,6 +2635,11 @@
     {
       "task": "READ-041 Todo metadata and validation review",
       "sha": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
+      "pushed": false
+    },
+    {
+      "task": "T03 CreateTodo atomic staging checkpoint",
+      "sha": "2b712023b92878815aa7935a37178f42f83b758b",
       "pushed": false
     }
   ],
