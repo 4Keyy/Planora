@@ -5,7 +5,8 @@ namespace Planora.Todo.Application.Common
 {
     /// <summary>
     /// Fans a per-user <see cref="NotificationEvent"/> out to every recipient <b>except the actor</b>
-    /// through the service outbox (same unit of work as the mutation, INV-COMM-3). The actor never
+    /// through the service outbox. StageAsync joins the mutation's unit of work (INV-COMM-3);
+    /// EnqueueAsync retains immediate per-recipient saves for legacy callers. The actor never
     /// gets notified about their own action — the rule that keeps "I took this task into work" from
     /// lighting my own card. Content recipients come from <c>RealtimeAudience.ResolveContentAsync(...)</c>
     /// (owner + currently accepted friends who have stored access, with the fallback only on legacy rows).
@@ -13,7 +14,7 @@ namespace Planora.Todo.Application.Common
     /// </summary>
     internal static class NotificationFanout
     {
-        public static async Task EnqueueAsync(
+        public static Task EnqueueAsync(
             IOutboxRepository outbox,
             IEnumerable<Guid> recipients,
             Guid actorId,
@@ -21,7 +22,30 @@ namespace Planora.Todo.Application.Common
             string type,
             string title,
             string message,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken) =>
+            WriteAsync(outbox, recipients, actorId, taskId, type, title, message, cancellationToken, stage: false);
+
+        public static Task StageAsync(
+            IOutboxRepository outbox,
+            IEnumerable<Guid> recipients,
+            Guid actorId,
+            Guid taskId,
+            string type,
+            string title,
+            string message,
+            CancellationToken cancellationToken) =>
+            WriteAsync(outbox, recipients, actorId, taskId, type, title, message, cancellationToken, stage: true);
+
+        private static async Task WriteAsync(
+            IOutboxRepository outbox,
+            IEnumerable<Guid> recipients,
+            Guid actorId,
+            Guid taskId,
+            string type,
+            string title,
+            string message,
+            CancellationToken cancellationToken,
+            bool stage)
         {
             var seen = new HashSet<Guid>();
             foreach (var recipientId in recipients)
@@ -30,9 +54,11 @@ namespace Planora.Todo.Application.Common
                 if (recipientId == Guid.Empty || recipientId == actorId || !seen.Add(recipientId))
                     continue;
 
-                await outbox.EnqueueIntegrationEventAsync(
-                    new NotificationEvent(recipientId, title, message, type, taskId, actorId),
-                    cancellationToken);
+                var notification = new NotificationEvent(recipientId, title, message, type, taskId, actorId);
+                if (stage)
+                    await outbox.StageIntegrationEventAsync(notification, cancellationToken);
+                else
+                    await outbox.EnqueueIntegrationEventAsync(notification, cancellationToken);
             }
         }
 

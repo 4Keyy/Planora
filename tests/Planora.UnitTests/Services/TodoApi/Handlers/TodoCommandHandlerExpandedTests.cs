@@ -1124,20 +1124,20 @@ public class TodoCommandHandlerExpandedTests
         // Subtask creation posts no system comment to the timeline, but it does push exactly one
         // live-sync event so the parent's open branch shows the new subtask card instantly.
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(
+            x => x.StageAsync(
                 It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
                     m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
                 It.IsAny<CancellationToken>()),
             Times.Once);
         // …and notifies the one other participant (the shared friend) that a subtask was added.
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(
+            x => x.StageAsync(
                 It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
                     m => m.Type.Contains(nameof(NotificationEvent)) && m.Content.Contains("subtask.added")),
                 It.IsAny<CancellationToken>()),
             Times.Once);
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            x => x.StageAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -1608,6 +1608,10 @@ public class TodoCommandHandlerExpandedTests
             var messages = new List<OutboxMessage>();
             OutboxRepository
                 .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<OutboxMessage, CancellationToken>((m, _) => messages.Add(m))
+                .Returns(Task.CompletedTask);
+            OutboxRepository
+                .Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
                 .Callback<OutboxMessage, CancellationToken>((m, _) => messages.Add(m))
                 .Returns(Task.CompletedTask);
             return messages;

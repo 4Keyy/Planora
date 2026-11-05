@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "head": "5081f31296937f6b9db8adfbd065150132be85b5",
+  "red_head": "ceaea9e61cdcac7ffa254873730d67f36756435f",
+  "head_note": "Only READ-042 documentation changed HEAD while the RED build ran. No T03 application changes before RED.",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Verified immutable PostgreSQL audit container, loopback64345, tmpfs/no persistent mounts. Broad run also verified owned RabbitMQ identity/label/volume/ports and check_running. Test-only Redis port1 was unbound.",
+  "commands": [
+    {
+      "id": "t03-subtask-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/subtask-out/\" --filter 'FullyQualifiedName~CreateSubtaskOutboxPostgresTests' --logger 'trx;LogFileName=t03-subtask-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-subtask-red.txt",
+      "log_sha256": "e0f46521459052325ca7b945fee7a6ad703ecdbca099a8270162d018d75c3c47",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-subtask-red.trx",
+      "trx_sha256": "f8caf4335d70858312595410eb415df00ee26b720f5bbe890bf7d80a2bd8f28c",
+      "test_run_times": {
+        "creation": "2026-11-05T21:42:58.6388631+03:00",
+        "queuing": "2026-11-05T21:42:58.6388635+03:00",
+        "start": "2026-11-05T21:42:50.3312772+03:00",
+        "finish": "2026-11-05T21:42:59.9538295+03:00"
+      },
+      "test_run_seconds": 9.623
+    },
+    {
+      "id": "t03-subtask-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/subtask-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-subtask-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 392,
+      "passed": 392,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-subtask-green.txt",
+      "log_sha256": "a68ce7fb2dd724ccb507438fa2a27b96165030e98def9237ff10e715f028d07a",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-subtask-green.trx",
+      "trx_sha256": "c1124c1c05079914f9ea56cbe71c2d27aa68ebecfbc9599fafb82c37dd180e0b",
+      "test_run_times": {
+        "creation": "2026-11-05T21:44:59.7858744+03:00",
+        "queuing": "2026-11-05T21:44:59.7858746+03:00",
+        "start": "2026-11-05T21:44:58.2734139+03:00",
+        "finish": "2026-11-05T21:45:09.4059168+03:00"
+      },
+      "test_run_seconds": 11.133
+    },
+    {
+      "id": "t03-subtask-green-cancellation",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/subtask-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-subtask-green-cancellation.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 393,
+      "passed": 393,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-subtask-green-cancellation.txt",
+      "log_sha256": "ae91f9059a22a52a69b7f970e8e4535f34a9da63ed7e5cf569de0c5f6f5ade2d",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-subtask-green-cancellation.trx",
+      "trx_sha256": "40725863191b2a3c1cd7eb3586da6a4bcbb058e2b25fe8cb77727f7946f2a8a3",
+      "test_run_times": {
+        "creation": "2026-11-05T21:46:00.1168179+03:00",
+        "queuing": "2026-11-05T21:46:00.1168184+03:00",
+        "start": "2026-11-05T21:45:59.0124533+03:00",
+        "finish": "2026-11-05T21:46:09.5306740+03:00"
+      },
+      "test_run_seconds": 10.518
+    },
+    {
+      "id": "t03-subtask-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/subtask-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-subtask-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1481,
+      "passed": 1481,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-subtask-broad.txt",
+      "log_sha256": "7796c1a36f2558fdd595a61ae7efaddcc4708337a48b6459968605fceb1c96c2",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-subtask-broad.trx",
+      "trx_sha256": "8ff9249cef5e40b682f37acf0373c2f31c0766c194aa3688078fa553a6548e2f",
+      "test_run_times": {
+        "creation": "2026-11-05T21:46:57.6793488+03:00",
+        "queuing": "2026-11-05T21:46:57.6793495+03:00",
+        "start": "2026-11-05T21:46:56.1630539+03:00",
+        "finish": "2026-11-05T21:47:31.2195765+03:00"
+      },
+      "test_run_seconds": 35.057
+    },
+    {
+      "id": "t03-subtask-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/subtask-errors/\" --logger 'trx;LogFileName=t03-subtask-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-subtask-errors.txt",
+      "log_sha256": "7a92522b14e3f84559c78e2a5f55461af060001a4b8421468971802692de564c",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-subtask-errors.trx",
+      "trx_sha256": "d36c75631fa4db340853ef7ecb11e24531ae1251c9dd0c9fc4ad2c782e04089f",
+      "test_run_times": {
+        "creation": "2026-11-05T21:47:13.4690733+03:00",
+        "queuing": "2026-11-05T21:47:13.4690746+03:00",
+        "start": "2026-11-05T21:47:07.2843176+03:00",
+        "finish": "2026-11-05T21:47:25.8359936+03:00"
+      },
+      "test_run_seconds": 18.552
+    },
+    {
+      "id": "t03-subtask-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 122,
+      "local_links": 1368,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-subtask-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CommitsInheritedSubtaskBranchSignalAndEveryOtherCurrentRecipient",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_RejectedNotificationInsertRollsBackSubtaskParentTouchAndFeed",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-subtask-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_LastRecipientFailureRollsBackSubtaskParentTouchAndAllEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-subtask-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_LastRecipientFailureRollsBackSubtaskParentTouchAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CommitsInheritedSubtaskBranchSignalAndEveryOtherCurrentRecipient",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_RejectedNotificationInsertRollsBackSubtaskParentTouchAndFeed",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green-cancellation",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_RejectedNotificationInsertRollsBackSubtaskParentTouchAndFeed",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green-cancellation",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_LastRecipientFailureRollsBackSubtaskParentTouchAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green-cancellation",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CancellationDuringRecipientLookupLeavesNoSubtaskOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-green-cancellation",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CommitsInheritedSubtaskBranchSignalAndEveryOtherCurrentRecipient",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_RejectedNotificationInsertRollsBackSubtaskParentTouchAndFeed",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_LastRecipientFailureRollsBackSubtaskParentTouchAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CancellationDuringRecipientLookupLeavesNoSubtaskOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-subtask-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.CreateSubtaskOutboxPostgresTests.CreateAsync_CommitsInheritedSubtaskBranchSignalAndEveryOtherCurrentRecipient",
+      "outcome": "Passed"
+    }
+  ],
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers in shared fanout, handler, payload/recipient behavior, real provider assertions or the added real-token cancellation boundary.",
+    "limits": "Request replay/idempotency, process failure, commit acknowledgement loss, concurrent parent xmin and BE-028 remain separate gates."
+  },
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Common/NotificationFanout.cs": "76640ebba51c312ff92851f01a399dba1eb3db4942f5efef224ea0f1706a267a",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandHandler.cs": "51cb1ba189f3fe5b6fdf817c05b1df0af9265ccc5c5f88da2d1f2bfc76afa387",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs": "67d704a7edf5146aa668cb51935e24a935f3408507c59a0a15b213dc38a8c15d",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/CreateSubtaskOutboxPostgresTests.cs": "08d93c0a3aa5e0477ea7c9b81b8a707bd0ac31bafd93e7f40b745e194ded11fa"
+  },
+  "trx_input_policy": "Only UTF-8 TRX generated by this local test run within owned results; bounded16MiB; DTD and entity declarations rejected before XML parsing."
+}

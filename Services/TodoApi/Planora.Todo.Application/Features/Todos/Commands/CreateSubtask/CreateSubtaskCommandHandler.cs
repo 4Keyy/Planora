@@ -78,7 +78,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             // comment — there is no "created a subtask" notification. (Completion still emits
             // SubtaskCompleted.) It IS pushed live, though, so anyone with the parent's branch open
             // sees the new subtask card appear without a refresh.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.SubtaskChanged, subtask.Id, userId, branchTaskId: parent.Id),
                 cancellationToken);
@@ -88,7 +88,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             // from the parent gives exactly the people who can see this branch.
             var actorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
             var audience = await RealtimeAudience.ResolveContentAsync(parent, _friendshipService, cancellationToken, _logger);
-            await NotificationFanout.EnqueueAsync(
+            await NotificationFanout.StageAsync(
                 _outboxRepository, audience, actorId: userId, taskId: parent.Id,
                 type: NotificationType.SubtaskAdded,
                 title: "New subtask",

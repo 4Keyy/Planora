@@ -1017,9 +1017,12 @@ in the rehash variant. The guarded transaction now rejects both attempts.
 Runtime checks remain open. Existing atomicity and configuration findings
 retain their separate evidence. [READ-041](results/evidence/read-041-review.md)
 
-## BE-002 — CreateTodo and DuplicateTodo checkpoint
+## BE-002 — CreateTodo, DuplicateTodo and CreateSubtask checkpoint
 
 CreateTodo and DuplicateTodo stage both integration events before their single save.
+CreateSubtask stages its branch event and complete notification fan-out,
+including the tracked parent touch. Cancellation before fan-out commit
+preserves the original parent and leaves no child or events.
 PostgreSQL regressions cover second-event failure, rejected outbox INSERT
 and the complete successful event set. Other Todo and Collaboration
 producers remain open. [T03 evidence](results/T03.md)
