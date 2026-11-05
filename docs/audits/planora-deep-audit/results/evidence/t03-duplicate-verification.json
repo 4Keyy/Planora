@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "head": "620c9a8bbb496941e51698e4566b7c7b18e69dc1",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": {
+    "postgres_container": "41e429499fe363d7893af73a907c71250614c9ba7dcee09abca42a62f0a80bfb",
+    "postgres_ports": {
+      "red": 64665,
+      "failed_green": 64665,
+      "retry": 64345
+    },
+    "isolation": "Audit label and immutable ID verified. Loopback binding, tmpfs PGDATA, no persistent PostgreSQL mounts. Broad run also verified owned RabbitMQ ID/label/volume and dynamic port. Redis DI test endpoint port 1 verified unbound."
+  },
+  "commands": [
+    {
+      "id": "t03-duplicate-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~DuplicateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-duplicate-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-red.txt",
+      "log_sha256": "e1f8f19f5110548d4593bfede6b9d8bf0b7d2a410bffdf6e5e86b3ff8226dfb4",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-red.trx",
+      "trx_sha256": "eb46d764c5ea45f0e53eb54907f9f3b1c53edba3796931e40104ac86fb50f3c2"
+    },
+    {
+      "id": "t03-duplicate-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-duplicate-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 389,
+      "passed": 376,
+      "failed": 13,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-green.txt",
+      "log_sha256": "e1fbe20c00706e5fda5c77cadf9d4d7a51e99bed12068d35a2b5960b83fab50e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-green.trx",
+      "trx_sha256": "e8de89574372d24ee9814e2431597b801cdc75fb25c2f2c99fc2a05582ba1e44"
+    },
+    {
+      "id": "t03-duplicate-green-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-duplicate-green-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 389,
+      "passed": 389,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-green-retry.txt",
+      "log_sha256": "53975228661a3dfe4b6e5bcf7223f3fa177a8e686d847eadbd2120464677cccb",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-green-retry.trx",
+      "trx_sha256": "4d784ea3439619499597c25755bc6909f179322a7de3dab706032af3c9213f00"
+    },
+    {
+      "id": "t03-duplicate-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 1477,
+      "passed": 1472,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broad.txt",
+      "log_sha256": "7491b0fd6846476a38abbf7f35890ca4e8326284e4327cc0d601163e10e44543",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broad.trx",
+      "trx_sha256": "99a3ae8c50f4aaaf211db59243ac46243e63d3982f11794ce02c26b05e384ba7"
+    },
+    {
+      "id": "t03-duplicate-broker-recheck",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter '(FullyQualifiedName~RabbitMqLiveTests|FullyQualifiedName~UserDeletionRabbitPostgresTests)&FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broker-recheck.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broker-recheck.txt",
+      "log_sha256": "d59359805fb2c63358571dd021873c6bd7c044e45ba87d64fb084d002f042576",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broker-recheck.trx",
+      "trx_sha256": "1e97fa3cba7bfa2b8dfea15a1e365809511d8317fe27719283775a7a87610c33"
+    },
+    {
+      "id": "t03-duplicate-broad-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broad-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1477,
+      "passed": 1477,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broad-retry.txt",
+      "log_sha256": "b146fedc7795154eec902c6ad14e641c01ce914abcbd627585cd8760bf12a16e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broad-retry.trx",
+      "trx_sha256": "6d3bb44e95a725704d1f6a92cb8ff041036fd3bec44b5b42abf17e8218cb4276"
+    },
+    {
+      "id": "t03-duplicate-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-errors/\" --logger 'trx;LogFileName=t03-duplicate-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-errors.txt",
+      "log_sha256": "dd5102d0af0b7a263a95b8ede672f58a23e61a21db4ba06ec6a5ceac9d65edf5",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-errors.trx",
+      "trx_sha256": "728261fc80d69f813626468d5cfbce1ccc1e16bee63777998c0206b2f2e50d0e"
+    },
+    {
+      "id": "t03-duplicate-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 121,
+      "local_links": 1339,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-duplicate-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_SecondEventFailurePreservesSourceAndLeavesNoCopyOrEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-duplicate-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_CommitsFreshCopyAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_RejectedFeedInsertRollsBackCopyAndPreservesSource",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-duplicate-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_SecondEventFailurePreservesSourceAndLeavesNoCopyOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_CommitsFreshCopyAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-green-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_RejectedFeedInsertRollsBackCopyAndPreservesSource",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-green-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_CommitsFreshCopyAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-green-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_SecondEventFailurePreservesSourceAndLeavesNoCopyOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_CommitsFreshCopyAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_RejectedFeedInsertRollsBackCopyAndPreservesSource",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_SecondEventFailurePreservesSourceAndLeavesNoCopyOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_SecondEventFailurePreservesSourceAndLeavesNoCopyOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_CommitsFreshCopyAndCompleteCreationAndFeedEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-duplicate-broad-retry",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.DuplicateTodoOutboxPostgresTests.DuplicateAsync_RejectedFeedInsertRollsBackCopyAndPreservesSource",
+      "outcome": "Passed"
+    }
+  ],
+  "interruption": "Docker Engine stopped during first green run: 13 provider connection failures. User started Docker. Own container identities, isolation and dynamic ports reverified before retry. Initial broad had 5 broker connection failures; after explicit rabbitmq-diagnostics check_running, all5 passed and broad was repeated. Failed evidence retained.",
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blocking finding in handler, scoped DbContext, source no-tracking or provider assertions. Reviewer independently identified failed provider gate before retry.",
+    "limits": "Cancellation, repeat POST, process failure and commit ACK loss not injected. Other T03 producers remain open."
+  },
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommandHandler.cs": "d8f338215adbfb9c476e06626f99695f5a3a8fb89fbacdec62f22cb270f1d79c",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs": "9ca64f1f0c6a239a3bb85e588a7c922df66b0d182b115cfa3b4c3ffa5affd185",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DuplicateTodoOutboxPostgresTests.cs": "b5960aa47148ee543c5c5431358e174fc4ef24519dd2aef890cbf92c2e2eace3"
+  }
+}

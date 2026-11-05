@@ -99,8 +99,8 @@
     "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity.",
     "verification": {
       "status": "PARTIAL_LOCAL",
-      "evidence": "results/evidence/t03-create-verification.json",
-      "note": "CreateTodo RED failed on committed task after second-event failure. Three provider GREEN checks passed. Other Todo/Collaboration producers remain open."
+      "evidence": "results/evidence/t03-duplicate-verification.json",
+      "note": "CreateTodo and DuplicateTodo each passed three provider checks. Duplicate RED persisted a copy after the second-event failure. Other Todo/Collaboration producers remain open."
     }
   },
   {

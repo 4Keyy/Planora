@@ -216,7 +216,7 @@ public class TodoCommandHandlerExpandedTests
             .Callback<TodoItem, CancellationToken>((t, _) => copy = t)
             .ReturnsAsync((TodoItem t, CancellationToken _) => t);
         fixture.OutboxRepository
-            .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.StageAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
             .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) =>
             {
                 // Ignore the live-sync envelope so the captured message stays the domain event under test.

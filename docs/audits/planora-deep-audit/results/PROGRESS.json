@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "2b712023b92878815aa7935a37178f42f83b758b",
+  "current_sha": "620c9a8bbb496941e51698e4566b7c7b18e69dc1",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -189,7 +189,11 @@
     "tests/Planora.UnitTests/Services/TodoApi/Handlers/AllFriendsSnapshotHandlersTests.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/CreateTodoOutboxPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/T03.md",
-    "docs/audits/planora-deep-audit/results/evidence/t03-create-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-create-verification.json",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommandHandler.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DuplicateTodoOutboxPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t03-duplicate-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -220,9 +224,10 @@
     "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved.",
     "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending.",
     "T03 CreateTodo atomic staging verified by three provider checks. Todo/outbox 386, broad 1474 and ErrorHandling 94 passed without skips. BE-002 remains partial for other producers.",
-    "Final checkpoint verifies 530/1558 reviewed or read paths and 68 remaining batches. T03 CreateTodo committed locally. Existing foreign frontend next-env hash preserved."
+    "Final checkpoint verifies 530/1558 reviewed or read paths and 68 remaining batches. T03 CreateTodo committed locally. Existing foreign frontend next-env hash preserved.",
+    "DuplicateTodo atomic staging verified: RED 1F/1P; initial GREEN376P/13 provider failures after Docker stopped; retry389P. Initial broad1472P/5 broker connection failures, readiness recheck5P, broad retry1477P, ErrorHandling94P, no skips. Three actual PostgreSQL cases passed; independent source review no blocker."
   ],
-  "next_step": "T03 DuplicateTodo and CreateSubtask staging with provider failure controls. Review UpdateTodo owner-reopen bulk update before general helper conversion.",
+  "next_step": "T03 CreateSubtask staged fanout RED and provider gates. Other lifecycle paths, owner-reopen bulk preferences, BE-005 and BE-006 remain open.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2465,6 +2470,106 @@
       "local_links": 1338,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t03-duplicate-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~DuplicateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-duplicate-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-red.txt",
+      "log_sha256": "e1f8f19f5110548d4593bfede6b9d8bf0b7d2a410bffdf6e5e86b3ff8226dfb4",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-red.trx",
+      "trx_sha256": "eb46d764c5ea45f0e53eb54907f9f3b1c53edba3796931e40104ac86fb50f3c2"
+    },
+    {
+      "id": "t03-duplicate-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-duplicate-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 389,
+      "passed": 376,
+      "failed": 13,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-green.txt",
+      "log_sha256": "e1fbe20c00706e5fda5c77cadf9d4d7a51e99bed12068d35a2b5960b83fab50e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-green.trx",
+      "trx_sha256": "e8de89574372d24ee9814e2431597b801cdc75fb25c2f2c99fc2a05582ba1e44"
+    },
+    {
+      "id": "t03-duplicate-green-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-duplicate-green-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 389,
+      "passed": 389,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-green-retry.txt",
+      "log_sha256": "53975228661a3dfe4b6e5bcf7223f3fa177a8e686d847eadbd2120464677cccb",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-green-retry.trx",
+      "trx_sha256": "4d784ea3439619499597c25755bc6909f179322a7de3dab706032af3c9213f00"
+    },
+    {
+      "id": "t03-duplicate-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 1477,
+      "passed": 1472,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broad.txt",
+      "log_sha256": "7491b0fd6846476a38abbf7f35890ca4e8326284e4327cc0d601163e10e44543",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broad.trx",
+      "trx_sha256": "99a3ae8c50f4aaaf211db59243ac46243e63d3982f11794ce02c26b05e384ba7"
+    },
+    {
+      "id": "t03-duplicate-broker-recheck",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter '(FullyQualifiedName~RabbitMqLiveTests|FullyQualifiedName~UserDeletionRabbitPostgresTests)&FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broker-recheck.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broker-recheck.txt",
+      "log_sha256": "d59359805fb2c63358571dd021873c6bd7c044e45ba87d64fb084d002f042576",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broker-recheck.trx",
+      "trx_sha256": "1e97fa3cba7bfa2b8dfea15a1e365809511d8317fe27719283775a7a87610c33"
+    },
+    {
+      "id": "t03-duplicate-broad-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-duplicate-broad-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1477,
+      "passed": 1477,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-broad-retry.txt",
+      "log_sha256": "b146fedc7795154eec902c6ad14e641c01ce914abcbd627585cd8760bf12a16e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-broad-retry.trx",
+      "trx_sha256": "6d3bb44e95a725704d1f6a92cb8ff041036fd3bec44b5b42abf17e8218cb4276"
+    },
+    {
+      "id": "t03-duplicate-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/duplicate-errors/\" --logger 'trx;LogFileName=t03-duplicate-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-duplicate-errors.txt",
+      "log_sha256": "dd5102d0af0b7a263a95b8ede672f58a23e61a21db4ba06ec6a5ceac9d65edf5",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-duplicate-errors.trx",
+      "trx_sha256": "728261fc80d69f813626468d5cfbce1ccc1e16bee63777998c0206b2f2e50d0e"
+    },
+    {
+      "id": "t03-duplicate-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 121,
+      "local_links": 1339,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -2544,7 +2649,8 @@
     "results/evidence/read-041-review.json",
     "results/evidence/read-041-review.md",
     "results/T03.md",
-    "results/evidence/t03-create-verification.json"
+    "results/evidence/t03-create-verification.json",
+    "results/evidence/t03-duplicate-verification.json"
   ],
   "local_commits": [
     {
@@ -2648,7 +2754,7 @@
       "id": "41e429499fe363d7893af73a907c71250614c9ba7dcee09abca42a62f0a80bfb",
       "kind": "postgres-container",
       "label": "com.planora.audit=deepaudit-t01-20261102",
-      "bind": "127.0.0.1:63450",
+      "bind": "127.0.0.1:64345; reverified after Docker restart",
       "mounts": "tmpfs, no persistent user mount"
     },
     {

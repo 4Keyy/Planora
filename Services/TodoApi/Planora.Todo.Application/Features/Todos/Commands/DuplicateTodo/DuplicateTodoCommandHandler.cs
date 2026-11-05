@@ -133,7 +133,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             // Same creation fact a normal create emits: Collaboration materialises the new branch's
             // "created the task" system comment + the genesis (description) from it (INV-COMM-3).
             // The source branch (comments/subtasks) is intentionally NOT copied.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new TaskCreatedIntegrationEvent(copy.Id, userId, authorName, source.Description),
                 cancellationToken);
 
@@ -141,7 +141,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             // normal create. The audience is computed from the copy's own visibility.
             var audience = await RealtimeAudience.ResolveAsync(
                 copy, _friendshipService, cancellationToken, _logger);
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, copy.Id, userId, audienceUserIds: audience),
                 cancellationToken);
