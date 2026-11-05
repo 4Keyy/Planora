@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "b7cb659d95750b97577cf23168ea984051e187de",
+  "current_sha": "b1164ce68706f9e5c309de323da303e89e31890a",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -211,7 +211,9 @@
     "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Handlers/WorkerLifecycleEventTests.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/WorkerLifecycleOutboxPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-worker-lifecycle-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-worker-lifecycle-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-045-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-045-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -249,7 +251,8 @@
     "DeleteTodo both branches: RED4F/2P; GREEN399P, broad1487P and ErrorHandling94P without skips. Six actual provider cases and independent source review. Downstream BE-006 remains open.",
     "READ-043 completed25paths/935source lines. BE-033 ActualDate completion events is static, runtime NOT_VERIFIED. Coverage580/1558(37.23%),66batches pending.",
     "READ-044 completed25paths/4278source lines, no new confirmed findings. Guarded legacy-comment drop hypothesis refuted in source; no runtime proof promoted. Coverage605/1558(38.83%),65batches pending.",
-    "Join/Leave RED5F/5P, GREEN409P, broad1497P, ErrorHandling94P, no skips. Ten provider tests include cancellation, fresh-context Join retry and strict-Moq count failure after real persistence. Source review no blocker; log-only count removed."
+    "Join/Leave RED5F/5P, GREEN409P, broad1497P, ErrorHandling94P, no skips. Ten provider tests include cancellation, fresh-context Join retry and strict-Moq count failure after real persistence. Source review no blocker; log-only count removed.",
+    "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending."
   ],
   "next_step": "T03 UpdateTodo provider RED across owner/viewer/subtask and owner reopen. Add staged viewer-completion reset without changing legacy bulk API, then stage all events.",
   "commands": [
@@ -2908,14 +2911,23 @@
       "local_links": 1425,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "read045-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 125,
+      "local_links": 1442,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 65,
+    "pending_batches": 64,
     "complete": false,
-    "current_read_or_reviewed": 605,
+    "current_read_or_reviewed": 619,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2931,7 +2943,8 @@
       "READ-041",
       "READ-042",
       "READ-043",
-      "READ-044"
+      "READ-044",
+      "READ-045"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -3000,7 +3013,9 @@
     "results/evidence/read-043-review.md",
     "results/evidence/read-044-review.json",
     "results/evidence/read-044-review.md",
-    "results/evidence/t03-worker-lifecycle-verification.json"
+    "results/evidence/t03-worker-lifecycle-verification.json",
+    "results/evidence/read-045-review.json",
+    "results/evidence/read-045-review.md"
   ],
   "local_commits": [
     {
@@ -3127,6 +3142,11 @@
       "task": "READ-044 Todo infrastructure review checkpoint",
       "sha": "b7cb659d95750b97577cf23168ea984051e187de",
       "pushed": false
+    },
+    {
+      "task": "T03 Join/Leave atomic lifecycle checkpoint",
+      "sha": "b1164ce68706f9e5c309de323da303e89e31890a",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3187,6 +3207,7 @@
     "BE-030",
     "BE-031",
     "BE-032",
-    "BE-033"
+    "BE-033",
+    "BE-034"
   ]
 }

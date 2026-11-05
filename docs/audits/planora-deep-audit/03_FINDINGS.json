@@ -1608,7 +1608,10 @@
       "report": "results/T02.md",
       "note": "Real PostgreSQL RED/GREEN. See t02-one-time-verification.json.",
       "authority": "Local implementation"
-    }
+    },
+    "continuation_evidence": [
+      "results/evidence/read-045-review.json"
+    ]
   },
   {
     "id": "BE-009",
@@ -1697,7 +1700,10 @@
       "Unproven normal-runtime impact is not asserted."
     ],
     "dependencies": [],
-    "limitations": "Static loop/cap semantics only. Most reviewed policies use a fixed cutoff and new normal timestamps do not qualify. Prove a supported eligibility-growth path before claiming runtime impact; see results/evidence/read-014-review.json."
+    "limitations": "Static loop/cap semantics only. Most reviewed policies use a fixed cutoff and new normal timestamps do not qualify. Prove a supported eligibility-growth path before claiming runtime impact; see results/evidence/read-014-review.json.",
+    "continuation_evidence": [
+      "results/evidence/read-045-review.json"
+    ]
   },
   {
     "id": "BE-011",
@@ -3212,5 +3218,58 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT043001; runtime NOT_VERIFIED. See results/evidence/read-043-review.json."
+  },
+  {
+    "id": "BE-034",
+    "title": "Category cleanup updates detached Todos without original xmin",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+        "lines": "28-35,70-75",
+        "observation": "CONT045001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs",
+        "lines": "27-39,53-58",
+        "supplemental": true,
+        "observation": "CONT045001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+        "lines": "21-32",
+        "supplemental": true,
+        "observation": "CONT045001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+        "lines": "102-105",
+        "supplemental": true,
+        "observation": "CONT045001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoUnitOfWork.cs",
+        "lines": "15-18",
+        "observation": "CONT045001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/IntegrationEvents/IntegrationEventHandlerTests.cs",
+        "lines": "196-229",
+        "supplemental": true,
+        "observation": "CONT045001"
+      }
+    ],
+    "trigger": "CategoryDeleted доставлено для категории с хотя бы одной live Todo; consumer выполняется новым настоящим Npgsql DbContext.",
+    "impact": "GetByCategoryIdAsync возвращает AsNoTracking сущности. xmin задан shadow concurrency property, без CLR-поля. Consumer меняет detached Todo, а inherited BaseRepository.Update прикрепляет его без исходного xmin. По причине, уже описанной в tracked SoftDeleteByUserId:28-35, ожидается UPDATE с default xmin и DbUpdateConcurrencyException вместо очистки CategoryId. Consumer rethrow повторяет тот же путь. Mock-тест проверяет вызовы и не воспроизводит provider concurrency. Это отдельная причина неочистки task refs, помимо BE-030 о нетронутых viewer preferences. Фактические SQL и ошибка ещё NOT_VERIFIED.",
+    "fix": "T03/T04 должны загружать mutating category set с исходным tracked xmin либо применять специально проверенный conditional update. Не выключать concurrency и не использовать безусловную detached перезапись; добавить настоящую Npgsql regression.",
+    "tests": [
+      "В отдельном PostgreSQL после reviewed migrations сохранить root/subtask с C и посторонний task с D. Новым scope выполнить настоящий CategoryDeletedEventHandler+TodoRepository+TodoUnitOfWork. Зафиксировать RED и original xmin attached entry. GREEN из третьего контекста должен видеть очищенные только нужные refs; проверить concurrent owner edit, cancellation, повторную доставку и сохранность других полей."
+    ],
+    "dependencies": [],
+    "limitations": "Static state/tracking proof CONT045001; expected provider effect NOT_VERIFIED. See results/evidence/read-045-review.json."
   }
 ]

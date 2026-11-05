@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-045",
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read042",
+  "source_head": "b7cb659d95750b97577cf23168ea984051e187de",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 14,
+  "source_lines_read": 1620,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Options/CategoryApiOptions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-4"
+      ],
+      "line_count": 4,
+      "sha256": "e12a57b11f4c51f9c6edd4e17376ac55938541f43219df0604806b00a7646017",
+      "purpose_and_callers": "Empty historical CategoryApiOptions reference.",
+      "trust_state_errors_concurrency": "Comments only, no endpoint or runtime configuration. Actual category enrichment uses gRPC.",
+      "test_evidence": "READ-044 DI/CategoryGrpcClient.",
+      "conclusion": "No functional defect in an empty reference file.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/OutboxMessageConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-40"
+      ],
+      "line_count": 40,
+      "sha256": "2fb0df2a7b5e56a707bb0ad47e8461895dd880384c3fae93ec1adad09d6a7c4d",
+      "purpose_and_callers": "Todo outbox EF mapping.",
+      "trust_state_errors_concurrency": "Required type255/content/time/status; retry0; Status/OccurredOn and ProcessedOn indexes. No claim/concurrency guarantee in this model.",
+      "test_evidence": "T01/T05 contract and T08 final snapshot.",
+      "conclusion": "DIST-009 operational single-processor gate remains; no new performance measurement.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoItemRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-9"
+      ],
+      "line_count": 9,
+      "sha256": "6df04a1c15b4d0f00f80b387159457970fba77a8cb6bd5da752e425bb7417b53",
+      "purpose_and_callers": "Thin generic Todo repository wrapper.",
+      "trust_state_errors_concurrency": "No overrides. Current DI binds generic IRepository<TodoItem> to TodoRepository rather than this class.",
+      "test_evidence": "Todo DI:50-53 and BaseRepository.",
+      "conclusion": "No independent registered-path defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-439"
+      ],
+      "line_count": 439,
+      "sha256": "da79c3754c2483f31b71ca95e1ecb91b5ed413eec488dd114b9007eef30736b8",
+      "purpose_and_callers": "Todo query/page/projection and erasure/share repository.",
+      "trust_state_errors_concurrency": "Tracked reads preserve xmin; category mutation caller uses no-tracking category query then generic Update, losing shadow token observation. Skip offset Int32 extends BE-008. Completed/public order lacks ID tie-break. RemoveShares immediate Save leaves workers, BE-005.",
+      "test_evidence": "CategoryDeleted consumer, DbContext, BaseRepository and mocked event tests traced. No provider test.",
+      "conclusion": "New category cleanup concurrency finding differs from missing viewer-category cleanup BE-030.",
+      "finding_ids": [
+        "CONT045001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoUnitOfWork.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-70"
+      ],
+      "line_count": 70,
+      "sha256": "a77d02ef1e1e6eca08ceea94b71518efc332c66ed01ca62093b02bc6cd38ff4e",
+      "purpose_and_callers": "Todo Save/explicit transaction unit of work.",
+      "trust_state_errors_concurrency": "Save delegates to context; Commit saves, commits and disposes transaction; Rollback disposes it. No automatic domain-event dispatch or transaction across handler Save calls.",
+      "test_evidence": "Actual infrastructure DI and T03/T08 prior evidence.",
+      "conclusion": "Does not repair save-through or detached xmin; no separate finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-151"
+      ],
+      "line_count": 151,
+      "sha256": "ba5e6ce9d6a434069f531758ad7aac3de15a45b305bdc9b95676e2d2a963de66",
+      "purpose_and_callers": "Viewer private preferences query/upsert.",
+      "trust_state_errors_concurrency": "Viewer-scoped reads. Existing BE-031 covers all-fields Modified/Update. ClearCompleted is immediate SQL (BE-002); category cleanup absent (BE-030).",
+      "test_evidence": "READ-042 callers and UserTodoViewPreferenceRepositoryTests source, using InMemory.",
+      "conclusion": "Do not duplicate BE-002/030/031/032.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoSchemaCompatibility.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-160"
+      ],
+      "line_count": 160,
+      "sha256": "34f501fc296c295de9b41bb7cd63538e1b4aedee459865bb4f3c04df619fca24",
+      "purpose_and_callers": "Read-only Todo pg_catalog compatibility check.",
+      "trust_state_errors_concurrency": "Parameterized columns/types/defaults/nullability, named ordinary indexes, validated FK target/action/columns; historical title width allowed. Queries enlist current transaction and close only self-opened connection. Supported nullable/supplied extra columns accepted.",
+      "test_evidence": "TodoDatabaseStartup, its tests and T08 historical report.",
+      "conclusion": "Only stated catalog profile verified by source; no working DB/role/restore certification.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Planora.Todo.Infrastructure.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-31"
+      ],
+      "line_count": 31,
+      "sha256": "3bfd245a438b6e79a38153584af661e6aa636a8499701b2e8091c494f5af0d48",
+      "purpose_and_callers": "Infrastructure project compiler/dependency references.",
+      "trust_state_errors_concurrency": "net10.0/nullable; centrally versioned EF/Npgsql/Grpc/cache/health; private EF design assets and application/domain/contracts/shared references.",
+      "test_evidence": "Actual csproj read. Package advisory/SBOM remains T12.",
+      "conclusion": "No new dependency finding without current package evidence.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Retention/CompletedTodoRetentionPolicies.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-216"
+      ],
+      "line_count": 216,
+      "sha256": "70bfe03d57aaee7cc06aa467a1547a95f889f59d2972724d8eb1f0c3cf63b2b5",
+      "purpose_and_callers": "Completed-root deletion and viewer completion hide/release policies.",
+      "trust_state_errors_concurrency": "Tracked roots/children saved per root with deletion event through AddAsync. Personal retention ignores batch argument and changes whole eligible set, extending BE-010 initial tripwire growth risk. ct passed; system actor Guid.Empty.",
+      "test_evidence": "CompletedTodoRetentionPolicyTests and RetentionExecutor source.",
+      "conclusion": "Preserve per-task atomic retention Save; all-batch commit not promised.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Retention/TodoSoftDeletePurgePolicy.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-83"
+      ],
+      "line_count": 83,
+      "sha256": "aeb4756f290f7b50eede46ef413f49b244e70baed19a09ccdb85d81d050ff4e0",
+      "purpose_and_callers": "Physical Todo soft-delete purge.",
+      "trust_state_errors_concurrency": "Children-first eligible IDs; preference deletion then Todo SQL deletion, no explicit transaction across statements. FKs cascade shares/workers/tags; self-parent FK protects roots. Lock/tripwire/dry-run supplied by executor.",
+      "test_evidence": "RetentionExecutor and policy source; no provider injection.",
+      "conclusion": "Already deleted/past-grace scope; two-statement partial failure remains unverified, no new live-user mutation claim.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/AllFriendsSnapshotBackfillService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-118"
+      ],
+      "line_count": 118,
+      "sha256": "107d1c2204cbdc91e2154347e5e69da0baf3b47666bbc6a3fd7a8755150cdec6",
+      "purpose_and_callers": "Legacy All-friends background audience freeze.",
+      "trust_state_errors_concurrency": "ID cursor advances even on failed batch. All fresh owner lookups before mutation; one Save for roots/shares/children/workers; xmin protects concurrent edits. cancellation propagates; fresh scope, clear tracker, backoff capped 60s.",
+      "test_evidence": "AllFriendsSnapshotBackfillTests/PostgresTests source and domain methods.",
+      "conclusion": "Freeze is not live SignalR access revocation proof, DIST-004 gate remains.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/CachingFriendshipService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-72"
+      ],
+      "line_count": 72,
+      "sha256": "330b8603be9213321402714c14e8e15b95c8bcb7bf47fcbd37b31794e95e6d60",
+      "purpose_and_callers": "Local 30s friend-ID cache.",
+      "trust_state_errors_concurrency": "User keys, entry size1 and TTL; AreFriends/GetFriendships always uncached. Direct IMemoryCache, separate from T09 CacheService.",
+      "test_evidence": "CachingFriendshipServiceTests, TodoAccessPolicy/current-content source.",
+      "conclusion": "Refuted blanket stale-authorization allegation; no runtime test.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/FriendshipGrpcService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-160"
+      ],
+      "line_count": 160,
+      "sha256": "66776098e32d1e83fca8fcc1ebca85f2e12840122d7be36e9ed7ded15555c5eb",
+      "purpose_and_callers": "Auth friendship RPC wrapper.",
+      "trust_state_errors_concurrency": "List ID parsing/dedupe; snapshot ID/timestamp validation and 10s deadline; failure translation. Snapshot cancelled RpcException normalized when ct cancelled. Pair checks carry ct, no task text logs.",
+      "test_evidence": "TodoGrpcClientTests and snapshot policy tests source.",
+      "conclusion": "No live Auth/cache state inspected.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/UserProfileGrpcService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-67"
+      ],
+      "line_count": 67,
+      "sha256": "f830f1e537f993ed43b3121a2640b006647340e126ba1bdef2e446708cf0520d",
+      "purpose_and_callers": "Cosmetic Auth profile batch enrichment.",
+      "trust_state_errors_concurrency": "Filters empty/duplicate IDs, parses profile IDs and empty avatars. OCE rethrows; other failures degrade to empty map. Called after branch authorization.",
+      "test_evidence": "GetSubtasks and UserProfileGrpcService source.",
+      "conclusion": "No independent content authorization defect.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT045001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "CategoryDeleted изменяет detached Todo без сохранённого shadow xmin",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+          "lines": "28-35,70-75"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs",
+          "lines": "27-39,53-58",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+          "lines": "21-32",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/BaseRepository.cs",
+          "lines": "102-105",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoUnitOfWork.cs",
+          "lines": "15-18"
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/IntegrationEvents/IntegrationEventHandlerTests.cs",
+          "lines": "196-229",
+          "supplemental": true
+        }
+      ],
+      "trigger": "CategoryDeleted доставлено для категории с хотя бы одной live Todo; consumer выполняется новым настоящим Npgsql DbContext.",
+      "impact": "GetByCategoryIdAsync возвращает AsNoTracking сущности. xmin задан shadow concurrency property, без CLR-поля. Consumer меняет detached Todo, а inherited BaseRepository.Update прикрепляет его без исходного xmin. По причине, уже описанной в tracked SoftDeleteByUserId:28-35, ожидается UPDATE с default xmin и DbUpdateConcurrencyException вместо очистки CategoryId. Consumer rethrow повторяет тот же путь. Mock-тест проверяет вызовы и не воспроизводит provider concurrency. Это отдельная причина неочистки task refs, помимо BE-030 о нетронутых viewer preferences. Фактические SQL и ошибка ещё NOT_VERIFIED.",
+      "repro": "В отдельном PostgreSQL после reviewed migrations сохранить root/subtask с C и посторонний task с D. Новым scope выполнить настоящий CategoryDeletedEventHandler+TodoRepository+TodoUnitOfWork. Зафиксировать RED и original xmin attached entry. GREEN из третьего контекста должен видеть очищенные только нужные refs; проверить concurrent owner edit, cancellation, повторную доставку и сохранность других полей.",
+      "fix": "T03/T04 должны загружать mutating category set с исходным tracked xmin либо применять специально проверенный conditional update. Не выключать concurrency и не использовать безусловную detached перезапись; добавить настоящую Npgsql regression."
+    }
+  ],
+  "observations": [
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "BE-008",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+          "lines": "122-140,173-179,285-292"
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs",
+          "lines": "5-24",
+          "supplemental": true
+        }
+      ],
+      "note": "Normalize ограничивает только нижнюю страницу и размер до 100; Todo offsets умножают Int32. Provider outcome huge-page не запускался. Это расширение BE-008, не новый ID."
+    },
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "BE-010",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Retention/CompletedTodoRetentionPolicies.cs",
+          "lines": "158-165,207-213"
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionExecutor.cs",
+          "lines": "40-78",
+          "supplemental": true
+        }
+      ],
+      "note": "Viewer hide/release игнорируют batch и изменяют полный eligible set. Initial tripwire не ограничивает cumulative count при concurrent росте между count/mutation; runtime не запускался."
+    },
+    {
+      "status": "REFUTED_BY_SOURCE",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Services/CachingFriendshipService.cs",
+          "lines": "40-68"
+        }
+      ],
+      "note": "Утверждение о cached AreFriends/GetFriendships неверно: оба делегируются без кэша. Live revocation E2E остаётся отдельным gate."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "READ-045 manifest фактически содержит 14 путей, а не 25 из задания. Все 14 файлов и 1620 строк прочитаны полностью; следующая пачка не включена.",
+    "Source scope равен b7cb659d95750b97577cf23168ea984051e187de с нормализацией CRLF; SHA-256 по исходным байтам, ranges 1-N. Эти хеши фиксируют состояние до возможной последующей root реализации.",
+    "Supplemental code/tests/docs не увеличивают manifest coverage. Существующие BE-002/005/006/028-033 и OPS/DIST IDs не дублируются.",
+    "T08/T09 прочитаны как предыдущие локальные результаты, не новый прогон. Рабочие схемы/Redis policy/key ring/deployment/operational restore не исследованы.",
+    "Build, тесты, сервисы, БД, migrations, Redis, RabbitMQ, browser и нагрузка не запускались. Новый finding имеет source proof и ожидаемый provider effect; RED/SQL/E2E ещё NOT_VERIFIED.",
+    "Неуникальный completed/public page order и двухшаговый preference/Todo purge отмечены как границы без выдуманного runtime failure или нового finding ID.",
+    "Не читались .env/OAuth/credentials/user secrets. Не менялись source, registry, index, manifest, PROGRESS или чужие файлы; только собственные read-045-review.md/.json."
+  ],
+  "stable_finding_ids": {
+    "CONT045001": "BE-034"
+  }
+}

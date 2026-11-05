@@ -1102,3 +1102,14 @@ completed while activity and notifications are omitted and the feed uses
 TaskUpdated. Compare ActualDate-only, ActualDate plus Done, and explicit
 Done in a provider regression; preserve repeat and merge behavior.
 Runtime remains NOT_VERIFIED. [READ-043](results/evidence/read-043-review.md)
+
+## READ-045 — Detached category update tracking
+
+BE-034 / P2 / CONFIRMED, static. CategoryDeleted loads Todo entities without
+tracking and reattaches them for Update without the original shadow xmin.
+The expected Npgsql concurrency failure needs a real provider RED; neither
+SQL nor runtime failure is claimed here. This differs from BE-030's viewer
+category cleanup gap. [READ-045](results/evidence/read-045-review.md)
+
+The same batch extends existing BE-008 pagination and BE-010 retention
+evidence without assigning duplicate IDs or claiming new runtime results.

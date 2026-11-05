@@ -1071,8 +1071,10 @@
       "Services/TodoApi/Planora.Todo.Infrastructure/Services/FriendshipGrpcService.cs",
       "Services/TodoApi/Planora.Todo.Infrastructure/Services/UserProfileGrpcService.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-045-review.json",
+    "notes": "All14manifest files,1620source lines. Detached category-update xmin gate remains open; BE-008 and BE-010 source extensions retained."
   },
   {
     "batch_id": "READ-046",
