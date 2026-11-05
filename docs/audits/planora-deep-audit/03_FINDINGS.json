@@ -3135,5 +3135,82 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT042003; runtime NOT_VERIFIED. See results/evidence/read-042-review.json."
+  },
+  {
+    "id": "BE-033",
+    "title": "ActualDate completion bypasses transition events",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+        "lines": "259-268,345-359",
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemCompletedDomainEvent.cs",
+        "lines": "5-7",
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+        "lines": "304-312,366-373,420-443,473-505,529-559",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoUnitOfWork.cs",
+        "lines": "15-18",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+        "lines": "3-34",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+        "lines": "28-50",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxNotifyInterceptor.cs",
+        "lines": "22-69",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+        "lines": "206-221",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+        "lines": "600-636",
+        "supplemental": true,
+        "observation": "CONT043001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/TodoApi/Domain/TodoItemDomainTests.cs",
+        "lines": "70-87",
+        "supplemental": true,
+        "observation": "CONT043001"
+      }
+    ],
+    "trigger": "Автор незавершённой задачи отправляет поддерживаемый PUT только с непустым actualDate, либо actualDate вместе со status Done. Аналогично owner/creator может указать ActualDate для подзадачи.",
+    "impact": "UpdateActualDate вызывает MarkAsDone до bool ownerJustCompleted=false и обработки status в handler. Поэтому ownerJustCompleted остаётся false, сохранённая задача Done получает TaskUpdated вместо TaskCompleted и не получает Completed activity или task.completed notification. Для подзадачи остаётся только SubtaskChanged, без SubtaskCompleted activity/notifications. Domain completion fact не спасает путь: TodoUnitOfWork/DbContext не dispatch domain events, а notify interceptor только пробуждает уже сохранённый outbox. Живой provider/broker/browser путь не запускался.",
+    "fix": "T03 должен определять фактический переход до/после всех применённых полей, сохранив согласованный merge contract ActualDate/Status. Один атомарный event set должен соответствовать результирующему transition; не публиковать completion повторно при редактировании уже завершённой задачи.",
+    "tests": [
+      "В disposable PostgreSQL через настоящий UpdateTodo handler сравнить ActualDate-only и explicit Done для top-level shared task и разрешённой creator subtask. Из отдельного контекста проверить сохранённый Done/ActualDate и полный event set, тип realtime action, branch identity и actor exclusion. Проверить ActualDate+Done, повторное обновление уже Done и намеренный ActualDate+Todo merge. Инъецировать отказ любого event INSERT для rollback."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT043001; runtime NOT_VERIFIED. See results/evidence/read-043-review.json."
   }
 ]

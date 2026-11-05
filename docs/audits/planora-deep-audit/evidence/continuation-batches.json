@@ -1012,8 +1012,10 @@
       "Services/TodoApi/Planora.Todo.Domain/Repositories/IUserTodoViewPreferenceRepository.cs",
       "Services/TodoApi/Planora.Todo.Domain/Repositories/TodoCategoryKey.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-043-review.json",
+    "notes": "25 full files and935source lines. ActualDate completion event gate remains open."
   },
   {
     "batch_id": "READ-044",

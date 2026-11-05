@@ -1089,3 +1089,12 @@ the corresponding revoke-by-ID path passed provider checks.
 Provider and browser scenarios remain NOT_VERIFIED. The new findings do not
 change the status of the separate atomicity and priority validation gates.
 [READ-042](results/evidence/read-042-review.md)
+
+## READ-043 — ActualDate completion transition
+
+BE-033 / P2 / CONFIRMED, static. ActualDate can mark a task or subtask
+Done before the handler detects the completion transition. The row is
+completed while activity and notifications are omitted and the feed uses
+TaskUpdated. Compare ActualDate-only, ActualDate plus Done, and explicit
+Done in a provider regression; preserve repeat and merge behavior.
+Runtime remains NOT_VERIFIED. [READ-043](results/evidence/read-043-review.md)

@@ -1,0 +1,447 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-043",
+  "reviewed_date_local": "2026-11-05",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read042",
+  "source_head": "11982882a452d1dc603ae67930d00d9b4774f91f",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 25,
+  "source_lines_read": 935,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Planora.Todo.Application.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-28"
+      ],
+      "line_count": 28,
+      "sha256": "aa5b03abc978a2959b0cd12c2d2cbdfbd2922018d83379b46c2ff825ff262ea8",
+      "purpose_and_callers": "Todo application assembly references and compiler settings.",
+      "trust_state_errors_concurrency": "Targets net10.0 with nullable; dependencies centrally versioned. Infrastructure reference is an existing layering choice, not authority to run it.",
+      "test_evidence": "Directory-wide package versions not re-audited; no build.",
+      "conclusion": "No new concrete functional defect in project metadata.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Services/FriendshipInfo.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-4"
+      ],
+      "line_count": 4,
+      "sha256": "49873b7ee32d5b13bff6703966113878fc0b75c24ad222a1399b7b2d1e806089",
+      "purpose_and_callers": "Accepted friendship projection used for materialized audiences.",
+      "trust_state_errors_concurrency": "Nullable acceptance time deliberately represents legacy data, not an accepted-at fallback fabricated by the DTO.",
+      "test_evidence": "AllFriendsSnapshotAudience and FriendshipGrpcService source traces.",
+      "conclusion": "Projection carries no access authority by itself.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Services/IFriendshipService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-11"
+      ],
+      "line_count": 11,
+      "sha256": "8efa3517e80b1e33006b009c4f8a6533273cc2d7a6ebf0970fb5dc3587271d8d",
+      "purpose_and_callers": "Friendship list and pair-check service contract.",
+      "trust_state_errors_concurrency": "GetFriendships promises fresh accepted state; caching wrapper bypasses cache for this method and AreFriends. Authorization remains application caller responsibility.",
+      "test_evidence": "CachingFriendshipService.cs and FriendshipGrpcService.cs read.",
+      "conclusion": "No new defect in interface; dependency failure/cancellation remains distinct from false friendship.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Services/IUserProfileService.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-21"
+      ],
+      "line_count": 21,
+      "sha256": "3010f06bb19730c02b49edb0641bb951fdaab656bcb0c9b000da6eabe142707a",
+      "purpose_and_callers": "Live profile projection and cosmetic batch enrichment interface.",
+      "trust_state_errors_concurrency": "Auth owns display identity; missing lookups degrade metadata, not task authorization. Implementation deduplicates nonempty IDs and rethrows OperationCanceledException.",
+      "test_evidence": "UserProfileGrpcService.cs:24-65 and GetSubtasks source caller trace.",
+      "conclusion": "No new independent defect in this contract.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-520"
+      ],
+      "line_count": 520,
+      "sha256": "f272c7de7450f61bf8962123b44ef812dd54fbf1caa6174f077e7cc9079132e2",
+      "purpose_and_callers": "Todo aggregate for content, dates, audience snapshots, workers and task/subtask transitions.",
+      "trust_state_errors_concurrency": "Application performs actor access checks; domain normalizes shares and prevents subtask nesting. UTC snapshot guard and inherited parent touch protect audience freeze. Direct priority assignment extends BE-029. UpdateActualDate auto-completes before UpdateTodo computes its transition flags, losing completion integration events.",
+      "test_evidence": "TodoItemDomainTests, TodoItemWorkerTests, AllFriendsSnapshotDomainTests inspected; UpdateTodo and actual UoW/DI traced. No test executed.",
+      "conclusion": "ActualDate completion has a separate event-detection defect. Preferences and friendship cleanup retain prior finding IDs.",
+      "finding_ids": [
+        "CONT043001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemShare.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "ed80c2f57b265b3437ae73937a3c426007b63e8b0b347a3a0d69c9bc955d7a3d",
+      "purpose_and_callers": "Task-to-viewer share edge.",
+      "trust_state_errors_concurrency": "Mutable persistence entity, composite identity enforced by mapping; no independent API authority or timestamps.",
+      "test_evidence": "TodoItem.SetSharedWith normalizes Guid.Empty/owner/duplicates; TodoItemConfiguration and access policy traced.",
+      "conclusion": "Application validates accepted friendship; this row alone does not grant present access.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemTag.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "8c47063b4a98ac30dd70448277949714cab81e17cd8644f57e18be52c029e56d",
+      "purpose_and_callers": "Owned tag entity.",
+      "trust_state_errors_concurrency": "ID/name persistence shape; TodoItem trims and rejects case-insensitive duplicates; EF caps name at 50. No public tag mutation handler was introduced.",
+      "test_evidence": "TodoItem.AddTag/RemoveTag and TodoItemConfiguration.cs:110+ by source.",
+      "conclusion": "Whitespace-before-duplicate-check domain behavior is bounded by current caller normalization; no new end-to-end defect asserted.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemWorker.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-9"
+      ],
+      "line_count": 9,
+      "sha256": "9302ff68675ac1fff3fa2a47a4bea53250da5d0c0dcc1d0cb90191f73c81a357",
+      "purpose_and_callers": "Explicit participant-in-work row.",
+      "trust_state_errors_concurrency": "Own task owner implicit, subtask owner explicit. Aggregate guards duplicates/capacity and actor; persistence composite key remains a separate gate.",
+      "test_evidence": "TodoItemWorkerTests.cs and TodoItem.AddWorker/RemoveWorker.",
+      "conclusion": "No new DTO-level defect; BE-005 still owns revoked-friend stale workers.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Entities/UserTodoViewPreference.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-12"
+      ],
+      "line_count": 12,
+      "sha256": "07203b65e192c103e5524e45a3da008b2ef0214c1e63b33faf1f687622e252e3",
+      "purpose_and_callers": "Viewer-owned hidden/category/completion state.",
+      "trust_state_errors_concurrency": "No concurrency token on entity; whole-row upsert risk already BE-031. Category orphan cleanup BE-030 and missing normal completion events BE-032 are existing findings.",
+      "test_evidence": "READ-042 and actual Upsert/mapping source inspected in prior handoff.",
+      "conclusion": "Do not duplicate prior preference findings.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Enums/TodoPriority.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-12"
+      ],
+      "line_count": 12,
+      "sha256": "27d7f5e8826e74e53d3b3b26aa958c504d15b2032247b62796d59ea14d9b317b",
+      "purpose_and_callers": "Supported priority enum 1-5.",
+      "trust_state_errors_concurrency": "Plain numeric enum can hold undefined ints; guards are caller/domain responsibility.",
+      "test_evidence": "TodoItem assigns raw enum; TodoPriorityExtensions.FromInt is not used by command paths.",
+      "conclusion": "BE-029 remains the existing validation finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Enums/TodoPriorityExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-26"
+      ],
+      "line_count": 26,
+      "sha256": "5b489e8b256d93f2de0077b5c1ed587c358d881ff9ae6135b47c7c73c603c004",
+      "purpose_and_callers": "Priority display and strict int conversion helper.",
+      "trust_state_errors_concurrency": "Display returns Unknown for unsupported values; FromInt throws outside 1-5. Command paths assign direct enum instead of calling this helper.",
+      "test_evidence": "Todo source symbol search found only declaration, no use by API command conversion.",
+      "conclusion": "Strict helper does not close BE-029.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Enums/TodoStatus.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-9"
+      ],
+      "line_count": 9,
+      "sha256": "4b518f5ac68db7a75fbe260c09cc4d5fe420d32d9066dde2bef1eaa9186add66",
+      "purpose_and_callers": "Task status enum.",
+      "trust_state_errors_concurrency": "Todo/InProgress/Done values; public string parsing exists outside enum, domain methods enforce transitions.",
+      "test_evidence": "TodoItemDomainTests.cs:105-125 and UpdateTodo status handling by source.",
+      "conclusion": "No independent enum declaration defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemCategoryChangedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-9"
+      ],
+      "line_count": 9,
+      "sha256": "497b3551e11c9713038123e2930642e0ba9c65bd423ff18846b1e28ff5dbb324",
+      "purpose_and_callers": "In-memory category-change fact.",
+      "trust_state_errors_concurrency": "Carries task/actor/category, no database or transport side effects. TodoUnitOfWork does not dispatch these domain events.",
+      "test_evidence": "TodoItem.UpdateCategory and TodoUnitOfWork.cs:15-18; no Todo-specific handlers found.",
+      "conclusion": "Durable integration events must be explicitly staged by application handlers.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemCompletedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "1a912863d3ffbe2fe7d02a28b2e0e28f2afca9ff4abc2aa8642463ddc774060a",
+      "purpose_and_callers": "In-memory completion fact.",
+      "trust_state_errors_concurrency": "Raised by MarkAsDone, including automatic ActualDate completion. Not dispatched by actual TodoDbContext/UoW/notify interceptor.",
+      "test_evidence": "TodoItem.cs:259-268,345-359; TodoUnitOfWork and DI source.",
+      "conclusion": "The presence of this fact does not produce the missing integration events.",
+      "finding_ids": [
+        "CONT043001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemCreatedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-10"
+      ],
+      "line_count": 10,
+      "sha256": "94688bb898296298fc3af5445c8545e2670e4da6884b59e5eea061f6b70242d8",
+      "purpose_and_callers": "In-memory created fact with actor/title/category.",
+      "trust_state_errors_concurrency": "Top-level actor is owner; subtask records creator distinct from owner. Not a TaskCreatedIntegrationEvent and not published automatically.",
+      "test_evidence": "TodoItem.Create/CreateSubtask and application CreateTodo/Duplicate source.",
+      "conclusion": "T03 explicit durable staging remains the event boundary.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemUpdatedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-9"
+      ],
+      "line_count": 9,
+      "sha256": "ce4b9052b6b577ba32523a4895ce4d80101e889b0918443f30e892a7df191a44",
+      "purpose_and_callers": "In-memory title-change fact.",
+      "trust_state_errors_concurrency": "Carries actor/title; no persistence/serialization by itself.",
+      "test_evidence": "TodoItem.UpdateTitle and actual UoW path.",
+      "conclusion": "No new independent event-record defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerJoinedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "11a8998d514ac7ebfdd2a88295ed5f317b600651b58f5e87454197d64b24c092",
+      "purpose_and_callers": "In-memory worker-join fact.",
+      "trust_state_errors_concurrency": "Carries task/worker; direct API integration event is a distinct application responsibility.",
+      "test_evidence": "TodoItem.AddWorker and JoinTodo handler source.",
+      "conclusion": "No automatic broker publication should be inferred.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerLeftDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "235c5c11ee1381c40f3d8c76a3a9a95b23e1b4e8d8fbb8dda9fbac289b85e576",
+      "purpose_and_callers": "In-memory voluntary worker-leave fact.",
+      "trust_state_errors_concurrency": "Actor-specific remove throws if absent; no arbitrary worker ID accepted by HTTP leave.",
+      "test_evidence": "TodoItem.RemoveWorker and LeaveTodo handler trace.",
+      "conclusion": "No new independent access defect in the record.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerRemovedDomainEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "5a1d635e6129a9f6136cc5ecc820e9a7293528461eec7a608fc01e78adc4dc80",
+      "purpose_and_callers": "In-memory forced-worker-removal fact.",
+      "trust_state_errors_concurrency": "Raised on share/capacity change cleanup; no direct domain event transport.",
+      "test_evidence": "TodoItem.SetRequiredWorkers/CleanupWorkersOnAccessChange and TodoItemWorkerTests source.",
+      "conclusion": "BE-005 cleanup and notification semantics remain application gates.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Exceptions/TodoItemNotFoundDomainException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-13"
+      ],
+      "line_count": 13,
+      "sha256": "144c511366fd1754955e8fc1cb3c2363c75d6883c432654adee4f6996eba3dc8",
+      "purpose_and_callers": "Typed TODO_NOT_FOUND domain exception.",
+      "trust_state_errors_concurrency": "Contains resource ID, no task content or credentials. Standard domain exception handling maps it; symbol appears only declaration in Todo source.",
+      "test_evidence": "Source reference search; actual handlers use generic EntityNotFoundException.",
+      "conclusion": "No concrete defect; unused convenience type is not a runtime finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-4"
+      ],
+      "line_count": 4,
+      "sha256": "fd280a2dc1e8c252f00f9b4d602ed41a8dd748c5daa0621b1f7ff3a13d3fce26",
+      "purpose_and_callers": "Domain-wide shared interface import.",
+      "trust_state_errors_concurrency": "Compilation alias only; no runtime state or privilege.",
+      "test_evidence": "Project references and direct file content.",
+      "conclusion": "No independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Planora.Todo.Domain.csproj",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-14"
+      ],
+      "line_count": 14,
+      "sha256": "82a83660daabb920bd816c2ce6d6291fafdb0c657a587e75e43ab1fff6948d53",
+      "purpose_and_callers": "Todo domain assembly compiler/reference metadata.",
+      "trust_state_errors_concurrency": "Targets net10.0, nullable/implicit imports and BuildingBlocks.Domain only; no runtime configuration or new package installation.",
+      "test_evidence": "Project metadata read, no build performed.",
+      "conclusion": "No new independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-117"
+      ],
+      "line_count": 117,
+      "sha256": "d9a4eec342cabe329f56a52a061501b45d8a2bb72b74d8656895d4aeaf81992b",
+      "purpose_and_callers": "Aggregate repository contract for tracked/untracked reads, pages, projected counts and cleanup.",
+      "trust_state_errors_concurrency": "User/category/task IDs are query inputs, not authorization. Tracked reads are needed for xmin; cleanup methods intentionally caller-save except actual RemoveShares currently save-through. BE-005 covers missing workers on friendship removal.",
+      "test_evidence": "TodoRepository.GetByIdWithIncludesTrackedAsync and actual cleanup implementations; source-only.",
+      "conclusion": "Contract comments alone cannot prove atomicity. Preserve caller access checks and T03 provider gates.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Repositories/IUserTodoViewPreferenceRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-51"
+      ],
+      "line_count": 51,
+      "sha256": "2ab7d3dd8cb154a6762bbd660484a840353c89d93c980b1023308d3a72aaced2",
+      "purpose_and_callers": "Viewer-preference repository contract for private state and counts.",
+      "trust_state_errors_concurrency": "Viewer ID scoping and explicit completion reset documented. Upsert has no requested-fields or concurrency argument; BE-031 already tracks lost-update behavior. ClearCompleted is immediate SQL, BE-002 transaction gate.",
+      "test_evidence": "UserTodoViewPreferenceRepository and UpdateTodo owner-reopen source traced in READ-042.",
+      "conclusion": "No duplicate finding; stable IDs remain BE-002/030/031/032.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Domain/Repositories/TodoCategoryKey.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "e388abbd43ebda78d096592e26968eb14c965193b31102a9cdab58ffc3416ec7",
+      "purpose_and_callers": "Narrow task/owner/category projection for count grouping.",
+      "trust_state_errors_concurrency": "Readonly record struct contains no task content; predicates/access applied before query projection.",
+      "test_evidence": "GetCategoryTaskCounts handler and TodoRepository.GetCategoryKeysAsync source.",
+      "conclusion": "No independent projection defect.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT043001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Завершение через ActualDate обходит определение completion transition и его события",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+          "lines": "259-268,345-359"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Domain/Events/TodoItemCompletedDomainEvent.cs",
+          "lines": "5-7"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+          "lines": "304-312,366-373,420-443,473-505,529-559",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoUnitOfWork.cs",
+          "lines": "15-18",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+          "lines": "3-34",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+          "lines": "28-50",
+          "supplemental": true
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxNotifyInterceptor.cs",
+          "lines": "22-69",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+          "lines": "206-221",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+          "lines": "600-636",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Domain/TodoItemDomainTests.cs",
+          "lines": "70-87",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Автор незавершённой задачи отправляет поддерживаемый PUT только с непустым actualDate, либо actualDate вместе со status Done. Аналогично owner/creator может указать ActualDate для подзадачи.",
+      "impact": "UpdateActualDate вызывает MarkAsDone до bool ownerJustCompleted=false и обработки status в handler. Поэтому ownerJustCompleted остаётся false, сохранённая задача Done получает TaskUpdated вместо TaskCompleted и не получает Completed activity или task.completed notification. Для подзадачи остаётся только SubtaskChanged, без SubtaskCompleted activity/notifications. Domain completion fact не спасает путь: TodoUnitOfWork/DbContext не dispatch domain events, а notify interceptor только пробуждает уже сохранённый outbox. Живой provider/broker/browser путь не запускался.",
+      "repro": "В disposable PostgreSQL через настоящий UpdateTodo handler сравнить ActualDate-only и explicit Done для top-level shared task и разрешённой creator subtask. Из отдельного контекста проверить сохранённый Done/ActualDate и полный event set, тип realtime action, branch identity и actor exclusion. Проверить ActualDate+Done, повторное обновление уже Done и намеренный ActualDate+Todo merge. Инъецировать отказ любого event INSERT для rollback.",
+      "fix": "T03 должен определять фактический переход до/после всех применённых полей, сохранив согласованный merge contract ActualDate/Status. Один атомарный event set должен соответствовать результирующему transition; не публиковать completion повторно при редактировании уже завершённой задачи."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Полностью прочитаны 25 manifest paths, 935 source lines. Supplemental callers, infrastructure, tests и docs не включены в счётчик.",
+    "Source scope равен заданному 11982882a452d1dc603ae67930d00d9b4774f91f по содержимому с нормализацией CRLF. SHA-256 рассчитаны по исходным байтам рабочего дерева; диапазоны записаны 1-N.",
+    "Build, runtime tests, database, Redis, RabbitMQ, services, browser и нагрузка не запускались. Все новые runtime gates NOT_VERIFIED.",
+    "Изменены только два собственных evidence файла. Параллельный root DeleteTodo diff и прочие чужие файлы не затронуты. Registry/index/manifest/PROGRESS не редактировались.",
+    "Активные .env, OAuth, credentials, user secrets и рабочие конфигурационные значения не читались; remote операций не было.",
+    "BE-002/005/006/028-032 не дублировались. Numeric priority guards остаются BE-029; preference concurrency/cleanup/completion имеют прежние IDs. Новый CONT043001 относится к owner ActualDate transition, а не к штатному viewer PATCH из BE-032.",
+    "Предположение о безусловно кэшированной авторизации опровергнуто: CachingFriendshipService делегирует AreFriends/GetFriendships без кэша. DomainEvent record не принят за durable integration event.",
+    "Create разрешает историческую ExpectedDate, UpdateExpectedDate отвергает прошлую дату; существующий доменный тест фиксирует этот контракт. Без подтверждённого конфликтующего caller сценария отдельный дефект не заявлен."
+  ],
+  "stable_finding_ids": {
+    "CONT043001": "BE-033"
+  }
+}
