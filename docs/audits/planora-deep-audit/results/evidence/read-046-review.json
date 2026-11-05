@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-046",
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read042",
+  "source_head": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 1,
+  "source_lines_read": 852,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Start-Planora-Docker.ps1",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-852"
+      ],
+      "line_count": 852,
+      "sha256": "2944ea01f0e5a52d14a08a396e7ca135cd84bfee9b11450ec848ddb940d2d04f",
+      "purpose_and_callers": "Windows Docker launcher: help, preflight, .env import, host cleanup, Compose infra/apps, host frontend, health, -Stop and shutdown. Listed in README/getting-started/deployment; no dedicated launcher regression identified in inspected test inventory.",
+      "trust_state_errors_concurrency": "Uses main Compose fixed service/container names and ports, current Docker context and inherited env. PID and port cleanup lack sufficient process identity. Explicit exit codes checked for build/up, but down failure ignored in -Stop. ASCII/PS5.1 parse is clean; daemon/npm/HTTP behavior unexecuted.",
+      "test_evidence": "Parser.ParseFile on Windows PowerShell 5.1.26100.9711 only: 0 errors, exit 0. Source module traces, no imports or runtime calls.",
+      "conclusion": "Two concrete source-confirmed process/exit-code defects require isolated T14 regression before changes. This launcher must not be treated as an audit fixture.",
+      "finding_ids": [
+        "CONT046001",
+        "CONT046002"
+      ]
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT046001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Docker launcher может останавливать чужие процессы по имени или переиспользованному PID",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "150-150,319-334,645-656,690-698"
+        },
+        {
+          "path": "scripts/PortChecker.psm1",
+          "lines": "238-248,288-295",
+          "supplemental": true
+        },
+        {
+          "path": "scripts/PidManager.psm1",
+          "lines": "64-81,146-169,185-193",
+          "supplemental": true
+        }
+      ],
+      "trigger": "На одном из cleanup ports (например 5100/3000) работает чужой dotnet/node процесс; либо старый .pids файл содержит PID, уже переиспользованный чужим процессом. Запускается Docker launcher или его -Stop/shutdown path.",
+      "impact": "Все три Get-PortOwner calls опускают RepoRoot. Helper использует name regex dotnet|Planora|node вместо provenance, после чего launcher вызывает Stop-Process -Force. Первая PID-фаза также проверяет лишь живость числа PID, без executable/command-line/start-time ownership; stale PID может указать на другой процесс. Нормальный локальный запуск способен завершить соседний проект. Реальный чужой процесс не создавался и не останавливался, runtime NOT_VERIFIED.",
+      "repro": "T14: в изолированном PowerShell harness подменить process/port inventory и Stop-Process, подать foreign dotnet/node на cleanup ports и reused PID. Требовать ноль stop calls для чужих/неподтверждённых владельцев, проверить отдельно start, -Stop, Ctrl+C и -ExitAfterHealthCheck. Собственные synthetic Planora descendants должны останавливаться; никакие рабочие сервисы теста не касаются.",
+      "fix": "T14 должен использовать подтверждённую принадлежность checkout во всех stop paths, передавать RepoRoot, проверять process identity/start time для PID records и повторно сверять идентичность перед stop. При неподтверждённом владельце сообщать конфликт; не считать имя процесса или запись PID достаточным разрешением."
+    },
+    {
+      "id": "CONT046002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Режим -Stop возвращает успех даже при отказе docker compose down",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "630-637,690-703"
+        }
+      ],
+      "trigger": "docker compose down завершается с ненулевым кодом при выполнении launcher -Stop, например из-за недоступного daemon/context или ошибки удаления контейнера.",
+      "impact": "Stop-DockerStack подавляет output и переводит любой nonzero exit в предупреждение. Caller затем безусловно пишет Shutdown complete и exit 0. Человек/automation получает успешный результат, хотя stack мог остаться запущенным. Не утверждается, что конкретный рабочий контейнер сейчас остался активным: Docker не вызывался.",
+      "repro": "T14: в отдельном PowerShell harness подставить fake docker command с заранее заданными exit1/exit 0, перехватить stop helpers без процессов и проверить конечный код -Stop. Nonzero должен сохраняться с actionable error, exit 0 допустим только после успешной остановки. Не выполнять down рабочего стека.",
+      "fix": "Возвращать и проверять результат Stop-DockerStack, сохранять ненулевой exit code в -Stop и не печатать безусловный успех после failed command. Ошибки host process cleanup тоже должны иметь проверяемый outcome; не скрывать их как успех."
+    }
+  ],
+  "observations": [
+    {
+      "status": "EXISTING_OPERATIONAL_BOUNDARY",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "122-150,350-375,630-637,727-755"
+        },
+        {
+          "path": "docker-compose.yml",
+          "lines": "40-81,112-140",
+          "supplemental": true
+        }
+      ],
+      "note": "Это orchestrator основного Compose, с фиксированными именами/портами и текущим Docker context, не disposable audit fixture. Сохранение named volumes через отсутствие --volumes не является ресурсной изоляцией или operational backup proof. Script не запускался."
+    },
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "OPS-009",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "20-22,836-844"
+        },
+        {
+          "path": "docs/getting-started.md",
+          "lines": "100-109",
+          "supplemental": true
+        }
+      ],
+      "note": "-ExitAfterHealthCheck останавливает только host frontend; Docker containers остаются. Верхний synopsis говорит об общем shutdown. Это doc/runtime intent mismatch в рамках OPS-009, не новый ID."
+    },
+    {
+      "status": "SOURCE_BOUNDARY",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "209-225,276-294,476-494"
+        }
+      ],
+      "note": "Исходник импортирует .env в environment и передаёт frontend child унаследованный блок, а не секретные CLI args. Реальные .env/значения/credentials не читались, quote/expansion parity с Compose и public bundle exposure здесь не проверены."
+    },
+    {
+      "status": "STATIC_PARSER_PASS_RUNTIME_NOT_VERIFIED",
+      "evidence": [
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "1-852"
+        }
+      ],
+      "note": "Windows PowerShell 5.1 Parser.ParseFile вернул 0 синтаксических ошибок; файл ASCII-compatible, без UTF8 BOM. Target script не исполнялся, modules не импортировались. Это не проверка Docker/npm/Health/stop behavior."
+    }
+  ],
+  "static_checks": [
+    {
+      "id": "read046-ps51-parse-only",
+      "executable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "arguments": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$parseTokens = $null\n$parseErrors = $null\n$parsePath = 'F:/Projects/Planora/Start-Planora-Docker.ps1'\n$null = [System.Management.Automation.Language.Parser]::ParseFile($parsePath, [ref]$parseTokens, [ref]$parseErrors)\n[PSCustomObject]@{ PowerShellVersion=$PSVersionTable.PSVersion.ToString(); File='Start-Planora-Docker.ps1'; ParserErrorCount=@($parseErrors).Count } | ConvertTo-Json -Compress\nforeach ($parseError in $parseErrors) { [PSCustomObject]@{ Line=$parseError.Extent.StartLineNumber; ErrorId=$parseError.ErrorId; Message=$parseError.Message } | ConvertTo-Json -Compress }\nif (@($parseErrors).Count -gt 0) { exit 1 }\n"
+      ],
+      "cwd": "F:/Projects/Planora",
+      "exit_code": 0,
+      "powershell_version": "5.1.26100.9711",
+      "parser_errors": 0,
+      "target_script_executed": false,
+      "modules_imported": false
+    }
+  ],
+  "runtime_verification": {
+    "executed": false,
+    "target_script_executed": false,
+    "docker_invoked": false,
+    "ports_probed": false
+  },
+  "limits": [
+    "Manifest READ-046 содержит ровно 1 файл Start-Planora-Docker.ps1, 852 строки. Supplemental module/Compose/docs ranges не добавлены к coverage.",
+    "Source соответствует 97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7 с нормализацией CRLF; SHA-256 вычислен по исходным байтам, полный range 1-852.",
+    "Разрешённая parser-only диагностика не исполняла target script. Ни launcher, ни импортированные им модули/функции не запускались; Docker/services/npm/builds не вызывались.",
+    "Не выполнялись port probes/Get-CimInstance process inventory либо остановки процессов. Runtime stop/failure scenarios ещё NOT_VERIFIED.",
+    "Активные .env/OAuth/credentials/user secrets не читались. Process environment и Docker context/daemon не изменялись; фактические connections/volumes/containers не инспектировались.",
+    "OPS-009 и остальные существующие OPS/DIST findings не дублируются. Риск process ownership и ложный exit 0 имеют разные проверяемые triggers и local CONT IDs, stable IDs назначает root.",
+    "Изменены только собственные read-046-review.md/.json. Source, registry, indices, manifest, PROGRESS и чужие файлы сохранены. Следующая пачка не начиналась."
+  ],
+  "stable_finding_ids": {
+    "CONT046001": "OPS-016",
+    "CONT046002": "OPS-017"
+  }
+}

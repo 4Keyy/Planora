@@ -1117,3 +1117,14 @@ category cleanup gap. [READ-045](results/evidence/read-045-review.md)
 
 The same batch extends existing BE-008 pagination and BE-010 retention
 evidence without assigning duplicate IDs or claiming new runtime results.
+
+## READ-046 — Docker launcher process and failure boundaries
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| OPS-016 | P2 | CONFIRMED, static | Port cleanup omits checkout provenance, while stale PID cleanup does not validate process identity. Use a mocked process harness to prove foreign and reused PIDs are preserved. |
+| OPS-017 | P2 | CONFIRMED, static | Stop returns exit 0 after a failed compose down. Verify success and failure with fake docker and process helpers, without touching a working stack. |
+
+PowerShell 5.1 parser-only validation passed with zero syntax errors. The
+launcher and helpers were not executed; runtime remains NOT_VERIFIED.
+[READ-046](results/evidence/read-046-review.md)

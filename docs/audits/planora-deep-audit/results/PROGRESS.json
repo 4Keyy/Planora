@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "543bc4cd18b1431cc0e9ad8fcd3e8eb4fd418da3",
+  "current_sha": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -219,7 +219,9 @@
     "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/UpdateTodoOutboxPostgresTests.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/ViewerCompletionResetPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-update-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-update-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-046-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-046-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -259,7 +261,8 @@
     "READ-044 completed25paths/4278source lines, no new confirmed findings. Guarded legacy-comment drop hypothesis refuted in source; no runtime proof promoted. Coverage605/1558(38.83%),65batches pending.",
     "Join/Leave RED5F/5P, GREEN409P, broad1497P, ErrorHandling94P, no skips. Ten provider tests include cancellation, fresh-context Join retry and strict-Moq count failure after real persistence. Source review no blocker; log-only count removed.",
     "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending.",
-    "UpdateTodo RED5F/1P (success matrix4DB), GREEN416P, broad1504P, ErrorHandling94P without skips. Seven provider tests include deferred reset preserving concurrent independent fields. All7Todo producers staged; Collaboration remains. Stage reset materialization cost and late-completion/full-row races remain gates."
+    "UpdateTodo RED5F/1P (success matrix4DB), GREEN416P, broad1504P, ErrorHandling94P without skips. Seven provider tests include deferred reset preserving concurrent independent fields. All7Todo producers staged; Collaboration remains. Stage reset materialization cost and late-completion/full-row races remain gates.",
+    "READ-046 full1path/852lines. OPS-016 process provenance and OPS-017 false stop success are source-confirmed; only PS5.1 parser0errors executed. No launcher/services/process operations. Coverage620/1558(39.79%),63batches pending."
   ],
   "next_step": "T03 Collaboration AddComment/UpdateComment/DeleteComment provider RED, then atomic staging. Keep authorization, content audience and timeline contracts; BE-005/006 and continuation findings stay open.",
   "commands": [
@@ -3016,14 +3019,40 @@
       "local_links": 1443,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "read046-ps51-parse-only",
+      "executable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "arguments": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$parseTokens = $null\n$parseErrors = $null\n$parsePath = 'F:/Projects/Planora/Start-Planora-Docker.ps1'\n$null = [System.Management.Automation.Language.Parser]::ParseFile($parsePath, [ref]$parseTokens, [ref]$parseErrors)\n[PSCustomObject]@{ PowerShellVersion=$PSVersionTable.PSVersion.ToString(); File='Start-Planora-Docker.ps1'; ParserErrorCount=@($parseErrors).Count } | ConvertTo-Json -Compress\nforeach ($parseError in $parseErrors) { [PSCustomObject]@{ Line=$parseError.Extent.StartLineNumber; ErrorId=$parseError.ErrorId; Message=$parseError.Message } | ConvertTo-Json -Compress }\nif (@($parseErrors).Count -gt 0) { exit 1 }\n"
+      ],
+      "cwd": "F:/Projects/Planora",
+      "exit_code": 0,
+      "powershell_version": "5.1.26100.9711",
+      "parser_errors": 0,
+      "target_script_executed": false,
+      "modules_imported": false
+    },
+    {
+      "id": "read046-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 126,
+      "local_links": 1447,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 64,
+    "pending_batches": 63,
     "complete": false,
-    "current_read_or_reviewed": 619,
+    "current_read_or_reviewed": 620,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3040,7 +3069,8 @@
       "READ-042",
       "READ-043",
       "READ-044",
-      "READ-045"
+      "READ-045",
+      "READ-046"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -3112,7 +3142,9 @@
     "results/evidence/t03-worker-lifecycle-verification.json",
     "results/evidence/read-045-review.json",
     "results/evidence/read-045-review.md",
-    "results/evidence/t03-update-verification.json"
+    "results/evidence/t03-update-verification.json",
+    "results/evidence/read-046-review.json",
+    "results/evidence/read-046-review.md"
   ],
   "local_commits": [
     {
@@ -3254,6 +3286,11 @@
       "task": "T03 UpdateTodo atomic staged reset checkpoint",
       "sha": "543bc4cd18b1431cc0e9ad8fcd3e8eb4fd418da3",
       "pushed": false
+    },
+    {
+      "task": "Verified Todo mutation checkpoint metadata",
+      "sha": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3315,6 +3352,8 @@
     "BE-031",
     "BE-032",
     "BE-033",
-    "BE-034"
+    "BE-034",
+    "OPS-016",
+    "OPS-017"
   ]
 }

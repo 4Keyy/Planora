@@ -1425,7 +1425,10 @@
       "Все связанные gates проходят, остаточные ограничения явно перечислены."
     ],
     "dependencies": [],
-    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись."
+    "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись.",
+    "continuation_evidence": [
+      "results/evidence/read-046-review.json"
+    ]
   },
   {
     "id": "OPS-010",
@@ -3271,5 +3274,65 @@
     ],
     "dependencies": [],
     "limitations": "Static state/tracking proof CONT045001; expected provider effect NOT_VERIFIED. See results/evidence/read-045-review.json."
+  },
+  {
+    "id": "OPS-016",
+    "title": "Docker launcher process cleanup lacks reliable provenance",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "Start-Planora-Docker.ps1",
+        "lines": "150-150,319-334,645-656,690-698",
+        "observation": "CONT046001"
+      },
+      {
+        "path": "scripts/PortChecker.psm1",
+        "lines": "238-248,288-295",
+        "supplemental": true,
+        "observation": "CONT046001"
+      },
+      {
+        "path": "scripts/PidManager.psm1",
+        "lines": "64-81,146-169,185-193",
+        "supplemental": true,
+        "observation": "CONT046001"
+      }
+    ],
+    "trigger": "На одном из cleanup ports (например 5100/3000) работает чужой dotnet/node процесс; либо старый .pids файл содержит PID, уже переиспользованный чужим процессом. Запускается Docker launcher или его -Stop/shutdown path.",
+    "impact": "Все три Get-PortOwner calls опускают RepoRoot. Helper использует name regex dotnet|Planora|node вместо provenance, после чего launcher вызывает Stop-Process -Force. Первая PID-фаза также проверяет лишь живость числа PID, без executable/command-line/start-time ownership; stale PID может указать на другой процесс. Нормальный локальный запуск способен завершить соседний проект. Реальный чужой процесс не создавался и не останавливался, runtime NOT_VERIFIED.",
+    "fix": "T14 должен использовать подтверждённую принадлежность checkout во всех stop paths, передавать RepoRoot, проверять process identity/start time для PID records и повторно сверять идентичность перед stop. При неподтверждённом владельце сообщать конфликт; не считать имя процесса или запись PID достаточным разрешением.",
+    "tests": [
+      "T14: в изолированном PowerShell harness подменить process/port inventory и Stop-Process, подать foreign dotnet/node на cleanup ports и reused PID. Требовать ноль stop calls для чужих/неподтверждённых владельцев, проверить отдельно start, -Stop, Ctrl+C и -ExitAfterHealthCheck. Собственные synthetic Planora descendants должны останавливаться; никакие рабочие сервисы теста не касаются."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT046001; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json."
+  },
+  {
+    "id": "OPS-017",
+    "title": "Docker launcher stop reports success after compose failure",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "Start-Planora-Docker.ps1",
+        "lines": "630-637,690-703",
+        "observation": "CONT046002"
+      }
+    ],
+    "trigger": "docker compose down завершается с ненулевым кодом при выполнении launcher -Stop, например из-за недоступного daemon/context или ошибки удаления контейнера.",
+    "impact": "Stop-DockerStack подавляет output и переводит любой nonzero exit в предупреждение. Caller затем безусловно пишет Shutdown complete и exit 0. Человек/automation получает успешный результат, хотя stack мог остаться запущенным. Не утверждается, что конкретный рабочий контейнер сейчас остался активным: Docker не вызывался.",
+    "fix": "Возвращать и проверять результат Stop-DockerStack, сохранять ненулевой exit code в -Stop и не печатать безусловный успех после failed command. Ошибки host process cleanup тоже должны иметь проверяемый outcome; не скрывать их как успех.",
+    "tests": [
+      "T14: в отдельном PowerShell harness подставить fake docker command с заранее заданными exit1/exit 0, перехватить stop helpers без процессов и проверить конечный код -Stop. Nonzero должен сохраняться с actionable error, exit 0 допустим только после успешной остановки. Не выполнять down рабочего стека."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT046002; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json."
   }
 ]

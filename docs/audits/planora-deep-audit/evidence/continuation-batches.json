@@ -1082,8 +1082,10 @@
     "paths": [
       "Start-Planora-Docker.ps1"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-046-review.json",
+    "notes": "Full1manifestfile/852lines. PS5.1 parser0errors; launcher never executed. Process provenance and false stop-success runtime gates remain open."
   },
   {
     "batch_id": "READ-047",
