@@ -1,0 +1,521 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-042",
+  "reviewed_date_local": "2026-11-05",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read042",
+  "source_head": "620c9a8bbb496941e51698e4566b7c7b18e69dc1",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 25,
+  "source_lines_read": 1991,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/LeaveTodo/LeaveTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-6"
+      ],
+      "line_count": 6,
+      "sha256": "e9556aff16d84c63b35df3729a6a2f80b300759a54f3d87b77588e7fbe409486",
+      "purpose_and_callers": "Leave request scoped to one route task ID.",
+      "trust_state_errors_concurrency": "Carries no actor field; handler reads authenticated context.",
+      "test_evidence": "TodosController.cs:293-304; WorkerLifecycleEventTests source.",
+      "conclusion": "No independent DTO defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-91"
+      ],
+      "line_count": 91,
+      "sha256": "db8288c4599511aaec9030e69a944befb44360d17e4f11d86071d30fbc9b33cb",
+      "purpose_and_callers": "Removes the current user from task workers, then emits branch/feed events.",
+      "trust_state_errors_concurrency": "Empty actor rejected; normal owner cannot leave. Domain RemoveWorker throws when actor is not a worker; the handler cannot remove another user. Save-through events expose BE-002; count query after Save can still fail the response.",
+      "test_evidence": "TodoItem.cs:491-497; WorkerLifecycleEventTests.cs:55-79. No provider execution.",
+      "conclusion": "Retain self-removal and subtask owner opt-out while T03 fixes atomicity; no extra access-bypass finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "2e2755eba8c4a165a2b87672f95006b9d8cd7762dafc73d7bc7535d05eac58be",
+      "purpose_and_callers": "Owner hidden-state request.",
+      "trust_state_errors_concurrency": "Route supplies TodoId; payload only bool Hidden.",
+      "test_evidence": "TodosController.cs hidden endpoint and expanded handler tests by source.",
+      "conclusion": "No independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-112"
+      ],
+      "line_count": 112,
+      "sha256": "112f7e5210b1b09be4544af22f28a080fd5d6bc4a4e2542d130415d301494bf7",
+      "purpose_and_callers": "Owner hide path with shared-task viewer preferences.",
+      "trust_state_errors_concurrency": "Checks task.UserId; shared tasks update per-viewer Hidden and clear legacy global flag. Upsert marks all fields Modified, exposing concurrent preference loss. Save precedes best-effort category RPC; broad catch includes cancellation.",
+      "test_evidence": "Expanded tests and UserTodoViewPreferenceRepository.cs:120-149 inspected.",
+      "conclusion": "Owner authorization retained; concurrency finding is shared with viewer PATCH.",
+      "finding_ids": [
+        "CONT042002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-13"
+      ],
+      "line_count": 13,
+      "sha256": "85b40db8d9adeb50773efe7fd401db047583e1b475befae2b39cfe6effee9178",
+      "purpose_and_callers": "Viewer PATCH request for hidden/category/completion.",
+      "trust_state_errors_concurrency": "Nullable booleans and explicit UpdateViewerCategory distinguish omitted fields from clears. TodoId comes from route, viewer from context.",
+      "test_evidence": "TodosController.cs:256-276.",
+      "conclusion": "No independent request-type defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-162"
+      ],
+      "line_count": 162,
+      "sha256": "db89e083ea77e361f154076322b144dbee813e16f17f5059a8297aa0514249de",
+      "purpose_and_callers": "Persists caller-only preferences after current friendship/visibility and category-owner checks.",
+      "trust_state_errors_concurrency": "Loads aggregate tracked only when completing and removes own worker in the same Save. Load-merge/upsert rewrites all preference fields without concurrency token. Completion has no activity, realtime, notification or milestone event dependency despite the default frontend path.",
+      "test_evidence": "Expanded tests.cs:751-859 and 864-923; frontend use-task-actions.ts:230-264; UpdateTodo:194-270.",
+      "conclusion": "Three concerns are distinct: caller authorization, per-field concurrency, and missing completion propagation.",
+      "finding_ids": [
+        "CONT042002",
+        "CONT042003"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-27"
+      ],
+      "line_count": 27,
+      "sha256": "4f2ef1b76f34a0d5d366b41d80e1d7e40ea34e511efec5315c234506bcbc146c",
+      "purpose_and_callers": "Optional task/subtask update contract.",
+      "trust_state_errors_concurrency": "ClearDueDate and ClearRequiredWorkers are explicit clearing flags. Actor and owner absent from payload. Validator/domain own semantic checks.",
+      "test_evidence": "UpdateTodo handler and TodoValidatorTests by source.",
+      "conclusion": "No separate finding in request shape.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-626"
+      ],
+      "line_count": 626,
+      "sha256": "f8c1ac0b37a5a7679dc0efe59ba27ebbbd9f45ca5627e7df5c278f07e1d2a496",
+      "purpose_and_callers": "Updates owner tasks, creator-owned subtasks and authorized participant completion.",
+      "trust_state_errors_concurrency": "CanAccess precedes mutation. Non-owner regular-task edits restricted to status; subtask completion global. Load-merge preferences still whole-row writes. Save-through event fanout and immediate ClearCompletedByViewer ExecuteUpdate before final Save extend BE-002. Uses union of old/new feed audience, current-content notification audience.",
+      "test_evidence": "Existing expanded/worker tests plus UserTodoViewPreferenceRepository.cs:107-155. No runtime execution here.",
+      "conclusion": "T03 must cover each Save branch and owner-reopen bulk SQL. Viewer PATCH lacks this path event behavior.",
+      "finding_ids": [
+        "CONT042002",
+        "CONT042003"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-60"
+      ],
+      "line_count": 60,
+      "sha256": "f20d1ec669704b9aba3b15eab77c91e04848c74e3498aade7467eaa32a40887b",
+      "purpose_and_callers": "Update validation for IDs, lengths, due intervals and share cap.",
+      "trust_state_errors_concurrency": "No IsInEnum priority guard extends BE-029. Current title limit intentionally allows 1500 for subtasks; expected/due relation validated only when both request values present. Domain remains a separate gate.",
+      "test_evidence": "TodoValidatorTests source and TodoItem.SetDueRange traced.",
+      "conclusion": "Extend BE-029 without duplicate finding ID.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-63"
+      ],
+      "line_count": 63,
+      "sha256": "8007477ff434df638c432c472ff6a20b5b995166e52871d551b8bbe90359414f",
+      "purpose_and_callers": "Consumes CategoryDeleted to clear task category references.",
+      "trust_state_errors_concurrency": "Queries only TodoItem.CategoryId then Save; never touches UserTodoViewPreference.ViewerCategoryId. No preferences repository dependency or cross-DB FK. Exception rethrown for broker retry.",
+      "test_evidence": "IntegrationEventHandlerTests.cs:196-246 tests only task refs; GetCategoryTaskCounts/GetUserTodos consume stale preferences.",
+      "conclusion": "Deleting a viewer category leaves orphan assignments/counts.",
+      "finding_ids": [
+        "CONT042001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-41"
+      ],
+      "line_count": 41,
+      "sha256": "c092b33b3c71b586bc559e036e7917b475869f5fff5989081f2325770a8c16a5",
+      "purpose_and_callers": "Creates content-redacted hidden shared/public DTOs.",
+      "trust_state_errors_concurrency": "Masks owner ID for non-owner, title/content/tags/dates/audience while preserving documented frame fields priority/public/urgency. Category belongs to viewer.",
+      "test_evidence": "INV-AZ-3; GetUserTodosRevealHiddenTests source and caller at GetUserTodos:204-214.",
+      "conclusion": "No new independent masking defect within inspected contract.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetCategoryTaskCounts/GetCategoryTaskCountsQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-10"
+      ],
+      "line_count": 10,
+      "sha256": "b78295d11edf66dad76adfbb7ae6b337f71a189802c8fa390996fa527e1b61bd",
+      "purpose_and_callers": "Counts query for authenticated caller categories.",
+      "trust_state_errors_concurrency": "Optional internal UserId override; HTTP constructs parameterless query so does not accept caller-chosen owner.",
+      "test_evidence": "TodosController.cs:82-89.",
+      "conclusion": "Keep internal override distinct from HTTP authority.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetCategoryTaskCounts/GetCategoryTaskCountsQueryHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-104"
+      ],
+      "line_count": 104,
+      "sha256": "4c2c16ab5c087dcf282531af09b8377c14eb884b3c4d23c4af5a17e002bdfdc0",
+      "purpose_and_callers": "Aggregates active top-level task counts under caller-effective categories.",
+      "trust_state_errors_concurrency": "Uses current friend IDs and VisibleTo; excludes deleted/done/viewer-completed. Reads preference category assignments without checking category existence, exposing deleted viewer categories.",
+      "test_evidence": "GetCategoryTaskCountsTests.cs fully inspected; category handler and preference repository trace.",
+      "conclusion": "Existing list/count parity does not prove category deletion cleanup.",
+      "finding_ids": [
+        "CONT042001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetFriendAffinity/GetFriendAffinityQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-6"
+      ],
+      "line_count": 6,
+      "sha256": "00d22d0b0bc58c141a02524f89f85fb6c4d7cf09efbe868cea518ecd4e869f74",
+      "purpose_and_callers": "Current-user directional-share affinity query.",
+      "trust_state_errors_concurrency": "No owner/request parameters.",
+      "test_evidence": "Handler and GetFriendAffinityTests source.",
+      "conclusion": "No independent DTO defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetFriendAffinity/GetFriendAffinityQueryHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-80"
+      ],
+      "line_count": 80,
+      "sha256": "dfe71759b22f3b76738706cc227c53dded5d45f1bea687b3856da2c4f912fd0e",
+      "purpose_and_callers": "Computes decay-weighted score per current friend from directed shares.",
+      "trust_state_errors_concurrency": "Authenticated nonempty actor; current friends and nondeleted private top-level rows bound repository projection. Decimal midpoint rounding then stable score/count/ID order. TimeProvider improves deterministic time.",
+      "test_evidence": "GetFriendAffinityTests and TodoRepository.GetFriendShareKeysAsync by source.",
+      "conclusion": "No new independent defect in inspected affinity flow.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetPublicTodos/GetPublicTodosQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-12"
+      ],
+      "line_count": 12,
+      "sha256": "aadeda4052c799f97ab72d08ab3da47be1411bda4602ed79b94e3557117f55e0",
+      "purpose_and_callers": "Paged friend/public feed query with optional FriendId.",
+      "trust_state_errors_concurrency": "No owner substitution field; handler determines access.",
+      "test_evidence": "GetPublicTodos handler/source already in earlier audit, query symbol callers.",
+      "conclusion": "Query shape alone is not an access guarantee.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetSubtasks/GetSubtasksQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-11"
+      ],
+      "line_count": 11,
+      "sha256": "bf6cec4c00de6a2b8641b17cd345d7bb37c9cc274753d473ed6623ebb46a23e3",
+      "purpose_and_callers": "Parent-branch subtask-list request.",
+      "trust_state_errors_concurrency": "Carries parent route ID; parent visibility guard belongs to handler.",
+      "test_evidence": "TodosController and GetSubtasks handler source trace.",
+      "conclusion": "No independent DTO defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetTodoById/GetTodoByIdQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-6"
+      ],
+      "line_count": 6,
+      "sha256": "e436cf0699c32d3f6f92805b7b8fb655619686e142868b8ed91d417f5349f8fa",
+      "purpose_and_callers": "Single todo detail query.",
+      "trust_state_errors_concurrency": "Route ID is lookup input, not authorization.",
+      "test_evidence": "TodosController.cs:102+ and GetTodoById handler trace.",
+      "conclusion": "No independent DTO defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetTodosByCategory/GetTodosByCategoryQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-12"
+      ],
+      "line_count": 12,
+      "sha256": "6b8f34ee9e4e9458f791a081da4fe2a92a0bf9fcd388f096247e60df90f97116",
+      "purpose_and_callers": "Internal paged category query with optional user override.",
+      "trust_state_errors_concurrency": "gRPC supplies trusted request user; current context fallback exists. HTTP main list uses separate GetUserTodos query.",
+      "test_evidence": "TodoGrpcService.cs:156-184. Service-key boundary belongs to T07.",
+      "conclusion": "Do not infer public caller override from record alone.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetTodosByCategory/GetTodosByCategoryQueryHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-55"
+      ],
+      "line_count": 55,
+      "sha256": "5319812039125ced15800cb108c16c27ef7035260c701bac2ab3b6eccd74400b",
+      "purpose_and_callers": "Legacy/internal category-scoped list via generic repository.",
+      "trust_state_errors_concurrency": "Requires nonempty resolved user, filters owner/category/top-level/notdeleted. Broad catch converts cancellation and faults to QUERY_FAILED. Projection differs from public main-list enrich/redaction path; gRPC returns limited fields.",
+      "test_evidence": "TodoGrpcService.cs:156-184 and TodoQueryHandlerTests source.",
+      "conclusion": "Internal route contract remains T07; no new independent public IDOR asserted.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQuery.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-26"
+      ],
+      "line_count": 26,
+      "sha256": "534f7994c90fd030ea9ea6c55b53b9b98fd502a8fc3eaa7855b4ca1560811e53",
+      "purpose_and_callers": "Main paged list query, category/status/completion/time/reveal controls.",
+      "trust_state_errors_concurrency": "Optional UserId is internal; HTTP sets null. Completion window uses explicit instants; IncludeSubtasks opt-in powers stats.",
+      "test_evidence": "TodosController.cs:35-60; GetUserTodos handler.",
+      "conclusion": "No independent query-type defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-366"
+      ],
+      "line_count": 366,
+      "sha256": "9a2cdcb2d633f3bf8b369e007d2e714b7e09064e5fe1193456f2b4f0d50d5548",
+      "purpose_and_callers": "Filters/counts/pages owner and currently friend-visible tasks, then enriches caller projection.",
+      "trust_state_errors_concurrency": "Visibility composed before SQL page; preference category/completion IDs feed filters. Deleted viewer category can remain in CategoryId/filter, while gRPC gives null metadata. Hidden shared rows masked server-side unless RevealHidden; owner/category profiles fetched after access. Broad enrichment catches cancellation.",
+      "test_evidence": "GetUserTodosRevealHiddenTests and TodoQueryHandlerTests source; category task-count parity tests.",
+      "conclusion": "Maintain authorization/redaction while fixing stale personal category references.",
+      "finding_ids": [
+        "CONT042001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/TodoViewerStateResolver.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-59"
+      ],
+      "line_count": 59,
+      "sha256": "c96558bb98f650089d5034952d101b6da7173a45f88839abbfd4da2863b5b21d",
+      "purpose_and_callers": "Pure effective hidden/category/urgency rules.",
+      "trust_state_errors_concurrency": "Global hidden applies to private tasks; shared owner retains legacy flag; non-owner uses own preference category. Urgency keeps frame metadata under hidden redaction and viewer calendar.",
+      "test_evidence": "ViewerCalendarTests and HiddenTodoDtoFactory/GetUserTodos call traces.",
+      "conclusion": "No independent defect found in the stated projection rules.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-17"
+      ],
+      "line_count": 17,
+      "sha256": "99aa78420c32a21519aded0a78e79d4ae3ff8dc92d4db3f7ef3b03ef144fc83d",
+      "purpose_and_callers": "Compilation-wide imports for Todo application.",
+      "trust_state_errors_concurrency": "No runtime authority, state or side effects.",
+      "test_evidence": "Direct references/compilation role only.",
+      "conclusion": "No independent defect.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Interfaces/ICategoryGrpcClient.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-18"
+      ],
+      "line_count": 18,
+      "sha256": "0a4f1fc431174d723084b4a5e5a1a6cdb6ac32bab53ed7acbd56b09f95422d76",
+      "purpose_and_callers": "Category RPC lookup interface and owner-qualified metadata record.",
+      "trust_state_errors_concurrency": "Requires categoryId,userId,ct; returns null for missing owner-qualified category. Callers choose correct trusted owner.",
+      "test_evidence": "Todo CategoryGrpcClient and relevant caller traces.",
+      "conclusion": "Contract preserves category-owner scope; actual listener/auth/cancel gates are T07.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT042001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Удаление категории не очищает личные ViewerCategoryId назначений задач",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs",
+          "lines": "23-50"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetCategoryTaskCounts/GetCategoryTaskCountsQueryHandler.cs",
+          "lines": "59-75"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs",
+          "lines": "67-72, 139-168, 245-273"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+          "lines": "68-87",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs",
+          "lines": "7-30",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/IntegrationEvents/IntegrationEventHandlerTests.cs",
+          "lines": "196-229",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Пользователь V назначает доступную задачу друга в свою категорию C. После удаления C успешно доставлено CategoryDeleted(C,V).",
+      "impact": "Consumer меняет только TodoItem.CategoryId; ViewerCategoryId=C остаётся. Main list продолжает относить shared task к удалённой категории, а category-counts возвращает C. Category RPC уже возвращает null metadata. Это постоянное расхождение личной классификации после успешной доставки, независимо от BE-001 доставки самого события. UI-проявление не воспроизводилось.",
+      "repro": "В disposable PostgreSQL сохранить owner task и viewer preference с C, обработать событие через реальный consumer, затем проверить preference, main list category filter и category-counts. Сохранить HiddenByViewer/CompletedByViewer и чужие viewer/category assignments. Повторить delivery и удалить категорию без собственных tasks.",
+      "fix": "T03/T04 должны очищать owner-qualified viewer category assignments вместе с task category refs, с retry/idempotency и отдельным provider regression. Не очищать чужие категории или поля предпочтений."
+    },
+    {
+      "id": "CONT042002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Конкурентные частичные изменения viewer preferences перезаписывают независимые поля",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs",
+          "lines": "79-109, 112-137"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs",
+          "lines": "53-61"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+          "lines": "165-187"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+          "lines": "120-149",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs",
+          "lines": "7-30",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+          "lines": "21-32",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/UserTodoViewPreferenceRepositoryTests.cs",
+          "lines": "74-118",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Два независимых request DbContext одновременно читают одну существующую preference. A меняет HiddenByViewer, B меняет ViewerCategoryId (или CompletedByViewer), затем последовательно сохраняются A и B.",
+      "impact": "Upsert устанавливает EntityState.Modified либо Update для всей строки. B пишет своё старое значение поля A, хотя request B это поле не менял. Preference не имеет concurrency token; TodoItem xmin не защищает категорию/hidden PATCH, где aggregate не изменён. Последний commit молча теряет другое изменение, включая completion timestamp. Точное SQL/provider-поведение требует RED.",
+      "repro": "Управляемыми barriers двух настоящих Npgsql contexts сохранить concurrent hidden/category и hidden/completion PATCH. Проверить оба независимых результата из третьего контекста, сохранить запрет чужих viewer/category и сценарий concurrent first insert.",
+      "fix": "T03 должен применять явно запрошенные поля условно/атомарно либо добавлять корректную concurrency/retry семантику для всей preference. Не повторять stale full-row DTO на retry; сохранить composite key и приватность."
+    },
+    {
+      "id": "CONT042003",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Штатное личное завершение задачи не публикует события completion и review milestone",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs",
+          "lines": "19-45, 112-137"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+          "lines": "189-270"
+        },
+        {
+          "path": "frontend/src/hooks/use-task-actions.ts",
+          "lines": "230-264",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+          "lines": "256-276",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+          "lines": "824-859",
+          "supplemental": true
+        },
+        {
+          "path": "docs/features.md",
+          "lines": "1500-1507",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Допущенный участник завершает shared task штатным действием в active lists, где use-task-actions выбирает PATCH viewer-preferences. Для последнего участника достигается review threshold.",
+      "impact": "PATCH сохраняет personal completion и удаляет worker, но не имеет outbox/notification dependency. В отличие от UpdateTodo status path отсутствуют Completed activity, BranchActivity sync, task.completed и author review/participants_done milestone. Persisted state расходится с timeline/notifications, открытые клиенты не получают этот completion signal. Живой browser/broker сценарий не выполнялся.",
+      "repro": "На disposable Todo/PostgreSQL выполнить обычный viewer PATCH последнего участника и сравнить expected full outbox event set с status PUT. Проверить actor exclusion, единственный milestone при повторе/конкурентном completion, неполные subtasks, owner already completed, rollback на отказе любого события.",
+      "fix": "T03 должен согласовать completion paths через один проверенный доменный/application сценарий с атомарным mutation+event set. Сохранить private per-viewer feed semantics: BranchActivity не означает разглашение личного completion всем feed users; actor exclusion и milestone idempotency требуют tests."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Полностью прочитаны только 25 manifest paths; supplemental callers, persistence, tests и docs не входят в 1991 строку/счётчик охвата.",
+    "Source scope совпадает с HEAD по содержимому с учётом CRLF; SHA-256 записаны по исходным байтам рабочего дерева. Параллельные изменения DuplicateTodo/tests принадлежат root и не затронуты.",
+    "Runtime tests, build, services, Compose, database, RabbitMQ, Redis, browser и load checks не выполнялись. Статический вывод не является provider/E2E сертификацией.",
+    "Активные .env/OAuth/credentials/user secrets не читались; никакие внешние сообщения или remote mutations не выполнялись.",
+    "BE-002 дополнительно включает owner-reopen ExecuteUpdate до final Save и post-commit count query в LeaveTodo. BE-029 включает UpdateTodo enum validation. Новые IDs локальны; стабильные IDs назначает root.",
+    "LeaveTodo не принимает чужой workerId: TodoItem.RemoveWorker бросает для отсутствующего actor worker. Отсутствие полного CanAccess в self-leave не объявлено новым IDOR.",
+    "SetViewerPreference для subtasks и mixed status filters требуют отдельного договорённого regression контракта; неподтверждённая гипотеза не включена как новая находка."
+  ],
+  "stable_finding_ids": {
+    "CONT042001": "BE-030",
+    "CONT042002": "BE-031",
+    "CONT042003": "BE-032"
+  }
+}

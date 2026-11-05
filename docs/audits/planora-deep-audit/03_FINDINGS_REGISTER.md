@@ -1072,3 +1072,15 @@ logout overwriting a committed device re-login. Conditional revocation now
 preserves the new generation and metadata. Ownership, cancellation and
 the corresponding revoke-by-ID path passed provider checks.
 [T02 evidence](results/T02.md)
+
+## READ-042 — Viewer preferences and completion propagation
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| BE-030 | P2 | CONFIRMED, static | Deleting a viewer-owned category leaves its task preferences and category counts assigned to the deleted ID. Verify owner-qualified cleanup without changing other preference fields. |
+| BE-031 | P2 | CONFIRMED, static | Two partial preference requests update the entire row and silently overwrite independent fields. Verify two-context hidden/category and completion races. |
+| BE-032 | P2 | CONFIRMED, static | Default viewer completion removes the worker without completion activity, realtime or review milestone events. Compare both completion paths and test actor exclusion and repeated delivery. |
+
+Provider and browser scenarios remain NOT_VERIFIED. The new findings do not
+change the status of the separate atomicity and priority validation gates.
+[READ-042](results/evidence/read-042-review.md)

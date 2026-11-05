@@ -2972,5 +2972,168 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT041002; runtime NOT_VERIFIED. See results/evidence/read-041-review.json."
+  },
+  {
+    "id": "BE-030",
+    "title": "Deleted categories leave viewer assignments behind",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs",
+        "lines": "23-50",
+        "observation": "CONT042001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetCategoryTaskCounts/GetCategoryTaskCountsQueryHandler.cs",
+        "lines": "59-75",
+        "observation": "CONT042001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs",
+        "lines": "67-72, 139-168, 245-273",
+        "observation": "CONT042001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+        "lines": "68-87",
+        "supplemental": true,
+        "observation": "CONT042001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs",
+        "lines": "7-30",
+        "supplemental": true,
+        "observation": "CONT042001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/IntegrationEvents/IntegrationEventHandlerTests.cs",
+        "lines": "196-229",
+        "supplemental": true,
+        "observation": "CONT042001"
+      }
+    ],
+    "trigger": "Пользователь V назначает доступную задачу друга в свою категорию C. После удаления C успешно доставлено CategoryDeleted(C,V).",
+    "impact": "Consumer меняет только TodoItem.CategoryId; ViewerCategoryId=C остаётся. Main list продолжает относить shared task к удалённой категории, а category-counts возвращает C. Category RPC уже возвращает null metadata. Это постоянное расхождение личной классификации после успешной доставки, независимо от BE-001 доставки самого события. UI-проявление не воспроизводилось.",
+    "fix": "T03/T04 должны очищать owner-qualified viewer category assignments вместе с task category refs, с retry/idempotency и отдельным provider regression. Не очищать чужие категории или поля предпочтений.",
+    "tests": [
+      "В disposable PostgreSQL сохранить owner task и viewer preference с C, обработать событие через реальный consumer, затем проверить preference, main list category filter и category-counts. Сохранить HiddenByViewer/CompletedByViewer и чужие viewer/category assignments. Повторить delivery и удалить категорию без собственных tasks."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT042001; runtime NOT_VERIFIED. See results/evidence/read-042-review.json."
+  },
+  {
+    "id": "BE-031",
+    "title": "Concurrent partial viewer preferences overwrite independent fields",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs",
+        "lines": "79-109, 112-137",
+        "observation": "CONT042002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs",
+        "lines": "53-61",
+        "observation": "CONT042002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+        "lines": "165-187",
+        "observation": "CONT042002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+        "lines": "120-149",
+        "supplemental": true,
+        "observation": "CONT042002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs",
+        "lines": "7-30",
+        "supplemental": true,
+        "observation": "CONT042002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/TodoDbContext.cs",
+        "lines": "21-32",
+        "supplemental": true,
+        "observation": "CONT042002"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/UserTodoViewPreferenceRepositoryTests.cs",
+        "lines": "74-118",
+        "supplemental": true,
+        "observation": "CONT042002"
+      }
+    ],
+    "trigger": "Два независимых request DbContext одновременно читают одну существующую preference. A меняет HiddenByViewer, B меняет ViewerCategoryId (или CompletedByViewer), затем последовательно сохраняются A и B.",
+    "impact": "Upsert устанавливает EntityState.Modified либо Update для всей строки. B пишет своё старое значение поля A, хотя request B это поле не менял. Preference не имеет concurrency token; TodoItem xmin не защищает категорию/hidden PATCH, где aggregate не изменён. Последний commit молча теряет другое изменение, включая completion timestamp. Точное SQL/provider-поведение требует RED.",
+    "fix": "T03 должен применять явно запрошенные поля условно/атомарно либо добавлять корректную concurrency/retry семантику для всей preference. Не повторять stale full-row DTO на retry; сохранить composite key и приватность.",
+    "tests": [
+      "Управляемыми barriers двух настоящих Npgsql contexts сохранить concurrent hidden/category и hidden/completion PATCH. Проверить оба независимых результата из третьего контекста, сохранить запрет чужих viewer/category и сценарий concurrent first insert."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT042002; runtime NOT_VERIFIED. See results/evidence/read-042-review.json."
+  },
+  {
+    "id": "BE-032",
+    "title": "Default viewer completion omits activity and milestone events",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs",
+        "lines": "19-45, 112-137",
+        "observation": "CONT042003"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+        "lines": "189-270",
+        "observation": "CONT042003"
+      },
+      {
+        "path": "frontend/src/hooks/use-task-actions.ts",
+        "lines": "230-264",
+        "supplemental": true,
+        "observation": "CONT042003"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs",
+        "lines": "256-276",
+        "supplemental": true,
+        "observation": "CONT042003"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+        "lines": "824-859",
+        "supplemental": true,
+        "observation": "CONT042003"
+      },
+      {
+        "path": "docs/features.md",
+        "lines": "1500-1507",
+        "supplemental": true,
+        "observation": "CONT042003"
+      }
+    ],
+    "trigger": "Допущенный участник завершает shared task штатным действием в active lists, где use-task-actions выбирает PATCH viewer-preferences. Для последнего участника достигается review threshold.",
+    "impact": "PATCH сохраняет personal completion и удаляет worker, но не имеет outbox/notification dependency. В отличие от UpdateTodo status path отсутствуют Completed activity, BranchActivity sync, task.completed и author review/participants_done milestone. Persisted state расходится с timeline/notifications, открытые клиенты не получают этот completion signal. Живой browser/broker сценарий не выполнялся.",
+    "fix": "T03 должен согласовать completion paths через один проверенный доменный/application сценарий с атомарным mutation+event set. Сохранить private per-viewer feed semantics: BranchActivity не означает разглашение личного completion всем feed users; actor exclusion и milestone idempotency требуют tests.",
+    "tests": [
+      "На disposable Todo/PostgreSQL выполнить обычный viewer PATCH последнего участника и сравнить expected full outbox event set с status PUT. Проверить actor exclusion, единственный milestone при повторе/конкурентном completion, неполные subtasks, owner already completed, rollback на отказе любого события."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT042003; runtime NOT_VERIFIED. See results/evidence/read-042-review.json."
   }
 ]

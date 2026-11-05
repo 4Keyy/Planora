@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "620c9a8bbb496941e51698e4566b7c7b18e69dc1",
+  "current_sha": "ceaea9e61cdcac7ffa254873730d67f36756435f",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -193,7 +193,9 @@
     "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommandHandler.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/DuplicateTodoOutboxPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-duplicate-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-duplicate-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-042-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-042-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -225,7 +227,8 @@
     "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending.",
     "T03 CreateTodo atomic staging verified by three provider checks. Todo/outbox 386, broad 1474 and ErrorHandling 94 passed without skips. BE-002 remains partial for other producers.",
     "Final checkpoint verifies 530/1558 reviewed or read paths and 68 remaining batches. T03 CreateTodo committed locally. Existing foreign frontend next-env hash preserved.",
-    "DuplicateTodo atomic staging verified: RED 1F/1P; initial GREEN376P/13 provider failures after Docker stopped; retry389P. Initial broad1472P/5 broker connection failures, readiness recheck5P, broad retry1477P, ErrorHandling94P, no skips. Three actual PostgreSQL cases passed; independent source review no blocker."
+    "DuplicateTodo atomic staging verified: RED 1F/1P; initial GREEN376P/13 provider failures after Docker stopped; retry389P. Initial broad1472P/5 broker connection failures, readiness recheck5P, broad retry1477P, ErrorHandling94P, no skips. Three actual PostgreSQL cases passed; independent source review no blocker.",
+    "READ-042 completed25paths/1991source lines. BE-030/031/032 are static findings, runtime NOT_VERIFIED. Coverage555/1558(35.62%),67batches pending."
   ],
   "next_step": "T03 CreateSubtask staged fanout RED and provider gates. Other lifecycle paths, owner-reopen bulk preferences, BE-005 and BE-006 remain open.",
   "commands": [
@@ -2570,14 +2573,23 @@
       "local_links": 1339,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "read042-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 122,
+      "local_links": 1367,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 68,
+    "pending_batches": 67,
     "complete": false,
-    "current_read_or_reviewed": 530,
+    "current_read_or_reviewed": 555,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2590,7 +2602,8 @@
       "READ-036",
       "READ-037",
       "READ-039",
-      "READ-041"
+      "READ-041",
+      "READ-042"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2650,7 +2663,9 @@
     "results/evidence/read-041-review.md",
     "results/T03.md",
     "results/evidence/t03-create-verification.json",
-    "results/evidence/t03-duplicate-verification.json"
+    "results/evidence/t03-duplicate-verification.json",
+    "results/evidence/read-042-review.json",
+    "results/evidence/read-042-review.md"
   ],
   "local_commits": [
     {
@@ -2747,6 +2762,11 @@
       "task": "T03 CreateTodo atomic staging checkpoint",
       "sha": "2b712023b92878815aa7935a37178f42f83b758b",
       "pushed": false
+    },
+    {
+      "task": "T03 DuplicateTodo atomic staging checkpoint",
+      "sha": "ceaea9e61cdcac7ffa254873730d67f36756435f",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2803,6 +2823,9 @@
     "BE-026",
     "BE-027",
     "BE-028",
-    "BE-029"
+    "BE-029",
+    "BE-030",
+    "BE-031",
+    "BE-032"
   ]
 }
