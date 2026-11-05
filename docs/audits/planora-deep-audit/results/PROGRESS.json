@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
+  "current_sha": "9e30dbd3709ee15d8e596ceef46fac750b3851ed",
   "status": "in_progress",
   "current_task": "T02",
   "completed_tasks": [
@@ -183,7 +183,9 @@
     "Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/RevokeSession/RevokeSessionCommandHandler.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthSessionHandlerTests.cs",
     "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthSingleSessionRevocationPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t02-single-session-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t02-single-session-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-041-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-041-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -211,9 +213,10 @@
     "BE-016 preserves the old avatar through profile save. Filesystem coordination, staged account deletion and independent bounded cleanup passed 55 targeted and 1464 broad tests without skips.",
     "READ-039 completed 25 Realtime paths and 713 lines. Extended DIST-012 with Realtime deduplication after cleanup and added BE-025/OPS-015 with separate runtime gates. Coverage 505/1558, 69 batches pending.",
     "BE-026 PostgreSQL RED 2 and GREEN 3. Auth 471 and broad 1467 without skips. Shared lock and fresh session state close durable account-wide revocation.",
-    "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved."
+    "BE-027 generation-safe single-session revoke verified. Auth 475 and broad 1471 passed without skips, including four PostgreSQL controls. Controller mapping preserved.",
+    "READ-041 completed 25 paths and 1392 source lines. BE-028 category metadata and BE-029 enum bounds require runtime gates. Coverage 530/1558, 68 batches pending."
   ],
-  "next_step": "Record completed READ-041 evidence, then T03 atomic mutation/outbox regression and account-erasure continuation.",
+  "next_step": "T03 real CreateTodo handler atomicity RED, then additive staging helper. Other lifecycle paths and owner reopen bulk update remain separate gates.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2400,9 +2403,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 69,
+    "pending_batches": 68,
     "complete": false,
-    "current_read_or_reviewed": 505,
+    "current_read_or_reviewed": 530,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -2414,7 +2417,8 @@
       "READ-035",
       "READ-036",
       "READ-037",
-      "READ-039"
+      "READ-039",
+      "READ-041"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -2469,7 +2473,9 @@
     "results/evidence/read-039-review.json",
     "results/evidence/read-039-review.md",
     "results/evidence/t02-revocation-verification.json",
-    "results/evidence/t02-single-session-verification.json"
+    "results/evidence/t02-single-session-verification.json",
+    "results/evidence/read-041-review.json",
+    "results/evidence/read-041-review.md"
   ],
   "local_commits": [
     {
@@ -2551,6 +2557,11 @@
       "task": "T02 durable account-wide session revocation",
       "sha": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
       "pushed": false
+    },
+    {
+      "task": "T02 single-session generation preservation",
+      "sha": "9e30dbd3709ee15d8e596ceef46fac750b3851ed",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -2604,6 +2615,8 @@
     "BE-025",
     "OPS-015",
     "BE-026",
-    "BE-027"
+    "BE-027",
+    "BE-028",
+    "BE-029"
   ]
 }

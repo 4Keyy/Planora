@@ -2843,5 +2843,129 @@
       "note": "RED 1 failed and 1 passed. Auth 475 and broad 1471 passed without skips."
     },
     "limitations": "Lost acknowledgement response semantics and access stamp availability are separate gates."
+  },
+  {
+    "id": "BE-028",
+    "title": "Subtask creation category enrichment uses the actor as owner",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandHandler.cs",
+        "lines": "56-73, 116-137",
+        "observation": "CONT041001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+        "lines": "159-176",
+        "supplemental": true,
+        "observation": "CONT041001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Grpc/CategoryGrpcClient.cs",
+        "lines": "32-51, 73-80, 98-114",
+        "supplemental": true,
+        "observation": "CONT041001"
+      },
+      {
+        "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Queries/GetCategoryById/GetCategoryByIdQueryHandler.cs",
+        "lines": "29-41",
+        "supplemental": true,
+        "observation": "CONT041001"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetSubtasks/GetSubtasksQueryHandler.cs",
+        "lines": "66-79, 116-121",
+        "supplemental": true,
+        "observation": "CONT041001"
+      },
+      {
+        "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+        "lines": "1083-1143, 1162-1192",
+        "supplemental": true,
+        "observation": "CONT041001"
+      }
+    ],
+    "trigger": "Владелец A имеет категорию и делится родительской задачей с действующим другом B. B создаёт подзадачу.",
+    "impact": "Подзадача наследует CategoryId и owner A. Create handler спрашивает CategoryApi с owner B и не получает категорию. Успешный ответ не содержит CategoryName/Color/Icon, тогда как GET подзадач спрашивает owner A и заполняет эти поля. Фактическое отображение расхождения в UI не проверено.",
+    "fix": "T03 должен использовать owner унаследованной категории после успешной проверки доступа к родительской задаче и подтвердить одинаковое обогащение create/read. Не расширять внешний Category owner scope.",
+    "tests": [
+      "В изолированном Npgsql и Category RPC сценарии создать владельца A, категорию A и допущенного участника B. Выполнить create-subtask как B, затем GET той же подзадачи, сравнить category fields. Сохранить отказ для чужого B category read вне авторизованного Todo пути."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT041001; runtime NOT_VERIFIED. See results/evidence/read-041-review.json."
+  },
+  {
+    "id": "BE-029",
+    "title": "Task creation accepts numeric priority outside the enum",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T03",
+    "evidence": [
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandValidator.cs",
+        "lines": "5-20",
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandValidator.cs",
+        "lines": "7-49",
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs",
+        "lines": "103-107",
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Enums/TodoPriority.cs",
+        "lines": "3-9",
+        "supplemental": true,
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+        "lines": "101-115, 163-176, 244-247",
+        "supplemental": true,
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs",
+        "lines": "26-29",
+        "supplemental": true,
+        "observation": "CONT041002"
+      },
+      {
+        "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+        "lines": "234-249",
+        "supplemental": true,
+        "observation": "CONT041002"
+      },
+      {
+        "path": "frontend/src/components/todos/edit-todo-modal/utils.ts",
+        "lines": "15-32",
+        "supplemental": true,
+        "observation": "CONT041002"
+      },
+      {
+        "path": "docs/API.md",
+        "lines": "975-977",
+        "supplemental": true,
+        "observation": "CONT041002"
+      }
+    ],
+    "trigger": "Авторизованный create task или create subtask запрос передаёт числовой priority 6 или -1 вместо поддерживаемых 1–5. У create/Domain нет enum guard, как и у update validator.",
+    "impact": "Назначение Priority сохраняет неопределённое значение. EF использует integer conversion без check constraint. DTO отдаёт строку числа, frontend fallback показывает Medium, а сервер сортирует raw enum value. Для публичного numeric HTTP binding и фактического Npgsql round trip нужна отдельная проверка. Значение 0 отдельно является EF sentinel и требует отдельного контракта.",
+    "fix": "T03 должен согласовать числовой enum контракт, добавить согласованный guard на входе и доменной границе, сохранить поддержку чтения исторических данных и проверить все create/update пути.",
+    "tests": [
+      "Проверить validators и HTTP create/update для -1,0,1..5,6 и int.MaxValue. В disposable Npgsql подтвердить отсутствие новых/изменённых строк для неверных значений и совместимость с историческими неизвестными значениями. Проверить сортировку и UI fallback без незаметного преобразования пользовательских данных."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT041002; runtime NOT_VERIFIED. See results/evidence/read-041-review.json."
   }
 ]

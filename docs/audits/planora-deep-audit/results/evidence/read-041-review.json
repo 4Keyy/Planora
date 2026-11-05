@@ -1,0 +1,486 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-041",
+  "reviewed_date_local": "2026-11-05",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read041",
+  "source_head": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 25,
+  "source_lines_read": 1392,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Program.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 250"
+      ],
+      "line_count": 250,
+      "sha256": "3382fa4bed972258a0330d609c9c29045e07257d456429ca57265f0ce7e32abe",
+      "purpose_and_callers": "Todo host startup, middleware, endpoints and subscriptions.",
+      "trust_state_errors_concurrency": "Startup creates a fixed Todo database target at 116-120, then uses T08 startup. Redis waiter at 124-126 ignores Redis:Configuration, extending BE-017 and OPS-014. JWT precedes per-user rate limiting. Three stable T05 subscriptions share the startup lifetime token. CSRF is before routes.",
+      "test_evidence": "DependencyInjectionContractTests, TodoGrpcServiceTests and read-only startup traces. No host/runtime executed.",
+      "conclusion": "No separate finding for known startup mismatches. Effective listener and readiness deployment remains T14.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/Properties/launchSettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 60"
+      ],
+      "line_count": 60,
+      "sha256": "62b16f21de4b054677887f29837d86785c33e01bf2deac2bf9543bdde311b562",
+      "purpose_and_callers": "Local launch profiles for Development, Staging and Production.",
+      "trust_state_errors_concurrency": "The profiles set legacy flat TODO_DB_CONNECTION/REDIS_CONNECTION/JWT_* names. Current Todo and shared DI read ConnectionStrings:TodoDatabase, ConnectionStrings:Redis or Redis:Configuration, and JwtSettings keys. No mapping of the flat names was found in Todo/shared source. Values were redacted during this review.",
+      "test_evidence": "Todo Infrastructure DependencyInjection.cs:24-25, shared DependencyInjection.cs:42-44 and JwtAuthenticationExtensions.cs:23-30. Direct profile startup was not executed.",
+      "conclusion": "T14 should verify launch-profile configuration parity; a profile label does not establish the effective endpoint.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/appsettings.Docker.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 42"
+      ],
+      "line_count": 42,
+      "sha256": "268c42f4b2ac9f42430975c63d86d8380ca630d17330c6d203b183e1865d7a8c",
+      "purpose_and_callers": "Docker overrides for Todo connections, JWT, RabbitMQ, gRPC and Kestrel.",
+      "trust_state_errors_concurrency": "Contains separate REST and gRPC endpoint configuration and environment-overridden broker credentials. Service-key and effective ingress remain T07/T14 gates. Values were redacted.",
+      "test_evidence": "Compared key structure with Program and infrastructure registration. No Compose/image run.",
+      "conclusion": "Configuration intent does not establish reachable production protocols.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Api/appsettings.json",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 59"
+      ],
+      "line_count": 59,
+      "sha256": "6481304ad35055383df19305624e95e73f87e1193f12a2909c5ccd66785431bb",
+      "purpose_and_callers": "Default Todo configuration for Redis, cache, broker, JWT, CORS and RPC services.",
+      "trust_state_errors_concurrency": "Default Redis:Configuration is consumed by shared DI, while Program waits on ConnectionStrings:Redis or localhost. Runtime environment overrides determine effective settings. Sensitive values were redacted.",
+      "test_evidence": "Program:124-126 plus shared configuration. OPS-014 already tracks this split.",
+      "conclusion": "Extend OPS-014 to Todo without duplicating the finding.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/AllFriendsSnapshotAudience.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 17"
+      ],
+      "line_count": 17,
+      "sha256": "09c99ddd65069b4c09193482102af437b260f2349663bcd902b959a52942b0a4",
+      "purpose_and_callers": "Builds current and legacy materialized All friends recipient IDs.",
+      "trust_state_errors_concurrency": "Current deduplicates and removes Guid.Empty. Legacy filters accepted-at against CreatedAt and preserves prior explicit shares. Runtime access still requires current friendship and stored access via TodoAccessPolicy.",
+      "test_evidence": "AllFriendsSnapshotPolicyTests.cs:10-53 and AllFriendsSnapshotBackfill* tests inspected by source.",
+      "conclusion": "Snapshot audience is not a substitute for current authorization.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/DirectSharingLimit.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 12"
+      ],
+      "line_count": 12,
+      "sha256": "dbeaa14d2f6f13820d332df43f886deb378207f876f90e5f8e7e163a9eb5f926",
+      "purpose_and_callers": "Centralized direct-share maximum check and validation error.",
+      "trust_state_errors_concurrency": "Counts distinct nonempty IDs with Skip(MaxSharedUsers). Public-All-friends does not apply this direct-share cap. No enumeration of an unbounded trailing remainder after the threshold.",
+      "test_evidence": "TodoValidatorTests and AllFriendsSnapshotHandlersTests exercise limit/caller semantics by source.",
+      "conclusion": "No new independent defect found in this helper.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/NotificationFanout.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 49"
+      ],
+      "line_count": 49,
+      "sha256": "cf6c7a63fc3a4c801a7cabbbd9dc7370cf351663a284a2110cfc967f60696ead",
+      "purpose_and_callers": "Notification recipient filtering and compact task-title preview.",
+      "trust_state_errors_concurrency": "Enqueue excludes actor, empty IDs and duplicate recipients. Each call uses save-through OutboxExtensions, extending BE-002. TitlePreview slices UTF-16 at max-1 and can split a pair, extending BE-024.",
+      "test_evidence": "TodoCommandHandlerExpandedTests.cs:1083-1143 and Common/OutboxExtensions.cs:15-25. No provider fanout fault test run here.",
+      "conclusion": "Preserve actor exclusion while T03 stages the complete event set.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/RealtimeAudience.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 127"
+      ],
+      "line_count": 127,
+      "sha256": "1a41f826d38e5b26102c8f4720ee0b18c8b9b9fbf74f8a727e29a54ad3da44c7",
+      "purpose_and_callers": "Separates feed invalidation audience from content recipients.",
+      "trust_state_errors_concurrency": "Content requires uncached current friendship plus task visibility and narrows to owner on lookup failures. Cancellation propagates. Feed includes stored shares and only dynamic legacy public friends, a different trust purpose.",
+      "test_evidence": "RealtimeAudienceTests and AllFriendsSnapshotPolicyTests:54-83 inspected. No live stale-group test.",
+      "conclusion": "Keep payload-free feed signals separate from current-content authorization.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/ViewerCalendar.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 71"
+      ],
+      "line_count": 71,
+      "sha256": "490ab6d7dbb35c0dd7dc033b3f87be2a719106eeeacd688b5ad5bbda16b98c15",
+      "purpose_and_callers": "Per-request calendar context and safe time-zone header resolution.",
+      "trust_state_errors_concurrency": "AsyncLocal zone is restored by disposable scope. Missing/unknown/malformed/overlong IDs fall back to UTC. Middleware scope surrounds the whole request. Due dates remain calendar-day values at stored UTC midnight.",
+      "test_evidence": "ViewerCalendarTests covers nested restore, malformed IDs, UTC fallback and urgency. No runtime suite executed in this batch.",
+      "conclusion": "No new defect found in supported calendar flows.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DTOs/CategoryTaskCountDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 9"
+      ],
+      "line_count": 9,
+      "sha256": "6e856b92bb4118dc7a4ccf99c978115f8eff7373c95d80fb743570767a1916a7",
+      "purpose_and_callers": "Caller category/open-task count projection.",
+      "trust_state_errors_concurrency": "DTO contains required CategoryId/OpenCount only. Counting authorization belongs to GetCategoryTaskCounts handler, not to this type.",
+      "test_evidence": "GetCategoryTaskCountsTests.cs inspected by source.",
+      "conclusion": "DTO does not establish a caller boundary alone.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DTOs/FriendAffinityDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 10"
+      ],
+      "line_count": 10,
+      "sha256": "ba21c10c9608c41bfbee163459fb33bbe8d060292510e38fb36d43adad6acfa5",
+      "purpose_and_callers": "Friend affinity score and directional share-count projection.",
+      "trust_state_errors_concurrency": "The FriendId and counts come from query aggregation. This record carries no authority and performs no persistence or caching.",
+      "test_evidence": "GetFriendAffinityTests.cs and corresponding handler symbol trace.",
+      "conclusion": "No independent defect in the projection.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DTOs/TodoHiddenResponseDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 10"
+      ],
+      "line_count": 10,
+      "sha256": "8f52488f6c78cb69548fe51849242ec00cb730ef4f5305356d681d42a0ecf6d9",
+      "purpose_and_callers": "Response for a caller-specific hidden-state mutation.",
+      "trust_state_errors_concurrency": "Contains task ID, hidden state and optional viewer-category identifiers. Task-content redaction is handled elsewhere. No writable server ownership field.",
+      "test_evidence": "SetTodoHidden handler and controller trace. HiddenTodoDtoFactory and INV-AZ-3 remain the content boundary.",
+      "conclusion": "Keep mutation response separate from hidden task content.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 145"
+      ],
+      "line_count": 145,
+      "sha256": "b6bf9a5657f6169ccfca274c5fe08516daa70fd52c9b599e4ee4740909918a94",
+      "purpose_and_callers": "Todo wire model plus AutoMapper projection for domain state.",
+      "trust_state_errors_concurrency": "Maps source audience and workers. Authorization/redaction occurs in handlers. Live author/worker display profiles and open-subtask count are intentionally ignored by base mapping. Priority uses enum ToString even for an undefined numeric value.",
+      "test_evidence": "TodoItemMappingProfileTests.cs, TodoAccessPolicy.RedactAudience and frontend priority fallback inspected.",
+      "conclusion": "Undefined persisted priority becomes a numeric string in the response.",
+      "finding_ids": [
+        "CONT041002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DTOs/ViewerPreferenceResponseDto.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 15"
+      ],
+      "line_count": 15,
+      "sha256": "2b9ac5c8fe031617724939d3287d91604bca72dafb9c042123f7253d4b893030",
+      "purpose_and_callers": "Viewer hidden/category/completion response and owner completion truth.",
+      "trust_state_errors_concurrency": "The record distinguishes per-viewer completion from OwnerCompleted. No mutation or caller selection occurs in this DTO.",
+      "test_evidence": "ViewerPreference handler/controller paths traced by symbol references.",
+      "conclusion": "Keep author truth separate from viewer preference.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/DependencyInjection.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 44"
+      ],
+      "line_count": 44,
+      "sha256": "be9293b88c272062a01cb1341f290de68d96da4a1948404f6fe3729efd4286b5",
+      "purpose_and_callers": "Todo CQRS/validation/mapping registration and integration-handler DI.",
+      "trust_state_errors_concurrency": "Registers Logging, Validation and Performance in that order, plus TimeProvider and three integration consumers. No transaction pipeline wraps the save-through outbox calls.",
+      "test_evidence": "DependencyInjectionContractTests and BE-002 existing evidence. No provider/host start.",
+      "conclusion": "T03 must establish atomic mutation/event boundaries in handlers.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Exceptions/ExternalServiceUnavailableException.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 19"
+      ],
+      "line_count": 19,
+      "sha256": "62564dce6b037ab4106a7224df6202450d2a4931da2684a4190cd904c8dcda43",
+      "purpose_and_callers": "Maps unavailable downstream service calls to ServiceUnavailable category.",
+      "trust_state_errors_concurrency": "Service/operation metadata is included without an endpoint or credentials. Client wrappers choose which RPC failures become this exception. Cancellation is not represented by this type.",
+      "test_evidence": "Todo CategoryGrpcClient.cs:116-128 and error taxonomy tests traced.",
+      "conclusion": "No new independent defect in the typed error.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 18"
+      ],
+      "line_count": 18,
+      "sha256": "4356e1c5427e173ea56015b742d95656c3226d578aa39b60a95b2425f0076772",
+      "purpose_and_callers": "Create-subtask request with route parent and optional content/priority.",
+      "trust_state_errors_concurrency": "Parent route replaces the body parent ID in TodosController. Owner is inherited from the parent, actual creator from JWT. Priority is a numeric enum with no field-level validation in the DTO.",
+      "test_evidence": "TodosController.cs:145-159 and TodoCommandHandlerExpandedTests.cs:1162-1192 inspected.",
+      "conclusion": "The DTO must be paired with access checks and enum validation.",
+      "finding_ids": [
+        "CONT041002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 144"
+      ],
+      "line_count": 144,
+      "sha256": "7b59447871a8e03d312fb84eb579bae54c4b0d77b8a3fe2fbea8bcfac1ea4872",
+      "purpose_and_callers": "Creates an inherited child for an authorized branch participant.",
+      "trust_state_errors_concurrency": "Checks current access before mutation and blocks nesting. Touches tracked parent so xmin rejects stale inherited fields. Save-through outbox exposes BE-002. Optional category enrichment uses actor userId instead of the owner whose category was inherited.",
+      "test_evidence": "TodoCommandHandlerExpandedTests covers owner inheritance and a collaborator with no category. GetSubtasks uses parent.UserId for the same category.",
+      "conclusion": "The collaborator create response can omit category metadata returned by the later read.",
+      "finding_ids": [
+        "CONT041001"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 22"
+      ],
+      "line_count": 22,
+      "sha256": "56ef2f6e6afc592cc45183c07e8eeb09c5d1658712f03e67af12e616a0ec70c3",
+      "purpose_and_callers": "Validates parent, title and description limits for subtask creation.",
+      "trust_state_errors_concurrency": "Requires a nonempty parent, title <=1500 and description <=2000. No rule rejects undefined numeric Priority.",
+      "test_evidence": "TodoValidatorTests.cs:128-140 tests only the title boundary. Domain and EF priority assignments were traced.",
+      "conclusion": "Validate enum domain before persistence.",
+      "finding_ids": [
+        "CONT041002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 21"
+      ],
+      "line_count": 21,
+      "sha256": "ad582296a5a767eae0ad2274e03edc4b984397b1cc0c20ee4e7f2fe73b4b4240",
+      "purpose_and_callers": "Create-todo request with explicit optional fields and owner hint.",
+      "trust_state_errors_concurrency": "HTTP controller clears body UserId and the handler resolves JWT owner. Numeric priority remains part of the body contract. DueDateStart uses DueDate as its end bound.",
+      "test_evidence": "TodosController.cs:190-204, CreateTodoCommandHandler and API.md:948-977 inspected.",
+      "conclusion": "Do not treat the owner hint as HTTP authorization.",
+      "finding_ids": [
+        "CONT041002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandValidator.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 52"
+      ],
+      "line_count": 52,
+      "sha256": "36261d3da441f78fa618b8e915b7fe04aa2919560d32388778ff677779697d8e",
+      "purpose_and_callers": "Validates top-level task title, description, dates, worker count and share cap.",
+      "trust_state_errors_concurrency": "Title <=200, description <=2000, coherent due interval, workers >=1 and direct-share cap. Priority has no IsInEnum/range guard. EF stores any nonzero undefined int, such as 6 or -1.",
+      "test_evidence": "TodoValidatorTests covers content/date limits. TodoPriority and TodoItemConfiguration:26-29 traced.",
+      "conclusion": "Undefined values can pass validation and be projected inconsistently by the UI.",
+      "finding_ids": [
+        "CONT041002"
+      ]
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteTodo/DeleteTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 6"
+      ],
+      "line_count": 6,
+      "sha256": "9ab7d6c315f41b30f83f824b37e73171e24c62a31e8d09e4abc24a04e855ac39",
+      "purpose_and_callers": "Delete-task command identified by TodoId.",
+      "trust_state_errors_concurrency": "No caller ID in body. Authorization and deletion/outbox fanout are in DeleteTodoCommandHandler outside this batch.",
+      "test_evidence": "DeleteTodo handler/controller traced and BE-002/BE-005/T03 acknowledged.",
+      "conclusion": "No independent defect in this command record.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 14"
+      ],
+      "line_count": 14,
+      "sha256": "f5190ddf441c4a79d671e8ef0def4ae2d08ff4c72315620e264212c9f2e33c07",
+      "purpose_and_callers": "Duplicate command identified by a source task ID.",
+      "trust_state_errors_concurrency": "Copy ownership is the caller and source content may be copied only after current branch access. Docs specify no copied dates, completion or branch state.",
+      "test_evidence": "DuplicateTodoCommandHandler and docs/features.md:480-496 inspected.",
+      "conclusion": "Source ID is not a grant by itself.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommandHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 169"
+      ],
+      "line_count": 169,
+      "sha256": "e64a2ac1a5a27b94d1cea7f813483d9b2a91a9e28318872b6006ed159d44d018",
+      "purpose_and_callers": "Copies a visible top-level task under the authenticated caller.",
+      "trust_state_errors_concurrency": "Blocks subtasks, checks current access, scopes category to caller and revalidates copied direct shares. All friends uses current duplicator circle. Tags are copied, dates/completion/branch are reset. Save-through creation and realtime events expose BE-002.",
+      "test_evidence": "TodoCommandHandlerExpandedTests.cs:193-344 and CategoryGrpcClient owner check inspected.",
+      "conclusion": "No new authorization defect found in the duplicate path; atomicity remains BE-002.",
+      "finding_ids": []
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/JoinTodo/JoinTodoCommand.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1 7"
+      ],
+      "line_count": 7,
+      "sha256": "6087d2b09ee7010be422039e8159d128c48251db8440e667379579f996a68fd8",
+      "purpose_and_callers": "Join-task command carrying only TodoId.",
+      "trust_state_errors_concurrency": "Membership permissions and capacity live in JoinTodoCommandHandler and domain worker methods. The request supplies no caller identity.",
+      "test_evidence": "JoinTodo handler/domain symbols and worker tests traced.",
+      "conclusion": "Command record alone changes no state.",
+      "finding_ids": []
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT041001",
+      "severity": "P3",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Создание подзадачи участником запрашивает унаследованную категорию от имени другого владельца",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandHandler.cs",
+          "lines": "56-73, 116-137"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+          "lines": "159-176",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Grpc/CategoryGrpcClient.cs",
+          "lines": "32-51, 73-80, 98-114",
+          "supplemental": true
+        },
+        {
+          "path": "Services/CategoryApi/Planora.Category.Application/Features/Categories/Queries/GetCategoryById/GetCategoryByIdQueryHandler.cs",
+          "lines": "29-41",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetSubtasks/GetSubtasksQueryHandler.cs",
+          "lines": "66-79, 116-121",
+          "supplemental": true
+        },
+        {
+          "path": "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs",
+          "lines": "1083-1143, 1162-1192",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Владелец A имеет категорию и делится родительской задачей с действующим другом B. B создаёт подзадачу.",
+      "impact": "Подзадача наследует CategoryId и owner A. Create handler спрашивает CategoryApi с owner B и не получает категорию. Успешный ответ не содержит CategoryName/Color/Icon, тогда как GET подзадач спрашивает owner A и заполняет эти поля. Фактическое отображение расхождения в UI не проверено.",
+      "repro": "В изолированном Npgsql и Category RPC сценарии создать владельца A, категорию A и допущенного участника B. Выполнить create-subtask как B, затем GET той же подзадачи, сравнить category fields. Сохранить отказ для чужого B category read вне авторизованного Todo пути.",
+      "fix": "T03 должен использовать owner унаследованной категории после успешной проверки доступа к родительской задаче и подтвердить одинаковое обогащение create/read. Не расширять внешний Category owner scope."
+    },
+    {
+      "id": "CONT041002",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "Числовой приоритет вне TodoPriority проходит create validation и сохраняется как int",
+      "evidence": [
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateSubtask/CreateSubtaskCommandValidator.cs",
+          "lines": "5-20"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommandValidator.cs",
+          "lines": "7-49"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs",
+          "lines": "103-107"
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Domain/Enums/TodoPriority.cs",
+          "lines": "3-9",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+          "lines": "101-115, 163-176, 244-247",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs",
+          "lines": "26-29",
+          "supplemental": true
+        },
+        {
+          "path": "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+          "lines": "234-249",
+          "supplemental": true
+        },
+        {
+          "path": "frontend/src/components/todos/edit-todo-modal/utils.ts",
+          "lines": "15-32",
+          "supplemental": true
+        },
+        {
+          "path": "docs/API.md",
+          "lines": "975-977",
+          "supplemental": true
+        }
+      ],
+      "trigger": "Авторизованный create task или create subtask запрос передаёт числовой priority 6 или -1 вместо поддерживаемых 1–5. У create/Domain нет enum guard, как и у update validator.",
+      "impact": "Назначение Priority сохраняет неопределённое значение. EF использует integer conversion без check constraint. DTO отдаёт строку числа, frontend fallback показывает Medium, а сервер сортирует raw enum value. Для публичного numeric HTTP binding и фактического Npgsql round trip нужна отдельная проверка. Значение 0 отдельно является EF sentinel и требует отдельного контракта.",
+      "repro": "Проверить validators и HTTP create/update для -1,0,1..5,6 и int.MaxValue. В disposable Npgsql подтвердить отсутствие новых/изменённых строк для неверных значений и совместимость с историческими неизвестными значениями. Проверить сортировку и UI fallback без незаметного преобразования пользовательских данных.",
+      "fix": "T03 должен согласовать числовой enum контракт, добавить согласованный guard на входе и доменной границе, сохранить поддержку чтения исторических данных и проверить все create/update пути."
+    }
+  ],
+  "runtime_verification": {
+    "executed": false
+  },
+  "limits": [
+    "Охват включает только 25 manifest paths. Supplemental callers, тесты и документы не входят в счётчик.",
+    "SHA-256 вычислены по байтам рабочего дерева, full source scope совпадает со снимком. Внешний T02 diff другого агента сохранён.",
+    "Конфигурационные значения редактированы при чтении. Активные .env, OAuth, credentials и user secrets не загружались.",
+    "Build, tests, services, Compose, database, broker, Redis, browser и нагрузочные проверки в этом batch не запускались.",
+    "BE-002 распространяется на CreateSubtask/DuplicateTodo save-through fanout. BE-017 и OPS-014 включают Program Todo. TitlePreview расширяет UTF-16 boundary BE-024. T15 должен учесть устаревшие XML owner-only комментарии контроллера при фактическом participant behavior.",
+    "Новые finding IDs локальны для READ-041. Канонические IDs назначает root. Все runtime gates остаются NOT_VERIFIED.",
+    "Todo launch profiles set legacy flat environment names that the current section-based configuration reads do not consume. This extends T14/OPS-009 configuration parity; no direct profile launch was attempted."
+  ]
+}

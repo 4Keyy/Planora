@@ -942,8 +942,10 @@
       "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DuplicateTodo/DuplicateTodoCommandHandler.cs",
       "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/JoinTodo/JoinTodoCommand.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-041-review.json",
+    "notes": "25 full files and 1392 lines. Category metadata and numeric priority runtime checks remain open."
   },
   {
     "batch_id": "READ-042",

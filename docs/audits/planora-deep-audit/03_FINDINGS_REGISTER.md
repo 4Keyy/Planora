@@ -1007,6 +1007,16 @@ created a new active session in both variants and restored the old password
 in the rehash variant. The guarded transaction now rejects both attempts.
 [T02 evidence](results/T02.md)
 
+## READ-041 — Todo category metadata and priority bounds
+
+| ID | Priority | Confidence | Trigger and required check |
+| --- | --- | --- | --- |
+| BE-028 | P3 | CONFIRMED, static | A collaborator creates a subtask with an inherited category, but the response lookup supplies the actor as category owner. Compare initial metadata with the subsequent read. |
+| BE-029 | P2 | CONFIRMED, static | Task and subtask creation accept an integer outside the Priority enum. Verify HTTP validation and stored values at both entry points. |
+
+Runtime checks remain open. Existing atomicity and configuration findings
+retain their separate evidence. [READ-041](results/evidence/read-041-review.md)
+
 ## READ-036 — Collaboration startup, erasure and pagination
 
 | ID | Priority | Confidence | Trigger and required check |
