@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "b1164ce68706f9e5c309de323da303e89e31890a",
+  "current_sha": "71da5d29c625dde377bc62f3eb778582e696edab",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -213,7 +213,13 @@
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/WorkerLifecycleOutboxPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t03-worker-lifecycle-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-045-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-045-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-045-review.md",
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs",
+    "Services/TodoApi/Planora.Todo.Domain/Repositories/IUserTodoViewPreferenceRepository.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/UpdateTodoOutboxPostgresTests.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/ViewerCompletionResetPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t03-update-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -252,9 +258,10 @@
     "READ-043 completed25paths/935source lines. BE-033 ActualDate completion events is static, runtime NOT_VERIFIED. Coverage580/1558(37.23%),66batches pending.",
     "READ-044 completed25paths/4278source lines, no new confirmed findings. Guarded legacy-comment drop hypothesis refuted in source; no runtime proof promoted. Coverage605/1558(38.83%),65batches pending.",
     "Join/Leave RED5F/5P, GREEN409P, broad1497P, ErrorHandling94P, no skips. Ten provider tests include cancellation, fresh-context Join retry and strict-Moq count failure after real persistence. Source review no blocker; log-only count removed.",
-    "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending."
+    "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending.",
+    "UpdateTodo RED5F/1P (success matrix4DB), GREEN416P, broad1504P, ErrorHandling94P without skips. Seven provider tests include deferred reset preserving concurrent independent fields. All7Todo producers staged; Collaboration remains. Stage reset materialization cost and late-completion/full-row races remain gates."
   ],
-  "next_step": "T03 UpdateTodo provider RED across owner/viewer/subtask and owner reopen. Add staged viewer-completion reset without changing legacy bulk API, then stage all events.",
+  "next_step": "T03 Collaboration AddComment/UpdateComment/DeleteComment provider RED, then atomic staging. Keep authorization, content audience and timeline contracts; BE-005/006 and continuation findings stay open.",
   "commands": [
     {
       "id": "readiness-red",
@@ -2920,6 +2927,95 @@
       "local_links": 1442,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t03-update-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName~UpdateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-update-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 6,
+      "passed": 1,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-red.txt",
+      "log_sha256": "88e14700ac00e07284df8643e89b73b3e3d7107dccc1fb7c219ce7dde7d324a2",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-red.trx",
+      "trx_sha256": "5cdc7860ee91a6a257d157c9609eaba26a71135a689f6c433292a795e8b48ec3",
+      "test_run_times": {
+        "creation": "2026-11-06T00:53:24.3394242+03:00",
+        "queuing": "2026-11-06T00:53:24.3394247+03:00",
+        "start": "2026-11-06T00:53:17.4535186+03:00",
+        "finish": "2026-11-06T00:53:28.7112086+03:00"
+      },
+      "test_run_seconds": 11.258
+    },
+    {
+      "id": "t03-update-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-update-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 416,
+      "passed": 416,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-green.txt",
+      "log_sha256": "b96f4cc19bcf0cb58808f36f0b2728d784cb12b6598e52d9452c49c211a5d7c3",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-green.trx",
+      "trx_sha256": "2be30db50e6a3643b38c80ff7aae7d4bc2cd10002b24ad0ae702447981346a01",
+      "test_run_times": {
+        "creation": "2026-11-06T00:56:20.2521120+03:00",
+        "queuing": "2026-11-06T00:56:20.2521129+03:00",
+        "start": "2026-11-06T00:56:19.3008281+03:00",
+        "finish": "2026-11-06T00:56:30.3109093+03:00"
+      },
+      "test_run_seconds": 11.01
+    },
+    {
+      "id": "t03-update-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-update-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1504,
+      "passed": 1504,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-broad.txt",
+      "log_sha256": "1ff37c7769dd2ba24b53921e5f33ae388aecf59b91ed7af415efc590df255dce",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-broad.trx",
+      "trx_sha256": "2ba36b5611046258843f82a61deb92ba416b6266ea57ab78a6493990b9505dac",
+      "test_run_times": {
+        "creation": "2026-11-06T00:57:47.3854337+03:00",
+        "queuing": "2026-11-06T00:57:47.3854342+03:00",
+        "start": "2026-11-06T00:57:46.2381210+03:00",
+        "finish": "2026-11-06T00:58:18.5447685+03:00"
+      },
+      "test_run_seconds": 32.307
+    },
+    {
+      "id": "t03-update-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-errors/\" --logger 'trx;LogFileName=t03-update-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-errors.txt",
+      "log_sha256": "001d0968116421fe3a4ec30894652cea50addad1b6315d81b1b0dfc076135dce",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-errors.trx",
+      "trx_sha256": "997904d280e7b3f0e8f87ed49f65c741166b763a569a0249fbe26058fb6c4caf",
+      "test_run_times": {
+        "creation": "2026-11-06T00:57:59.7170989+03:00",
+        "queuing": "2026-11-06T00:57:59.7170995+03:00",
+        "start": "2026-11-06T00:57:54.6092979+03:00",
+        "finish": "2026-11-06T00:58:10.8090075+03:00"
+      },
+      "test_run_seconds": 16.2
+    },
+    {
+      "id": "t03-update-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 125,
+      "local_links": 1443,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -3015,7 +3111,8 @@
     "results/evidence/read-044-review.md",
     "results/evidence/t03-worker-lifecycle-verification.json",
     "results/evidence/read-045-review.json",
-    "results/evidence/read-045-review.md"
+    "results/evidence/read-045-review.md",
+    "results/evidence/t03-update-verification.json"
   ],
   "local_commits": [
     {
@@ -3147,6 +3244,11 @@
       "task": "T03 Join/Leave atomic lifecycle checkpoint",
       "sha": "b1164ce68706f9e5c309de323da303e89e31890a",
       "pushed": false
+    },
+    {
+      "task": "READ-045 Todo persistence review checkpoint",
+      "sha": "71da5d29c625dde377bc62f3eb778582e696edab",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3174,7 +3276,7 @@
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
     "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment.",
-    "T03": "UpdateTodo and Collaboration producer commits, owner-reopen bulk preferences, BE-005 workers, BE-006 activity identity and continuation findings."
+    "T03": "Collaboration producer commits, BE-005 workers, BE-006 activity identity and continuation findings including BE-028 through BE-034; late completion/full-row preference races remain."
   },
   "new_findings": [
     "BE-008",

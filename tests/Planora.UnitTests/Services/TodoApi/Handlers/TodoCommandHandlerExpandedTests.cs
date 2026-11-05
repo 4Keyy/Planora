@@ -930,7 +930,7 @@ public class TodoCommandHandlerExpandedTests
     public async Task UpdateTodo_OwnerReopenOfAudienceTask_ClearsEveryViewerCompletion()
     {
         // When the author reopens a completed PUBLIC/shared task, every viewer's per-viewer completion
-        // is bulk-cleared so the task becomes active for everyone again.
+        // is cleared in the same save so the task becomes active for everyone again.
         var ownerId = Guid.NewGuid();
         var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
         todo.MarkAsDone(ownerId);
@@ -947,7 +947,7 @@ public class TodoCommandHandlerExpandedTests
         Assert.Equal(TodoStatus.Todo, todo.Status);
         Assert.False(result.Value!.OwnerCompleted);
         fixture.ViewerPreferences.Verify(
-            x => x.ClearCompletedByViewerForTodoAsync(todo.Id, It.IsAny<CancellationToken>()), Times.Once);
+            x => x.StageClearCompletedByViewerForTodoAsync(todo.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -970,7 +970,7 @@ public class TodoCommandHandlerExpandedTests
 
         Assert.True(result.IsSuccess);
         fixture.ViewerPreferences.Verify(
-            x => x.ClearCompletedByViewerForTodoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+            x => x.StageClearCompletedByViewerForTodoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -1392,17 +1392,17 @@ public class TodoCommandHandlerExpandedTests
         // event that reconciles the subtask in everyone's open branch, and a subtask.completed
         // notification to the one other participant (the owner) = 3 outbox writes.
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            x => x.StageAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Exactly(3));
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(
+            x => x.StageAsync(
                 It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
                     m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
                 It.IsAny<CancellationToken>()),
             Times.Once);
         // The owner is notified that a subtask was completed (the completing friend is excluded).
         fixture.OutboxRepository.Verify(
-            x => x.AddAsync(
+            x => x.StageAsync(
                 It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
                     m => m.Type.Contains(nameof(NotificationEvent))
                          && m.Content.Contains("subtask.completed")

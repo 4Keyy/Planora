@@ -1017,7 +1017,7 @@ in the rehash variant. The guarded transaction now rejects both attempts.
 Runtime checks remain open. Existing atomicity and configuration findings
 retain their separate evidence. [READ-041](results/evidence/read-041-review.md)
 
-## BE-002 — Create, duplicate, subtask and deletion checkpoints
+## BE-002 — Todo producer checkpoints
 
 CreateTodo and DuplicateTodo stage both integration events before their single save.
 CreateSubtask stages its branch event and complete notification fan-out,
@@ -1028,7 +1028,11 @@ cases verify rollback and full success without changing sibling or unrelated row
 JoinTodo and LeaveTodo stage all lifecycle events and Join notifications.
 Ten provider tests cover failures, cancellation, success, fresh-context Join
 retry and diagnostic count independence. The post-commit log-only count
-query is removed; remaining UpdateTodo and Collaboration paths are open.
+query is removed.
+UpdateTodo now stages its three branches and the selected owner-reopen
+completion resets. Seven provider tests cover handler failures, four success
+modes and deferred field-scoped reset. Collaboration producers and separate
+completion/concurrency findings remain open.
 PostgreSQL regressions cover second-event failure, rejected outbox INSERT
 and the complete successful event set. Other Todo and Collaboration
 producers remain open. [T03 evidence](results/T03.md)

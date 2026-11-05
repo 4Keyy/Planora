@@ -99,8 +99,8 @@
     "limitations": "Runtime crash injection не выполнялся. Существующие mock SaveChanges assertions не доказывают atomicity.",
     "verification": {
       "status": "PARTIAL_LOCAL",
-      "evidence": "results/evidence/t03-worker-lifecycle-verification.json",
-      "note": "CreateTodo3, DuplicateTodo3, CreateSubtask4, DeleteTodo6 and Join/Leave10 provider tests passed. UpdateTodo and Collaboration producers remain open."
+      "evidence": "results/evidence/t03-update-verification.json",
+      "note": "Staged sets of all seven Todo handlers checked locally: Create3, Duplicate3, CreateSubtask4, Delete6, Join/Leave10, Update7 provider tests. Collaboration producers and separate completion/concurrency findings remain open."
     }
   },
   {

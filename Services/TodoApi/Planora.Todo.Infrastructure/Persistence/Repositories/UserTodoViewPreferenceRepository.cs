@@ -106,15 +106,29 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
         public async Task<int> ClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default)
         {
-            // One set-based UPDATE resets all viewers' completion for this task. The owner-reopen path
-            // does not load these preference rows into the tracker, so a bulk ExecuteUpdate is safe and
-            // avoids materialising N rows just to flip a flag.
+            // Legacy immediate reset; callers that also stage mutations/events use the staged variant.
             return await _context.UserTodoViewPreferences
                 .Where(p => p.TodoItemId == todoItemId && p.CompletedByViewer)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(p => p.CompletedByViewer, false)
                     .SetProperty(p => p.CompletedByViewerAt, (DateTime?)null),
                     cancellationToken);
+        }
+
+        public async Task<int> StageClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default)
+        {
+            var preferences = await _context.UserTodoViewPreferences
+                .AsTracking()
+                .Where(p => p.TodoItemId == todoItemId && p.CompletedByViewer)
+                .ToListAsync(cancellationToken);
+
+            foreach (var preference in preferences)
+            {
+                preference.CompletedByViewer = false;
+                preference.CompletedByViewerAt = null;
+            }
+
+            return preferences.Count;
         }
 
         public async Task UpsertAsync(UserTodoViewPreference preference, CancellationToken cancellationToken = default)

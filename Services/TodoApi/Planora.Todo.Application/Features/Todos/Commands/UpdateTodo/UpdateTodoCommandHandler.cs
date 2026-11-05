@@ -111,7 +111,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             if (subtaskJustCompleted && todoItem.ParentTodoId.HasValue)
                             {
                                 var completerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-                                await _outboxRepository.EnqueueIntegrationEventAsync(
+                                await _outboxRepository.StageIntegrationEventAsync(
                                     new TaskActivityIntegrationEvent(
                                         todoItem.ParentTodoId.Value, userId, completerName,
                                         TaskActivityType.SubtaskCompleted, todoItem.Title),
@@ -122,7 +122,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 // audience, so resolving from it yields the parent's participants.
                                 var subtaskAudience = await RealtimeAudience.ResolveContentAsync(
                                     todoItem, _friendshipService, cancellationToken, _logger);
-                                await NotificationFanout.EnqueueAsync(
+                                await NotificationFanout.StageAsync(
                                     _outboxRepository, subtaskAudience, actorId: userId,
                                     taskId: todoItem.ParentTodoId.Value,
                                     type: NotificationType.SubtaskCompleted,
@@ -135,7 +135,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             // the parent's open branch for everyone viewing it.
                             if (todoItem.ParentTodoId.HasValue)
                             {
-                                await _outboxRepository.EnqueueIntegrationEventAsync(
+                                await _outboxRepository.StageIntegrationEventAsync(
                                     new RealtimeSyncIntegrationEvent(
                                         RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
                                         branchTaskId: todoItem.ParentTodoId.Value),
@@ -192,13 +192,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 todoItem.RemoveWorker(userId);
 
                             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-                            await _outboxRepository.EnqueueIntegrationEventAsync(
+                            await _outboxRepository.StageIntegrationEventAsync(
                                 new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Completed),
                                 cancellationToken);
 
                             // Live: the "completed" system entry appears in the task's open branch.
                             // Per-viewer completion is private to this viewer's feed, so no feed push.
-                            await _outboxRepository.EnqueueIntegrationEventAsync(
+                            await _outboxRepository.StageIntegrationEventAsync(
                                 new RealtimeSyncIntegrationEvent(
                                     RealtimeSyncAction.BranchActivity, todoItem.Id, userId,
                                     branchTaskId: todoItem.Id),
@@ -247,7 +247,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             var completionRecipients = milestoneType is null
                                 ? audience
                                 : audience.Where(id => id != authorId);
-                            await NotificationFanout.EnqueueAsync(
+                            await NotificationFanout.StageAsync(
                                 _outboxRepository, completionRecipients, actorId: userId, taskId: todoItem.Id,
                                 type: NotificationType.TaskCompleted,
                                 title: "Task completed",
@@ -262,7 +262,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                     : ("All collaborators done",
                                        $"All collaborators completed “{titlePreview}” — some subtasks remain");
 
-                                await NotificationFanout.EnqueueAsync(
+                                await NotificationFanout.StageAsync(
                                     _outboxRepository, new[] { authorId }, actorId: userId, taskId: todoItem.Id,
                                     type: milestoneType,
                                     title: mTitle,
@@ -452,7 +452,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             if (!todoItem.IsSubtask && wasCompleted && !todoItem.IsCompleted &&
                 (todoItem.IsPublic || todoItem.SharedWith.Any()))
             {
-                await _viewerPreferenceRepository.ClearCompletedByViewerForTodoAsync(todoItem.Id, cancellationToken);
+                await _viewerPreferenceRepository.StageClearCompletedByViewerForTodoAsync(todoItem.Id, cancellationToken);
             }
 
             // Keep subtasks in sync: when the parent's category, public flag or shared audience
@@ -474,20 +474,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             // Subtasks have no branch of their own, so they emit no timeline activity events.
             if (ownerJustCompleted && !todoItem.IsSubtask)
             {
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Completed),
                     cancellationToken);
             }
             else if (ownerStartedWorking && !todoItem.IsSubtask)
             {
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.StartedWorking),
                     cancellationToken);
             }
             else if (ownerJustCompleted && todoItem.IsSubtask && todoItem.ParentTodoId.HasValue)
             {
                 // A subtask has no branch of its own — its completion is announced in the PARENT's branch.
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(
                         todoItem.ParentTodoId.Value, userId, ownerName,
                         TaskActivityType.SubtaskCompleted, todoItem.Title),
@@ -496,7 +496,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 // Same as the collaborator path: notify the other participants (owner excluded).
                 var ownerSubtaskAudience = await RealtimeAudience.ResolveContentAsync(
                     todoItem, _friendshipService, cancellationToken, _logger);
-                await NotificationFanout.EnqueueAsync(
+                await NotificationFanout.StageAsync(
                     _outboxRepository, ownerSubtaskAudience, actorId: userId,
                     taskId: todoItem.ParentTodoId.Value,
                     type: NotificationType.SubtaskCompleted,
@@ -506,7 +506,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             }
             else if (ownerStoppedWorking && !todoItem.IsSubtask)
             {
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Left),
                     cancellationToken);
             }
@@ -517,7 +517,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 // A subtask is not a feed card; its edits surface only in the parent's open branch.
                 if (todoItem.ParentTodoId.HasValue)
                 {
-                    await _outboxRepository.EnqueueIntegrationEventAsync(
+                    await _outboxRepository.StageIntegrationEventAsync(
                         new RealtimeSyncIntegrationEvent(
                             RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
                             branchTaskId: todoItem.ParentTodoId.Value),
@@ -539,7 +539,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
                 // One event drives both surfaces: the feed card for every viewer, and the task's
                 // own open branch (title/description/status/worker changes reconcile live).
-                await _outboxRepository.EnqueueIntegrationEventAsync(
+                await _outboxRepository.StageIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         feedAction, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audienceSet.ToList()),
@@ -551,7 +551,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 if (ownerJustCompleted)
                 {
                     var contentAudience = await RealtimeAudience.ResolveContentAsync(todoItem, _friendshipService, cancellationToken, _logger);
-                    await NotificationFanout.EnqueueAsync(
+                    await NotificationFanout.StageAsync(
                         _outboxRepository, contentAudience, actorId: userId, taskId: todoItem.Id,
                         type: NotificationType.TaskCompleted,
                         title: "Task completed",

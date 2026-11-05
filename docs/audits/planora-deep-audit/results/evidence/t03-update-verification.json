@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "head": "71da5d29c625dde377bc62f3eb778582e696edab",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Verified audit PostgreSQL immutable ID/label, loopback64345, tmpfs/no persistent mounts. Broad also verified owned RabbitMQ ID/label/volume/ports and check_running. Redis test-only port1 unbound.",
+  "commands": [
+    {
+      "id": "t03-update-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName~UpdateTodoOutboxPostgresTests' --logger 'trx;LogFileName=t03-update-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 6,
+      "passed": 1,
+      "failed": 5,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-red.txt",
+      "log_sha256": "88e14700ac00e07284df8643e89b73b3e3d7107dccc1fb7c219ce7dde7d324a2",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-red.trx",
+      "trx_sha256": "5cdc7860ee91a6a257d157c9609eaba26a71135a689f6c433292a795e8b48ec3",
+      "test_run_times": {
+        "creation": "2026-11-06T00:53:24.3394242+03:00",
+        "queuing": "2026-11-06T00:53:24.3394247+03:00",
+        "start": "2026-11-06T00:53:17.4535186+03:00",
+        "finish": "2026-11-06T00:53:28.7112086+03:00"
+      },
+      "test_run_seconds": 11.258
+    },
+    {
+      "id": "t03-update-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-update-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 416,
+      "passed": 416,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-green.txt",
+      "log_sha256": "b96f4cc19bcf0cb58808f36f0b2728d784cb12b6598e52d9452c49c211a5d7c3",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-green.trx",
+      "trx_sha256": "2be30db50e6a3643b38c80ff7aae7d4bc2cd10002b24ad0ae702447981346a01",
+      "test_run_times": {
+        "creation": "2026-11-06T00:56:20.2521120+03:00",
+        "queuing": "2026-11-06T00:56:20.2521129+03:00",
+        "start": "2026-11-06T00:56:19.3008281+03:00",
+        "finish": "2026-11-06T00:56:30.3109093+03:00"
+      },
+      "test_run_seconds": 11.01
+    },
+    {
+      "id": "t03-update-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-update-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1504,
+      "passed": 1504,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-broad.txt",
+      "log_sha256": "1ff37c7769dd2ba24b53921e5f33ae388aecf59b91ed7af415efc590df255dce",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-broad.trx",
+      "trx_sha256": "2ba36b5611046258843f82a61deb92ba416b6266ea57ab78a6493990b9505dac",
+      "test_run_times": {
+        "creation": "2026-11-06T00:57:47.3854337+03:00",
+        "queuing": "2026-11-06T00:57:47.3854342+03:00",
+        "start": "2026-11-06T00:57:46.2381210+03:00",
+        "finish": "2026-11-06T00:58:18.5447685+03:00"
+      },
+      "test_run_seconds": 32.307
+    },
+    {
+      "id": "t03-update-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/update-errors/\" --logger 'trx;LogFileName=t03-update-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-update-errors.txt",
+      "log_sha256": "001d0968116421fe3a4ec30894652cea50addad1b6315d81b1b0dfc076135dce",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-update-errors.trx",
+      "trx_sha256": "997904d280e7b3f0e8f87ed49f65c741166b763a569a0249fbe26058fb6c4caf",
+      "test_run_times": {
+        "creation": "2026-11-06T00:57:59.7170989+03:00",
+        "queuing": "2026-11-06T00:57:59.7170995+03:00",
+        "start": "2026-11-06T00:57:54.6092979+03:00",
+        "finish": "2026-11-06T00:58:10.8090075+03:00"
+      },
+      "test_run_seconds": 16.2
+    },
+    {
+      "id": "t03-update-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 125,
+      "local_links": 1443,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerCompletionAsync_LastNotificationFailureRollsBackTaskAndAllEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.ViewerCompletionAsync_LastMilestoneFailureRollsBackPreferenceWorkerAndAllEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.UpdateAsync_SuccessMatrixCommitsCompleteEventsAndPreservesUnrelatedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_FirstEventFailurePreservesEveryViewerCompletion",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_RejectedFeedInsertRollsBackTaskPreferencesAndActivity",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-update-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.SubtaskCompletionAsync_LastBranchSignalFailureRollsBackGlobalStatusAndAllEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_RejectedFeedInsertRollsBackTaskPreferencesAndActivity",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerCompletionAsync_LastNotificationFailureRollsBackTaskAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.ViewerCompletionAsync_LastMilestoneFailureRollsBackPreferenceWorkerAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.ViewerCompletionResetPostgresTests.StageResetAsync_DefersWritesAndPreservesConcurrentIndependentPreferenceChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.UpdateAsync_SuccessMatrixCommitsCompleteEventsAndPreservesUnrelatedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_FirstEventFailurePreservesEveryViewerCompletion",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.SubtaskCompletionAsync_LastBranchSignalFailureRollsBackGlobalStatusAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.ViewerCompletionAsync_LastMilestoneFailureRollsBackPreferenceWorkerAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.UpdateAsync_SuccessMatrixCommitsCompleteEventsAndPreservesUnrelatedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.ViewerCompletionResetPostgresTests.StageResetAsync_DefersWritesAndPreservesConcurrentIndependentPreferenceChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_FirstEventFailurePreservesEveryViewerCompletion",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerReopenAsync_RejectedFeedInsertRollsBackTaskPreferencesAndActivity",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.OwnerCompletionAsync_LastNotificationFailureRollsBackTaskAndAllEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-update-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.UpdateTodoOutboxPostgresTests.SubtaskCompletionAsync_LastBranchSignalFailureRollsBackGlobalStatusAndAllEvents",
+      "outcome": "Passed"
+    }
+  ],
+  "red_scope": "Six existing-API handler tests. Five failed and the four-mode success matrix passed. New staged reset repository API/test was added only after this RED.",
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers across all three handler branches, tracked preference reset, original xmin preservation, payload/privacy or field-scoped provider assertions.",
+    "limits": "Selected completed rows are materialized. Later completion and late full-row Upsert are not protected; BE-031 remains. Cost, ACK loss, crash, concurrent xmin and every field combination not verified. BE-032/033/034 remain open."
+  },
+  "doc_delta": "T15 documents staged owner-reopen completion reset and one-save Todo mutations; no schema/HTTP/DTO or product text changes.",
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs": "e52fd1a3c2737fa4a1e7910cad552e791b9e3e5d3c000d18338a5aaa8aaf0e5f",
+    "Services/TodoApi/Planora.Todo.Domain/Repositories/IUserTodoViewPreferenceRepository.cs": "8ccac5ca981352c625f4e2f67f77f17b6b924ab64268c1dfccffd80d87d9785a",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs": "2d0f144fc00234a0a8ecb47f8d5eeabb921c3a2c30de398b11adb2a5711d7afb",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs": "72525f9f254c78e2ddbc76491c8aa292510471aec9b19e398612ceaa5d1baaa2",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/UpdateTodoOutboxPostgresTests.cs": "5328a721672a3d75165375dd154a97fe3fa27ab76b8985c26edf90997510e797",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/ViewerCompletionResetPostgresTests.cs": "22f1378a906ca3a8723dea952abdd69d464028ce3464c8f8a2e6e7fb00519bd7"
+  },
+  "trx_input_policy": "Owned local UTF-8 TRX only,16MiB bound, DTD/entity declarations rejected before parsing."
+}

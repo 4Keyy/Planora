@@ -40,11 +40,16 @@ namespace Planora.Todo.Domain.Repositories
 
         /// <summary>
         /// Bulk-clears every viewer's per-viewer completion (<c>CompletedByViewer = false</c>,
-        /// <c>CompletedByViewerAt = null</c>) for one task in a single SQL UPDATE. Used when the
-        /// author reopens an audience (public/shared) task so it becomes active for everyone again.
-        /// Returns the number of rows reset.
+        /// <c>CompletedByViewerAt = null</c>) for one task in an immediate SQL UPDATE.
+        /// Returns the number of rows reset. For a caller-owned save, use the staged variant.
         /// </summary>
         Task<int> ClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tracks resets of the currently completed viewer rows for the caller's next save.
+        /// Returns the number of tracked resets; other preference fields remain unchanged.
+        /// </summary>
+        Task<int> StageClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default);
 
         Task UpsertAsync(UserTodoViewPreference preference, CancellationToken cancellationToken = default);
     }
