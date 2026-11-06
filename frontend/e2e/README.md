@@ -199,6 +199,10 @@ shards (one job each, `--shard=N/6`, 75-minute limit): with one worker the whole
 runs well over two hours. From `frontend/`, `node e2e/run-ci.cjs` streams child
 stdout/stderr line by line, redacting action-link query tokens, JWTs and secret JSON
 fields in each line, so a job stopped by its time limit still shows the tests it ran.
+Each shard stops with a failed status after its first definitive failed test
+(`--max-failures=1`, retries retained); the other shards continue. A successful
+run still executes every assigned test. A failed early run leaves later tests
+unexecuted and cannot establish a complete pass.
 CI generates no HTML report, trace or video. It uploads failure PNG screenshots
 (one artifact per shard) and, for failed stack startup, a separate bounded diagnostic
 artifact with Compose state, container health and startup logs. Generated disposable
@@ -208,6 +212,11 @@ and raw diagnostic output are not published. Cleanup stops the frontend and disp
 containers and removes `.env.e2e`. The workflow's browser
 cache behavior is defined by its actual steps; npm caching alone does not prove
 that downloaded browser binaries are cached.
+
+A separate geometry artifact admits only `real-hide-frames.json`,
+`real-height-frames.json`, `bottom-card-hide.json` and `bottom-card-pager.json`:
+numeric measurements, booleans/nulls and fixed fixture labels. Adjacent request logs,
+content-bearing motion matrices and the full Playwright JSON report stay private.
 
 Each CI shard owns a `planora-e2e-ci` Compose project on its dedicated runner. Retention
 is disabled for these API/UI fixtures; PostgreSQL retention policies have separate backend

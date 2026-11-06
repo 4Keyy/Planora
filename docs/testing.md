@@ -138,6 +138,10 @@ random runtime credential and a fixture under `RUNNER_TEMP`; it waits for the ap
 AMQP listener before the suite. The two restart facts are skipped in the general invocation
 and then run explicitly as seed → broker restart → verify, with separate TRX evidence.
 Inspect all three invocations before claiming full provider coverage.
+Broker CLI probes run as the `rabbitmq` user: an early root probe can create a
+root-owned Erlang cookie during image initialization and prevent the server from
+starting. Failed readiness retains bounded state/log diagnostics after redacting
+the random disposable credentials; this is separate from the message-delivery tests.
 
 ## Frontend Commands
 

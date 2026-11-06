@@ -87,19 +87,56 @@ jobs:
             `RABBITMQ_DEFAULT_USER=planora_ci\nRABBITMQ_DEFAULT_PASS=${password}\n`, { mode: 0o600 });
           appendFileSync(process.env.GITHUB_ENV, `PLANORA_TEST_RABBIT_FIXTURE=${fixture}\n`);
           NODE
+          cat > "$RUNNER_TEMP/planora-rabbit-diagnostics.mjs" <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const directory = join(process.env.RUNNER_TEMP, 'planora-rabbit-diagnostics');
+          mkdirSync(directory, { recursive: true });
+          let fixture;
+          try { fixture = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, 'planora-rabbit.json'), 'utf8')); }
+          catch { fixture = null; }
+          if (!fixture?.Password || !fixture?.UserName) {
+            writeFileSync(join(directory, 'unavailable.txt'), 'Broker diagnostics withheld: incomplete disposable redaction inputs.\n');
+          } else {
+            const redact = text => [fixture.Password, fixture.UserName].reduce((safe, value) => safe.split(value).join('[redacted]'), text);
+            const container = process.argv[2] ?? 'planora-ci-rabbit';
+            const invoke = args => spawnSync('docker', args, {
+              encoding: 'utf8', timeout: 10_000, maxBuffer: 4 * 1024 * 1024,
+            });
+            const owner = invoke(['inspect', '--format', '{{index .Config.Labels "com.planora.ci"}}', container]);
+            if (!process.env.GITHUB_RUN_ID || owner.status !== 0 || owner.stdout.trim() !== process.env.GITHUB_RUN_ID) {
+              writeFileSync(join(directory, 'unavailable.txt'), 'Broker diagnostics withheld: disposable container ownership did not match.\n');
+            } else {
+              const capture = args => {
+                const result = invoke(args);
+                return redact(`exit=${result.status}\n${result.stdout ?? ''}${result.stderr ?? ''}${result.error?.message ?? ''}`);
+              };
+              writeFileSync(join(directory, 'state.txt'), capture(['inspect', '--format',
+                '{{.Name}} restartCount={{.RestartCount}} {{json .State}}', container]));
+              writeFileSync(join(directory, 'startup-logs.txt'), capture(['logs', '--tail', '200', container]));
+              writeFileSync(join(directory, 'readiness.txt'), capture(['exec', '--user', 'rabbitmq', container,
+                'rabbitmq-diagnostics', '-q', 'check_running']) + '\n' + capture(['exec', '--user', 'rabbitmq', container,
+                'rabbitmq-diagnostics', '-q', 'check_port_listener', '5672']));
+              console.log('Saved redacted disposable RabbitMQ state, startup logs and readiness command exits');
+            }
+          }
+          NODE
           docker run -d --name planora-ci-rabbit \
             --label com.planora.ci="$GITHUB_RUN_ID" \
             --env-file "$RUNNER_TEMP/planora-rabbit.env" \
             --mount type=volume,source=planora-ci-rabbit-data,target=/var/lib/rabbitmq \
             -p 127.0.0.1:5672:5672 rabbitmq:3.13-management-alpine
+          # Root probes can create an unreadable Erlang cookie while the server bootstraps its data directory.
           for attempt in {1..60}; do
-            if docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
-              && docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
+            if docker exec --user rabbitmq planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
+              && docker exec --user rabbitmq planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
               exit 0
             fi
             sleep 2
           done
           echo '::error::Disposable RabbitMQ fixture did not become ready'
+          node "$RUNNER_TEMP/planora-rabbit-diagnostics.mjs"
           exit 1
       - run: dotnet restore Planora.sln
       - run: dotnet build Planora.sln --no-restore --configuration Release -warnaserror
@@ -113,18 +150,27 @@ jobs:
         run: |
           docker restart planora-ci-rabbit
           for attempt in {1..60}; do
-            if docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
-              && docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
+            if docker exec --user rabbitmq planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
+              && docker exec --user rabbitmq planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
               exit 0
             fi
             sleep 2
           done
           echo '::error::Disposable RabbitMQ fixture did not recover after restart'
+          node "$RUNNER_TEMP/planora-rabbit-diagnostics.mjs"
           exit 1
       - name: Verify durable quarantine after broker restart
         env:
           PLANORA_TEST_RABBIT_RESTART_PHASE: verify
         run: dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-build --configuration Release --filter FullyQualifiedName~RestartVerify_QuarantineRetainsOriginalPersistentMessage --logger trx --results-directory ./coverage/backend/restart-verify
+      - name: Upload redacted broker readiness diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rabbitmq-readiness-diagnostics
+          path: ${{ runner.temp }}/planora-rabbit-diagnostics
+          if-no-files-found: ignore
+          retention-days: 3
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-coverage-report

@@ -1,0 +1,37 @@
+{
+  "scope": "Exact CI Node generator, env-file and new isolated Docker named-volume fixture; CLI user is the only startup fix.",
+  "red": {
+    "status": "FAIL",
+    "container_exit": 1,
+    "readiness_attempts": 60,
+    "error": "Error when reading /var/lib/rabbitmq/.erlang.cookie: eacces",
+    "observed_cookie_metadata": "0:0 400; broker user uid=100 gid=101",
+    "removed": true
+  },
+  "green": {
+    "status": "PASS",
+    "initial_attempts": 5,
+    "restart_attempts": 4,
+    "cookie_metadata": "100:101 400 /var/lib/rabbitmq/.erlang.cookie",
+    "exact_generated_credentials_verified": true,
+    "diagnostic_heredoc_executed": true,
+    "removed": true
+  },
+  "checks": {
+    "yaml_and_bash": "PASS",
+    "node_heredocs": "PASS",
+    "redaction_and_ownership_smoke": "4/4 PASS",
+    "geometry_artifact_globs": "4 allowed + 6 forbidden filenames PASS",
+    "git_diff_check": "PASS"
+  },
+  "limits": [
+    "GitHub failed job did not preserve broker stdout; exact CI failure cause is inferred from reproduced local fixture failure, not from missing remote logs.",
+    "Provider unit/restart message tests remain separate; this probe certifies fixture startup, supplied credentials and broker process restart only."
+  ],
+  "source_head_before_fix": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "workflow_sha256": "f6ecf64a4417a72426465e634ac78eec88eb7d40ad0371b72138f56ef12f54f9",
+  "remote_failed_run": 42274212801,
+  "remote_failed_job": 128086238505,
+  "independent_review": "ci_pr_review: no actionable findings; local probe JSON and workflow reviewed, runtime not repeated by reviewer",
+  "working_runtime": "Not used; helper owned resources removed after label/ID checks."
+}
