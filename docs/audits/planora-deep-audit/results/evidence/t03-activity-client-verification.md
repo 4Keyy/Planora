@@ -2,7 +2,7 @@
 
 **PASS_LOCAL** для HTTP projection и клиентской обработки identity. Это отдельная
 единица после [persisted backend fix](t03-activity-identity-verification.md).
-BE-022, deployment и полные HTTP/SignalR/browser gates остаются открытыми.
+DIST-012, deployment и полные HTTP/SignalR/browser gates остаются открытыми.
 
 ## RED и исправление
 
@@ -84,4 +84,4 @@ jsdom проверяет DOM/API interaction и mocked live-change callbacks, а
 настоящий SignalR transport или deployment. Full coverage/build и независимый
 review выполняет parent integration gate. При старом server без optional field
 completion работает с generic note. Late/replayed activity и отсутствие durable
-deletion tombstone остаются BE-022; эта единица не закрывает ACK/crash/ordering.
+deletion tombstone остаются DIST-012; эта единица не закрывает ACK/crash/ordering.

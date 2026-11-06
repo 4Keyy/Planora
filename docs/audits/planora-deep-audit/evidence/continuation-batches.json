@@ -224,8 +224,10 @@
       "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LoggingConfiguration.cs",
       "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/OperationContext.cs"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-013-review.json",
+    "reviewed_head": "145eeea57e22aa5881318ec75dc62ee5509f146e"
   },
   {
     "batch_id": "READ-014",

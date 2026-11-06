@@ -2,8 +2,8 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
-  "status": "paused",
+  "current_sha": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
     "T01 local contract (deployment closure remains T14)",
@@ -287,9 +287,10 @@
     "READ-047 full1path/1690lines. OPS-018 protocol/remote-scope verifier source-confirmed; only PS5.1 parser0errors executed, no launcher/firewall/process/Docker operations. Existing OPS-009/016/017 extended, port RepoRoot omission refuted for Local calls. Coverage621/1558(39.86%),62batches pending.",
     "BE-005 RED8F/0P. Original8provider facts GREEN424P/broad1520P/Errors94P; added legacy+soft-delete characterization facts then426P/1522P, all0skip. One atomic shares/workers/thin sync write set, explicit tracking and selected xmin. No generation or universal late legacy join claim. Registration full review promotes1baseline file: coverage622/1558(39.92%),62batches pending.",
     "Owner explicitly paused the remaining audit for local Production-config use. BE-005 fc2929af verified/committed; BE-006 remains source/schema unchanged, no RED/GREEN, unfinished owned draft parked outside active tests. Runtime start uses a private Next dist dir, preserves frontend generated files and disables retention for this run; no push.",
-    "Owner separately approved exact four-DB reconciliation after restored-copy rehearsal and source review. Applied locally with identity/hash guards; 18 existing tables preserved. All7ready/aggregateHealthy, 24HTTPchecks and browser login render passed. Runtime left up; no account-login/CRUD claim. Audit remains paused by owner, BE-006 untouched."
+    "Owner separately approved exact four-DB reconciliation after restored-copy rehearsal and source review. Applied locally with identity/hash guards; 18 existing tables preserved. All7ready/aggregateHealthy, 24HTTPchecks and browser login render passed. Runtime left up; no account-login/CRUD claim. Audit remains paused by owner, BE-006 untouched.",
+    "2026-11-06 owner explicitly authorized pushing all commits, integrating the reviewed open PR, reducing branches to main with unique work preserved, and resuming the full audit. Historical no-push instructions do not apply to this authorized integration; production operations, credential rotation and working-DB apply were not performed."
   ],
-  "next_step": "Local -Prod is running and verified (24 HTTP checks + browser). Keep runtime alive for owner use. Resume the full audit only when asked; begin at parked BE-006 draft/provenance, not from scratch.",
+  "next_step": "Push reviewed query redaction and Rabbit cookie-owner startup fix with READ013 checkpoint. Observe fresh CI/Security/E2E, inspect numeric geometry artifacts if motion fails. T12 full history remains122 metadata matches at145eeea; BE036 response streams, BE037 mapped audit identity, DIST012 late activity and other audit gates remain open. Never use working DB/runtime.",
   "commands": [
     {
       "id": "readiness-red",
@@ -3386,14 +3387,30 @@
       "documentation_links": 1463,
       "documentation_broken_links": 0,
       "evidence": "results/evidence/local-prod-runtime-verification-20261106.json"
+    },
+    {
+      "id": "read-013-query-red-green",
+      "command": [
+        "user SDK dotnet test UnitTests --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts --filter FullyQualifiedName~HttpLoggingQueryRedactionTests --logger trx",
+        "user SDK dotnet build Planora.sln --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts -warnaserror",
+        "user SDK dotnet test Planora.sln --no-build --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts --logger trx"
+      ],
+      "exit_code": 0,
+      "red_failed": 7,
+      "red_passed": 2,
+      "green_passed": 9,
+      "full_unit_passed": 1546,
+      "full_unit_skipped": 2,
+      "error_handling_passed": 94,
+      "evidence": "results/evidence/read-013-query-redaction-verification.json"
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 62,
+    "pending_batches": 61,
     "complete": false,
-    "current_read_or_reviewed": 622,
+    "current_read_or_reviewed": 647,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3412,7 +3429,8 @@
       "READ-044",
       "READ-045",
       "READ-046",
-      "READ-047"
+      "READ-047",
+      "READ-013"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -3493,173 +3511,244 @@
     "results/evidence/t03-friendship-verification.json",
     "results/evidence/t03-owner-pause-local-prod.json",
     "results/LOCAL_PROD_20261106.md",
-    "results/evidence/local-prod-runtime-verification-20261106.json"
+    "results/evidence/local-prod-runtime-verification-20261106.json",
+    "results/evidence/t03-activity-identity-verification.json",
+    "results/evidence/t03-activity-client-verification.json",
+    "results/REPOSITORY_SYNC_20261106.md",
+    "results/evidence/read-013-review.json",
+    "results/evidence/read-013-query-redaction-verification.json",
+    "results/evidence/repository-sync-gitleaks-metadata.json"
   ],
   "local_commits": [
     {
       "task": "T01 local contract",
       "sha": "db0d82acd35a705d903a2e121893034c2097ebe2",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T12 OPS-010 local fix; package partial",
       "sha": "7373c36564c72fed985020ff3fa0e5c6a6494709",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T05 local transport",
       "sha": "f12f038e7b545456f82cb6e256592a3c8544d355",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T08 prerequisites",
       "sha": "05dab9c6ca72f2e85cc6d3c4b49989d60ca9a58d",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T08 local guarded schema and CLI",
       "sha": "d9c98b8c9acba95eeb10f61b48ca9394872d942e",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T09 local cache and Redis policy verification",
       "sha": "6948710db8eb5d11f76529f0b13fb17d3fd6df7d",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 refresh/session and password-hash checkpoint",
       "sha": "7592ce407bfba976db922f3686b259d95836d06b",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 recovery, reset, login history and readiness checkpoint",
       "sha": "2e8fc53dad4223fdf9b1f1eef15d2ef04281d4fc",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 friendship pair checkpoint",
       "sha": "f505ebf26b4d1fdb376688b107bac4efd4f002b7",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-035 Category command and owner review",
       "sha": "6feea16f939affdaf14ab533bebd35f247645512",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 login/reset credential generation",
       "sha": "d4f37674c4ae55f5879448958f08cd3a1ebb6542",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-036 Category and Collaboration runtime boundaries",
       "sha": "2f2352fda2f402d959a203dfb93ba574d822bd73",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-037 Collaboration event ordering and bounds",
       "sha": "9c250a2538b876bed51f8ed1853437ef26b83ab9",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 avatar publication and deletion boundary",
       "sha": "e40a8716682eb0648cbe5f61dfc8d85fbb638280",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-039 Realtime state and logging",
       "sha": "40855085d1b32addd9abc103c643c49d605dea2b",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 durable account-wide session revocation",
       "sha": "a5dde5e8d0d5b4ea6fb057eae53424295af5a769",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T02 single-session generation preservation",
       "sha": "9e30dbd3709ee15d8e596ceef46fac750b3851ed",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-041 Todo metadata and validation review",
       "sha": "d4c70aa707a7eaceca5d394d00add0a4ea9cdb30",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 CreateTodo atomic staging checkpoint",
       "sha": "2b712023b92878815aa7935a37178f42f83b758b",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 DuplicateTodo atomic staging checkpoint",
       "sha": "ceaea9e61cdcac7ffa254873730d67f36756435f",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-042 viewer preferences and completion review",
       "sha": "5081f31296937f6b9db8adfbd065150132be85b5",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 CreateSubtask atomic staged fanout checkpoint",
       "sha": "11982882a452d1dc603ae67930d00d9b4774f91f",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 DeleteTodo atomic deletion checkpoint",
       "sha": "0b02cd29bdf421f2aa123b0ca7ac08e477a02e43",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-043 Todo domain completion review checkpoint",
       "sha": "a693ab0f1b7582667cbcea0a7bfb90afff7caeb9",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-044 Todo infrastructure review checkpoint",
       "sha": "b7cb659d95750b97577cf23168ea984051e187de",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 Join/Leave atomic lifecycle checkpoint",
       "sha": "b1164ce68706f9e5c309de323da303e89e31890a",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-045 Todo persistence review checkpoint",
       "sha": "71da5d29c625dde377bc62f3eb778582e696edab",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 UpdateTodo atomic staged reset checkpoint",
       "sha": "543bc4cd18b1431cc0e9ad8fcd3e8eb4fd418da3",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "Verified Todo mutation checkpoint metadata",
       "sha": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-046 Docker launcher source review",
       "sha": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "Collaboration comment staged mutation/fanout verified",
       "sha": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "READ-047 local launcher source review",
       "sha": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
-      "pushed": false
+      "pushed": true
     },
     {
       "task": "T03 BE-005 targeted worker cleanup and staged sync",
       "sha": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
-      "pushed": false
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): add evidence and staged execution blueprint",
+      "sha": "915a430547e7138027704adb976bb9394ab78ffe",
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): normalize scanner regression evidence",
+      "sha": "90f8341ae35a60e39fcdbabde83577a1a96bfa02",
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): record two complete source review batches",
+      "sha": "91e09353c3ef9bfe100141f8a9c2a46b423a3958",
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): record Auth and Realtime source reviews",
+      "sha": "24c9b070faea68685e0616692b76ab8cf03cfb8b",
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): record Auth storage and Category startup review",
+      "sha": "1f8ef5d403f3f2957bc8b4d5764b3095d58fdc99",
+      "pushed": true
+    },
+    {
+      "task": "docs(audit): save verified T03 continuation checkpoint",
+      "sha": "620c9a8bbb496941e51698e4566b7c7b18e69dc1",
+      "pushed": true
+    },
+    {
+      "task": "docs(ops): checkpoint verified local production startup",
+      "sha": "e96f97e27cdb1f084f21c069b913ddcee8878c30",
+      "pushed": true
+    },
+    {
+      "task": "build(deps): integrate reviewed frontend dependency updates",
+      "sha": "31dc921118e8859502061a20b11ca8b0b5f85c38",
+      "pushed": true
+    },
+    {
+      "task": "docs(core): synchronize persistence and security contracts",
+      "sha": "9bb1419a832d26e5215a3d3ecaffee4d287c01db",
+      "pushed": true
+    },
+    {
+      "task": "fix(collaboration): identify subtask activity by source id",
+      "sha": "dd06caa9577633d6aca1c6718b633be583296ad8",
+      "pushed": true
+    },
+    {
+      "task": "ci(backend): exercise broker delivery and restart gates",
+      "sha": "6b938679ad7a5a5ec3f2cd08aa599dd05b8e8e6d",
+      "pushed": true
+    },
+    {
+      "task": "test(e2e): correct fixtures and preserve startup diagnostics",
+      "sha": "49bbe946a189caee92372eb94bf9e743749775c5",
+      "pushed": true
+    },
+    {
+      "task": "fix(frontend): preserve subtask activity identity through comments",
+      "sha": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+      "pushed": true
     }
   ],
   "disposable_resources": [
@@ -3687,7 +3776,7 @@
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
     "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment.",
-    "T03": "BE-006 activity identity and contract/schema handoff, BE-021 derived erasure, continuation findings; BE-005 cross-generation/late unselected legacy joins and ACK/crash/HTTP/broker gates remain."
+    "T03": "DIST012 late task activity/tombstones and other lifecycle/inbox/ACK/crash/HTTP gates; BE021 derived erasure; BE022 author-note pagination and continuation findings. BE006 identity is locally verified through event, persistence, HTTP projection and BranchFeed; real browser and coordinated schema rollout remain."
   },
   "new_findings": [
     "BE-008",
@@ -3724,6 +3813,9 @@
     "BE-034",
     "OPS-016",
     "OPS-017",
-    "OPS-018"
+    "OPS-018",
+    "BE-035",
+    "BE-036",
+    "BE-037"
   ]
 }

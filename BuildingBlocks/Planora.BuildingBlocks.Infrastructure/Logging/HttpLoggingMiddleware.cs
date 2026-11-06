@@ -176,8 +176,9 @@ public sealed class HttpLoggingMiddleware
             sanitized.Append(key);
             sanitized.Append('=');
 
-            // Sanitize sensitive parameters
-            if (SensitiveQueryParams.Contains(key))
+            // Compare the form-decoded name used by Request.Query, preserving the raw log format.
+            var decodedKey = System.Net.WebUtility.UrlDecode(key);
+            if (SensitiveQueryParams.Contains(decodedKey))
             {
                 sanitized.Append("***REDACTED***");
             }

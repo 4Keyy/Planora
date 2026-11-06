@@ -302,7 +302,7 @@
     "New migration source/designer are allowed by exact git/docker ignore exceptions; no force-add used."
   ],
   "limitations": [
-    "Delete-before-late-activity still has no durable deletion tombstone. Its characterization is not closure of BE-022.",
+    "Delete-before-late-activity still has no durable deletion tombstone. Its characterization is not closure of DIST-012.",
     "Legacy null-identity activity is intentionally preserved; no historical identity reconciliation performed.",
     "Full HTTP/SignalR, broker/crash/ACK-loss ordering and production rollout are not covered by this targeted run.",
     "Large-dataset CREATE INDEX locks and cleanup performance were not measured.",

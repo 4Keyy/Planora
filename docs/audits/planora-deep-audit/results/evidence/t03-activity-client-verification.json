@@ -224,7 +224,7 @@
     "jsdom and mocked live-change callbacks do not prove real SignalR, visual pixels or browser interaction across viewports.",
     "No Next build or full coverage executed by this agent; parent integration gate owns the verified-source snapshot checks.",
     "No production rollout, live HTTP stack or migration apply performed by this client unit.",
-    "Latest loaded stored completion is not a broker-ordering or replay guarantee. BE-022 late activity and deletion tombstone remain open.",
+    "Latest loaded stored completion is not a broker-ordering or replay guarantee. DIST-012 late activity and deletion tombstone remain open.",
     "Older server payloads without the optional field display the generic completion note; historical identity is not guessed."
   ],
   "source_sha256": {

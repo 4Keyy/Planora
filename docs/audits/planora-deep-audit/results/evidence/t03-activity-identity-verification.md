@@ -79,6 +79,6 @@ tmpfs без пользовательских mounts, bind только `127.0.0
 Delete-before-late-activity по-прежнему не имеет durable deletion tombstone:
 поздняя activity удалённой подзадачи может появиться. Отдельный characterization
 проверяет эту границу и сохранность другой подзадачи с тем же заголовком;
-он не закрывает BE-022. Legacy rows намеренно не получают угаданную identity.
+он не закрывает DIST-012. Legacy rows намеренно не получают угаданную identity.
 ACK loss, broker crash/replay, полноценный HTTP/SignalR и production rollout
 этим набором не проверены. Visual matrix N/A: backend-only identity/schema fix.

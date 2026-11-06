@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-013",
+  "split": "a",
+  "manifest_indices": [
+    0,
+    12
+  ],
+  "reviewer": "be006_trace",
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "source_head": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "source_head_at_evidence": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 13,
+  "source_lines_read": 885,
+  "whole_batch_complete": false,
+  "global_coverage_increment": "PARENT_MERGE_REQUIRED; supplemental files do not count and no CSV/PROGRESS update performed",
+  "source_changes": false,
+  "files": [
+    {
+      "manifest_index": 0,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-290"
+      ],
+      "line_count": 290,
+      "sha256": "58588fecfd9e71e9c7e9b17680f9ceb5f81f8ae4304411524ae9f6ade0df7823",
+      "purpose_and_callers": "Shared HttpClient/filter/compression/rate-limit registration; all API startups use rate limits and AddApiFilters. AddResilientHttpClient non-definition caller not found.",
+      "trust_state_errors_concurrency": "Partitions trusted user claim before IP fallback, IPv4-mapped normalization, per-service Redis scope and per-policy keys; in-memory and Redis policy selection. Rejection rounds RetryAfter metadata and writes 429 JSON/header. No Redis outage or live proxy experiment.",
+      "test_evidence": "RateLimitPolicyTests.cs:1-210 and RateLimitPartitionKeyTests symbol cases inspected; tests were not executed.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 1,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ResultToActionResultFilter.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-150"
+      ],
+      "line_count": 150,
+      "sha256": "02b7d31877badb982db7548669b8fb9da5d25a7180a141e27869dc6659b57c17",
+      "purpose_and_callers": "Registered in Auth/Category/Todo/Messaging/Collaboration API controllers; unwraps generic/non-generic Result and wraps ApiResponse preserving several success result kinds.",
+      "trust_state_errors_concurrency": "Typed ErrorType wins; untyped/None use legacy code matching. Success reflection only reads Value on success. AUTH prefix precedes AUTHORIZATION. Does not authorize request or replace exception middleware.",
+      "test_evidence": "ResultToActionResultFilterTests.cs:1-83 read fully: typed mapping, a few untyped codes and CreatedAtAction preservation; no untyped AUTHORIZATION case.",
+      "candidate_keys": [
+        "untyped_authorization_prefix_shadowing"
+      ]
+    },
+    {
+      "manifest_index": 2,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ValidationFilter.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-41"
+      ],
+      "line_count": 41,
+      "sha256": "88a6a948e7267a0505c2597cf7de52dca399bea01f36e48035b9c68b72f6f8a2",
+      "purpose_and_callers": "DI-registered ModelState-to-ValidationProblemDetails action filter; no actual global/attribute application found in inspected service source.",
+      "trust_state_errors_concurrency": "Consumes ModelState.ErrorMessage only, emits 400 ProblemDetails with request path/trace ID. Registration is not execution. No formatter/model-binding runtime experiment.",
+      "test_evidence": "No dedicated test found in searched unit tests; no execution claimed.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 3,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/GlobalUsings.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-48"
+      ],
+      "line_count": 48,
+      "sha256": "19d8bbbad7d5b250729697153ac8696669c3d9d50ff298add5348cb96e98ea64",
+      "purpose_and_callers": "Compile-time shared namespace imports, including EF, messaging and inbox interfaces; no runtime state or authorization.",
+      "trust_state_errors_concurrency": "Imports affect symbol resolution only; unreferenced comment headings are not runtime configuration.",
+      "test_evidence": "Compile-time file, no dedicated runtime test appropriate; no build executed here.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 4,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/HealthChecks/RabbitMqHealthCheck.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-45"
+      ],
+      "line_count": 45,
+      "sha256": "6a787ee87490ec4ee96d5f26f8c9df2e475589d21ea2a68e8b3dfdb71413b2eb",
+      "purpose_and_callers": "Shared and Realtime DI Rabbit probe over application connection manager; Healthy when open, Degraded for missing/closed/exception.",
+      "trust_state_errors_concurrency": "Probe can initiate/reuse manager connection; catches Exception including cancellation and returns Degraded text. messaging-only tag deliberately does not gate readiness/liveness; default health writer does not serialize full description.",
+      "test_evidence": "RabbitMqHealthCheckTests.cs:1-77 read fully (open, closed/null, throw); ReadinessContractTests.cs:1-99 read fully (registration and stub-host probes). Not executed.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 5,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-93"
+      ],
+      "line_count": 93,
+      "sha256": "e6dbee06ab3fc7811bc75503655714b7fd6e84232ef0ffbe97117f2c0715998e",
+      "purpose_and_callers": "Generic pre-insert inbox decorator; only test construction found, no non-test registration/caller found in BuildingBlocks/Services/Gateway search.",
+      "trust_state_errors_concurrency": "Exists check ignores status; immediate durable Add claim precedes handler. Failed or abandoned Pending then matches Exists forever until external removal. Any Add DbUpdateException is swallowed as duplicate. Raw event-ID key differs from active bus per-handler derivation.",
+      "test_evidence": "IdempotentMessageHandlerTests.cs:1-72 read fully: existing row, success and generic DbUpdateException mock conflict. No failed-redelivery/abandoned-claim/non-unique-error cases.",
+      "candidate_keys": [
+        "decorator_failed_or_pending_retry_loss",
+        "decorator_masks_non_duplicate_insert_failure"
+      ]
+    },
+    {
+      "manifest_index": 6,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/IIdempotentMessageHandler.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-8"
+      ],
+      "line_count": 8,
+      "sha256": "6170f934c7cfa735239c5eeb8f60c80b8841a9cef2b7988e471f4897fff4c2fa",
+      "purpose_and_callers": "Unused generic boolean handler interface; not implemented by the separate void-returning generic decorator; no implementation/registration found.",
+      "trust_state_errors_concurrency": "Interface has cancellation and IntegrationEvent constraint but no executable outcome contract; its existence proves no active idempotency mechanism.",
+      "test_evidence": "No implementation-specific test possible without implementation; no execution.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 7,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/IInboxRepository.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-11"
+      ],
+      "line_count": 11,
+      "sha256": "299f154bc989c6b668ec3c7ac54e2d62b8f8dbaa8cdbb0ce260fb1a790b95b05",
+      "purpose_and_callers": "Inbox repository contract used by active Rabbit event bus and the dormant decorator; does not encode processed-only existence, claim ownership or unit-of-work atomicity.",
+      "trust_state_errors_concurrency": "Exists(Guid) semantics and save-through behavior live in implementations. No atomic claim or status-checked completion expressed. Current Collaboration implementation persists Add/Update immediately and tests any matching ID.",
+      "test_evidence": "Collaboration repository source and bus use traced; retention/repository test symbol search only, not test execution.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 8,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/InboxMessage.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-73"
+      ],
+      "line_count": 73,
+      "sha256": "8ad1e6ab9ef7f061984e8c1038e7433d8186c7ef93e1674ccc929626eafdf996",
+      "purpose_and_callers": "Inbox entity/constructors for random PK, event PK and derived per-handler PK; bus and persistence/retention code use it.",
+      "trust_state_errors_concurrency": "Constructors initialize Pending; MarkAsProcessing/Processed/Failed directly change state without guarded graph. ProcessedOn is assigned by current wall clock. Active bus creates fresh Processed receipt after business handler; no exactly-once guarantee follows from entity.",
+      "test_evidence": "Existing retention/auth repository test usages located; reviewed callers explain PK/status meaning. No new lifecycle/provider test executed.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 9,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/InboxMessageStatus.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-10"
+      ],
+      "line_count": 10,
+      "sha256": "b074332592fd5a7ce0d832307655a604c7b8e0e987a98f3f7e4a1f5b80e97899",
+      "purpose_and_callers": "Pending/Processing/Processed/Failed enum supporting entity transitions; no transition enforcement by enum alone.",
+      "trust_state_errors_concurrency": "Values are stored lifecycle discriminators; concurrency and recovery are repository/consumer responsibilities.",
+      "test_evidence": "Entity/consumer source traced; no separate runtime enum test executed.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 10,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/BusinessEvent.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-54"
+      ],
+      "line_count": 54,
+      "sha256": "fbadd65225412106a55984d3f0e4a6fb7949d13a030baafd84eabec9a17876d8",
+      "purpose_and_callers": "Structured business-event base and ILogger extension; separate from active IBusinessEventLogger service API. No caller of this specific extension found.",
+      "trust_state_errors_concurrency": "Mutable diagnostic identity/service fields and virtual arbitrary property bag; ILogger receives a fixed template with arguments. No actual privacy disclosure/forging exposure claimed without caller.",
+      "test_evidence": "Active IBusinessEventLogger/BusinessEventLogger/Analytics references distinguished by source search and prior READ-011 evidence; no test execution.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 11,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/CorrelationIdContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-40"
+      ],
+      "line_count": 40,
+      "sha256": "20b7bf73e46267da48b55582d0f9e3c4af4b6076005e8756801d7b225781d11e",
+      "purpose_and_callers": "AsyncLocal diagnostic correlation storage/generation, used by CorrelationIdMiddleware and exception middleware.",
+      "trust_state_errors_concurrency": "Async-flow state via AsyncLocal, not one shared request-global string. Setter does no sanitation/cap; caller owns execution-context lifetime. No proved cross-request leak or authorization use.",
+      "test_evidence": "CorrelationIdMiddleware full 1-72 source and prior READ-014 context inspected; no concurrent request experiment.",
+      "candidate_keys": []
+    },
+    {
+      "manifest_index": 12,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/CorrelationIdEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-22"
+      ],
+      "line_count": 22,
+      "sha256": "f4fb44d6d7be1249e4bb637cb2d34923d5c4b9640bad8df55cae30feecd8bb2b",
+      "purpose_and_callers": "Legacy Serilog enricher, preferring Activity trace ID and falling back to correlation AsyncLocal; registered by legacy LoggingConfiguration.ConfigureSerilog.",
+      "trust_state_errors_concurrency": "Adds TraceId if absent; Activity value takes precedence over external/custom correlation. Legacy root-namespace class must be distinguished from active enterprise enrichers. No storage/network I/O in Enrich.",
+      "test_evidence": "LoggingConfiguration.cs:25-52,75-82 and active Auth startup:25-28/SerilogConfiguration:28-62 inspected; no logging pipeline execution.",
+      "candidate_keys": []
+    }
+  ],
+  "new_finding_candidates": [
+    {
+      "candidate_key": "decorator_failed_or_pending_retry_loss",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_CONDITIONAL_DORMANT_PATH",
+      "title": "Pre-handler inbox claim makes Failed/Pending delivery permanently skip on retry",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs",
+          "ranges": [
+            "25-29",
+            "37-45",
+            "55-69"
+          ]
+        },
+        {
+          "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/InboxRepository.cs",
+          "ranges": [
+            "22-35"
+          ],
+          "supplemental": true
+        }
+      ],
+      "trigger": "Decorator is adopted with the current save-through repository; first handler fails after claim, or process stops between claim and handler; same event is redelivered.",
+      "impact": "Exists returns true for durable Failed/Pending, so decorated work is not retried. This is a source-level failure of the reusable decorator contract, not proof of loss in the currently wired Rabbit event bus.",
+      "reachability": "No production decorator registration/construction found in BuildingBlocks, Services or Gateway; only the three mock tests construct it.",
+      "dedup": "Active bus post-handler best-effort receipt gap is already INV-COMM-4/T05; its algorithm differs and does not use this pre-handler decorator.",
+      "proposed_regression": "Persist claim; fail decorated handler once; retry same event and require eventual successful invocation. Separately cover abandoned Pending recovery and live concurrent owner exclusion.",
+      "recommendation": "Do not enable this decorator as an exactly-once claim. Define recoverable claim/processing ownership and processed-only terminal dedup semantics, coordinated with business transaction and existing bus keys."
+    },
+    {
+      "candidate_key": "decorator_masks_non_duplicate_insert_failure",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_CONDITIONAL_DORMANT_PATH",
+      "title": "All DbUpdateException insert failures are treated as duplicate success",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs",
+          "ranges": [
+            "43-53"
+          ]
+        },
+        {
+          "path": "tests/Planora.UnitTests/BuildingBlocks/IdempotentConsumer/IdempotentMessageHandlerTests.cs",
+          "ranges": [
+            "51-64"
+          ],
+          "supplemental": true
+        }
+      ],
+      "trigger": "An AddAsync write fails with DbUpdateException that does not prove an existing same-key inbox record.",
+      "impact": "Decorator returns without executing business handler or propagating failure; a caller could acknowledge unprocessed work.",
+      "reachability": "Same dormant decorator limitation; not attributed to active RabbitMqEventBus.",
+      "dedup": "Distinct failure classification from the persisted Failed/Pending retry problem; root owns whether to group or assign separate stable IDs.",
+      "proposed_regression": "Inject a proved same-key unique conflict and a separate non-duplicate DbUpdateException. Only the proved duplicate may enter the selected duplicate/recovery policy; unrelated failure must propagate.",
+      "recommendation": "Inspect specific persistence conflict evidence and expected key/status; do not infer duplicate from the outer EF exception class."
+    },
+    {
+      "candidate_key": "untyped_authorization_prefix_shadowing",
+      "severity": "P3",
+      "status": "STATIC_CONFIRMED_MATCHING_CURRENT_PRODUCER_NOT_FOUND",
+      "title": "Untyped AUTHORIZATION code is mapped by earlier AUTH prefix to 401",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ResultToActionResultFilter.cs",
+          "ranges": [
+            "114-135"
+          ]
+        },
+        {
+          "path": "tests/Planora.ErrorHandlingTests/Infrastructure/ResultToActionResultFilterTests.cs",
+          "ranges": [
+            "28-56"
+          ],
+          "supplemental": true
+        }
+      ],
+      "trigger": "Filter receives ErrorType.Failure/None with code AUTHORIZATION.FORBIDDEN or another AUTHORIZATION.* code.",
+      "impact": "Legacy fallback returns 401 before the intended 403 branch. Typed Forbidden remains 403.",
+      "reachability": "Filter registered in five APIs, but no current Services producer of untyped AUTHORIZATION.* was found. ForbiddenException is handled by separate exception middleware; no current user incident asserted.",
+      "dedup": "No matching stable finding title/evidence found in current register; root must triage before registering.",
+      "proposed_regression": "Add untyped AUTHORIZATION.FORBIDDEN/ROLE_REQUIRED cases, preserving AUTH_REQUIRED=401 and typed Forbidden=403.",
+      "recommendation": "Handle the more specific authorization prefix before the generic authentication prefix or remove heuristic dependence after producer migration."
+    }
+  ],
+  "stable_ids_assigned": [],
+  "existing_findings_and_contracts": [
+    {
+      "reference": "DIST-003",
+      "note": "Current shared DB registration has ready tag; Rabbit messaging-only Degraded is intentional, with registration/probe test source. Do not reopen DB readiness from Rabbit tag alone. Actual platform targets remain T14."
+    },
+    {
+      "reference": "INV-COMM-4/T05",
+      "note": "Active bus derives per-handler key, runs handler, records Processed receipt best-effort, then ACKs. Known mutation/receipt gap remains; separate dormant pre-handler decorator findings are conditional."
+    },
+    {
+      "reference": "READ-014",
+      "note": "Prior source review already distinguishes legacy logging enrichers, unbounded diagnostic correlation headers and absence of a proved AsyncLocal leak. No duplicate new finding for those limits."
+    },
+    {
+      "reference": "READ-011",
+      "note": "Active IBusinessEventLogger contract reviewed previously is separate from BusinessEventLoggingExtensions over ILogger; no privacy defect inferred from unused extension alone."
+    }
+  ],
+  "supplemental_reads": [
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/InboxRepository.cs",
+      "ranges_read": [
+        "1-48"
+      ],
+      "purpose": "Save-through and status-agnostic Exists semantics"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs",
+      "ranges_read": [
+        "250-350"
+      ],
+      "purpose": "Active handler resolution, per-handler inbox key, business-before-receipt and ACK/NACK order"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs",
+      "ranges_read": [
+        "1-84"
+      ],
+      "purpose": "Ready/live/messaging endpoint predicates and default response writer"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs",
+      "ranges_read": [
+        "71-110"
+      ],
+      "purpose": "Current database ready tag and Rabbit messaging registration"
+    },
+    {
+      "path": "Services/RealtimeApi/Planora.Realtime.Infrastructure/DependencyInjection.cs",
+      "ranges_read": [
+        "46-75"
+      ],
+      "purpose": "Separately wired Realtime Rabbit messaging probe"
+    },
+    {
+      "path": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DependencyInjection.cs",
+      "ranges_read": [
+        "41"
+      ],
+      "purpose": "IInboxRepository actual registration"
+    },
+    {
+      "path": "tests/Planora.UnitTests/BuildingBlocks/IdempotentConsumer/IdempotentMessageHandlerTests.cs",
+      "ranges_read": [
+        "1-72"
+      ],
+      "purpose": "Actual three-test coverage and missing retry/error distinction"
+    },
+    {
+      "path": "tests/Planora.ErrorHandlingTests/Infrastructure/ResultToActionResultFilterTests.cs",
+      "ranges_read": [
+        "1-83"
+      ],
+      "purpose": "Typed/untyped mapping and CreatedAtAction preservation assertions"
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/AuthApi/Infrastructure/RabbitMqHealthCheckTests.cs",
+      "ranges_read": [
+        "1-77"
+      ],
+      "purpose": "Open/null/closed/throw mock cases"
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/Infrastructure/ReadinessContractTests.cs",
+      "ranges_read": [
+        "1-99"
+      ],
+      "purpose": "Current DI and stub-host readiness assertions, read only"
+    },
+    {
+      "path": "tests/Planora.UnitTests/Services/Infrastructure/RateLimitPolicyTests.cs",
+      "ranges_read": [
+        "1-210"
+      ],
+      "purpose": "Limits, registration, auth-before-limiter source assertions and retry metadata cases"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CorrelationIdMiddleware.cs",
+      "ranges_read": [
+        "1-72"
+      ],
+      "purpose": "AsyncLocal caller, external diagnostic header and request pipeline"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/IntegrationEvent.cs",
+      "ranges_read": [
+        "1-19"
+      ],
+      "purpose": "IntegrationEvent always supplies Id/OccurredOn"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LoggingConfiguration.cs",
+      "ranges_read": [
+        "25-52",
+        "75-82"
+      ],
+      "purpose": "Legacy root-namespace correlation enricher registration"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs",
+      "ranges_read": [
+        "28-62"
+      ],
+      "purpose": "Active enterprise enricher distinction"
+    },
+    {
+      "path": "Services/AuthApi/Planora.Auth.Api/Program.cs",
+      "ranges_read": [
+        "1-48",
+        "86-105",
+        "185-230"
+      ],
+      "purpose": "Active logging/API filter/rate-limit registration and request pipeline context"
+    },
+    {
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Domain/Result.cs",
+      "ranges_read": [
+        "96-140"
+      ],
+      "purpose": "Error Type default and typed Forbidden factory"
+    }
+  ],
+  "verification": {
+    "inspection": "Full Get-Content read of each selected manifest file, then semantic caller/DI/repository/test tracing; rg was navigation only.",
+    "tests_executed": [],
+    "builds_executed": [],
+    "runtime_operations": [],
+    "secrets_or_env_read": false,
+    "primary_source_hashes_reverified": 13,
+    "primary_source_drift": false,
+    "tooling_note": "Some glob-shaped rg path arguments were rejected on Windows; valid directory searches with --glob were used for reachability. A terminal batch final exit was not treated as a test result."
+  },
+  "limitations": [
+    "Production activation of the decorator not found; no live message-loss incident asserted.",
+    "No current Services producer of untyped AUTHORIZATION.* identified; typed errors and exception middleware are separate paths.",
+    "No provider fault injection, broker restart/retry, Redis outage, cancellation timing or concurrent request context experiment performed.",
+    "No claim that existing tests passed in this review; only their source and assertions were inspected.",
+    "No log PII absence, real health-probe response details or deployment readiness certification inferred.",
+    "Root owns stable finding triage, merger with READ-013b and global coverage/index updates."
+  ]
+}

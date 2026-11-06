@@ -1152,3 +1152,15 @@ facts, Todo/outbox426P, broad1522P and ErrorHandling94P passed without skips.
 Late unselected legacy joins, friendship generations and live broker/UI
 gates remain explicit; this is not a global revocation-race certification.
 [T03 proof](results/evidence/t03-friendship-verification.json)
+
+## READ-013 — query redaction и HTTP logging boundaries
+
+| ID | Priority | Status / exact scope |
+| --- | --- | --- |
+| BE-035 | P1 | PASS_LOCAL: encoded sensitive query-key bypass reproduced with synthetic logger capture (7F/2P), then9P. Full backend1546P plus Errors94P. Only decoded comparison key changed. |
+| BE-036 | P2 | CONFIRMED_SOURCE: non-gRPC response fully buffered and original Body not restored; copy ignores request cancellation. Streaming/SSE effect remains conditional and NOT_RUNTIME_VERIFIED. |
+| BE-037 | P3 | CONFIRMED_SOURCE: raw-sub-only audit property can remain Anonymous for mapped NameIdentifier; audit correlation, no authorization-bypass claim. |
+
+[Full review](results/evidence/read-013-review.md) records25 fully read sources,
+the two partitions, hypotheses and runtime boundaries. Dormant decorator/legacy
+fallback candidates remain observations pending activation proof.

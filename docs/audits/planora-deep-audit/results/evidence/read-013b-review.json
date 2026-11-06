@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-013",
+  "partition": "b",
+  "partition_indices_zero_based": [
+    13,
+    24
+  ],
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "reviewer": "ci_pr_review",
+  "source_head_at_start": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "source_head": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "status": "REVIEWED_SOURCE_ONLY",
+  "scope_files": 12,
+  "source_lines_read": 762,
+  "files": [
+    {
+      "batch_path_index_zero_based": 13,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/EventTypeEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          28
+        ]
+      ],
+      "line_count": 28,
+      "sha256": "e85816849a7c7fb2377329b81d0b664239c3d07f21a315dc7b7452d9be72979f",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Active enterprise enricher reads HttpContext.Items EventType and adds a property only when absent.",
+      "trust_state_errors_concurrency": "No caller assignment to that Items key was found. BusinessEventLogger uses BeginScope EventType plus AsyncLocal; scoped EventType remains available through FromLogContext. Do not conflate this with the legacy root enricher.",
+      "test_evidence": "Caller search; active SerilogConfiguration registers this concrete namespace. No direct enricher test found."
+    },
+    {
+      "batch_path_index_zero_based": 14,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/OperationEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          28
+        ]
+      ],
+      "line_count": 28,
+      "sha256": "fa194a887c9e41e515ee501400088af8db95878bd570bd7ebe37685381f4d594",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Active enterprise enricher reads HttpContext.Items Operation.",
+      "trust_state_errors_concurrency": "LoggingBehavior stores the internal CQRS request type name in Items. It is metadata, not an authorization decision. AddPropertyIfAbsent preserves an explicit event property.",
+      "test_evidence": "LoggingBehavior.cs:39-43 and SerilogConfiguration.cs:49-54; no direct enricher test found."
+    },
+    {
+      "batch_path_index_zero_based": 15,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/RequestPathEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          27
+        ]
+      ],
+      "line_count": 27,
+      "sha256": "60c629aecee170227216b7b572a620e6abd12bfb949390179c9f706ebbd9171b",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Active enterprise enricher attaches Request.Path to every event with a current HttpContext.",
+      "trust_state_errors_concurrency": "It does not include QueryString and performs no sanitization itself. Structured JSON escapes control characters; do not claim all text/custom sinks sanitize arbitrary event properties.",
+      "test_evidence": "SerilogConfiguration registers the enricher and a CompactJsonFormatter sink; no direct capture-sink regression found."
+    },
+    {
+      "batch_path_index_zero_based": 16,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/ServiceNameEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          22
+        ]
+      ],
+      "line_count": 22,
+      "sha256": "5c94efc76194b77434f6bdbadf5ac9843e2b075ffa376430da0476d3c5715a23",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Active web and standalone enterprise configuration adds the fixed service name.",
+      "trust_state_errors_concurrency": "Constructor rejects null; service names are constant startup arguments in the reviewed hosts. No request data, mutable shared state or async work.",
+      "test_evidence": "Six Program startup calls and SerilogConfiguration.cs:21-46,109-130 traced; no direct test found."
+    },
+    {
+      "batch_path_index_zero_based": 17,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/UserIdEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          28
+        ]
+      ],
+      "line_count": 28,
+      "sha256": "9120c72553068312f478d3893f807cdfcc17ac640a45741fe188d2a77d25aa0b",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Active enterprise enricher extracts the authenticated subject from sub or NameIdentifier.",
+      "trust_state_errors_concurrency": "Correct claim fallback is present. AddPropertyIfAbsent cannot correct an existing UserId=Anonymous emitted by HttpLoggingMiddleware; see candidate C03. Before authentication no subject is expected.",
+      "test_evidence": "Active DI registration and JWT/HTTP pipeline source traced; no direct captured HTTP-log regression found."
+    },
+    {
+      "batch_path_index_zero_based": 18,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/EventTypeContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          22
+        ]
+      ],
+      "line_count": 22,
+      "sha256": "3107865761c8983319eded3802f018e86dc86923f97b26ad893578480daaf4cb",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "AsyncLocal event-type storage used by BusinessEventLogger and the legacy root EventTypeEnricher.",
+      "trust_state_errors_concurrency": "Setter has no disposable restore/reset contract. AsyncLocal follows execution context; no cross-request leakage is demonstrated. Active enterprise EventType enrichment uses Items/scopes instead.",
+      "test_evidence": "BusinessEventLogger.cs:18-32 and both EventTypeEnricher namespaces traced; source-only, no concurrency experiment."
+    },
+    {
+      "batch_path_index_zero_based": 19,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/EventTypeEnricher.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          21
+        ]
+      ],
+      "line_count": 21,
+      "sha256": "ca15be44c9724b7f7570e8465775a72811ab72fa839aa835fa63a5fcc073a911",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Legacy root-namespace enricher reads EventTypeContext.",
+      "trust_state_errors_concurrency": "Registered by LoggingConfiguration.ConfigureSerilog, whose production caller was not found. Do not attribute legacy behavior to active ConfigureEnterpriseLogging.",
+      "test_evidence": "Repository symbol search excludes its declaration; active SerilogConfiguration explicitly selects Enrichers.EventTypeEnricher."
+    },
+    {
+      "batch_path_index_zero_based": 20,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Events/BusinessEvents.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          187
+        ]
+      ],
+      "line_count": 187,
+      "sha256": "dca24a4aed94649bdcba6b5e9f8b0376037a5e895a5ab053ff815cb370e35b83",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Seven typed BusinessEvent data envelopes project registration/login/refresh/todo/message/category metadata.",
+      "trust_state_errors_concurrency": "Registration/login envelopes include email and client metadata; TodoCreated and CategoryCreated include names/content. No production constructors of these typed envelopes were found. Actual IBusinessEventLogger callers are a separate reachable path and are recorded as a privacy observation, not proof these classes are active.",
+      "test_evidence": "BusinessEvent.cs extension and IBusinessEventLogger/Services.BusinessEventLogger inspected. Existing tests mock the interface rather than validate serialized sink payloads."
+    },
+    {
+      "batch_path_index_zero_based": 21,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          205
+        ]
+      ],
+      "line_count": 205,
+      "sha256": "136481345ad45aab83760a8b95be6a5164f2fd088a5593cdf1684f993f3f8536",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Registered in all six API hosts before auth; logs metadata and sanitized query strings, buffers every non-gRPC response.",
+      "trust_state_errors_concurrency": "No request/response body content is logged by this class, only response length. Raw encoded query keys bypass the exact sensitive-key set. Non-gRPC Body replacement is unbounded and never restored; copy ignores RequestAborted. Response UserId checks only sub. See C01-C03.",
+      "test_evidence": "No direct middleware/redaction/stream-restoration tests were found. Auth/Realtime pipeline, query-token readers and SignalR transport configuration traced. No runtime executed."
+    },
+    {
+      "batch_path_index_zero_based": 22,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LogSanitizer.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          65
+        ]
+      ],
+      "line_count": 65,
+      "sha256": "26bd2d2cf72cdb9b43750e1e0464d1c517dbd0ca95995b22698ff5980d96148e",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Shared bounded single-line cleaner for attacker-controlled diagnostic strings.",
+      "trust_state_errors_concurrency": "Caps source at 2048 UTF-16 code units, replaces char.IsControl and ASCII-space runs, trims; object formatting uses invariant culture when available. It does not redact secrets, recurse into payloads or protect every arbitrary sink property. Splitting a surrogate at the cap and Unicode-format/newline rendering remain unverified presentation boundaries, not new confirmed security incidents.",
+      "test_evidence": "Callers HttpLoggingMiddleware, CorrelationIdMiddleware, exception handler and BusinessEventLogger traced. No direct LogSanitizer test found by repository symbol search."
+    },
+    {
+      "batch_path_index_zero_based": 23,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/LoggingConfiguration.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          107
+        ]
+      ],
+      "line_count": 107,
+      "sha256": "9ce42e9e51d0e61471194eda3b6197dcd6e751693b9e188303ae62c61d498f51",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "Legacy host configuration plus actively called ConfigureWebAppLogging Serilog request middleware.",
+      "trust_state_errors_concurrency": "ConfigureSerilog/ConfigureWebSerilog caller was not found; its Debug floor, legacy enrichers and localhost Seq must not be described as current six-host config. Active ConfigureWebAppLogging adds host/scheme/user-agent/HasAuthorization metadata and never records the Authorization value. The six hosts use separate ConfigureEnterpriseLogging for sinks.",
+      "test_evidence": "Program startup/pipeline and SerilogConfiguration.cs:21-90 inspected. No direct tests found for this helper."
+    },
+    {
+      "batch_path_index_zero_based": 24,
+      "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/OperationContext.cs",
+      "status": "REVIEWED",
+      "ranges_read": [
+        [
+          1,
+          22
+        ]
+      ],
+      "line_count": 22,
+      "sha256": "0a70e7660d6fef615ae64147d0eae973849a415e8d94b0a60f94c0e43b466dc5",
+      "matches_head_text_after_line_ending_normalization": true,
+      "purpose_and_callers": "AsyncLocal operation-name storage set by CorrelationIdMiddleware and read by legacy root OperationEnricher.",
+      "trust_state_errors_concurrency": "No scoped restore method. Active enterprise OperationEnricher instead reads Items populated by LoggingBehavior. No evidence of cross-request contamination or permission use.",
+      "test_evidence": "CorrelationIdMiddleware.cs:21-47, LoggingBehavior.cs:39-43 and root OperationEnricher.cs:13-20 traced; source-only."
+    }
+  ],
+  "candidate_findings": [
+    {
+      "candidate_ref": "READ013B-C01",
+      "proposed_priority": "P1",
+      "proposed_severity": "high",
+      "confidence": "CONFIRMED_SOURCE_PATH; runtime NOT_VERIFIED",
+      "title": "Percent-encoded sensitive query names bypass HTTP log redaction",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+          "lines": "23-26, 93-102, 119-126, 156-186"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+          "lines": "74-80, 200-203, 221"
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+          "lines": "192-202"
+        }
+      ],
+      "trigger": "A request supplies a percent-encoded spelling of the access_token or token query key. ASP.NET query consumers use the decoded name, while SanitizeQueryString compares the raw substring before equals.",
+      "impact": "The credential-bearing query value can be emitted at Information in both HTTP request and response Path properties. Clean removes controls/length only and does not redact the value. No actual credential or historical log was inspected.",
+      "minimal_recommendation": "Parse query names with the same decoding semantics as request consumers and redact the whole sensitive value; prefer an explicit safe query allowlist. Test harmless markers with encoded/case-varied/repeated/malformed keys and capture request+response records.",
+      "dedup": "No existing register finding specifically covers this query-name bypass. OPS-015 is a distinct Realtime RPC full-notification-text sink; OPS-003/010 concern Git history scanning, not runtime HTTP logging."
+    },
+    {
+      "candidate_ref": "READ013B-C02",
+      "proposed_priority": "P2",
+      "proposed_severity": "medium",
+      "confidence": "CONFIRMED_BUFFER_AND_RESTORATION_DEFECT; streaming effect LIKELY until transport regression",
+      "title": "HTTP logging buffers all non-gRPC responses and leaves a disposed replacement stream",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+          "lines": "42-51, 57-83, 111-114"
+        },
+        {
+          "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+          "lines": "105-107, 200-221"
+        },
+        {
+          "path": "frontend/src/lib/realtime/client.ts",
+          "lines": "269-276"
+        },
+        {
+          "path": "Services/AuthApi/Planora.Auth.Api/Program.cs",
+          "lines": "185, 199-204"
+        }
+      ],
+      "trigger": "A non-gRPC response is large, long-lived/streaming, canceled or propagates an exception beyond the logger. Every response body is replaced with a MemoryStream; output is copied only after next completes and the original Body is never reassigned.",
+      "impact": "Response buffering has no size cap; downstream flushes target the memory stream. After return/throw Response.Body references the disposed stream, and a copy exception can mask the original failure. CopyToAsync does not observe RequestAborted. SignalR SSE/default transport is a condition-dependent reachable server surface; current frontend explicitly selects WebSockets, so no current-client fallback regression is claimed.",
+      "minimal_recommendation": "Log status/content-length without buffering; if byte counting is required, use bounded pass-through instrumentation and always restore Body in a finally block. Add isolated flush/cancellation/exception/large-response regressions and a real SSE transport test before claiming streaming impact.",
+      "dedup": "No existing register finding names this logging-response buffering/restoration boundary. DIST-004/005/012 concern authorization, persistence/push and late effects, not this stream wrapper."
+    },
+    {
+      "candidate_ref": "READ013B-C03",
+      "proposed_priority": "P3",
+      "proposed_severity": "low",
+      "confidence": "CONFIRMED_SOURCE_PATH; runtime NOT_VERIFIED",
+      "title": "Authenticated HTTP response logs can retain UserId=Anonymous with inbound claim mapping",
+      "evidence": [
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+          "lines": "89, 101-102, 114, 122-126"
+        },
+        {
+          "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/UserIdEnricher.cs",
+          "lines": "20-25"
+        },
+        {
+          "path": "docs/auth-security.md",
+          "lines": "Authentication Model / Reading the user id from claims"
+        }
+      ],
+      "trigger": "A successful request uses a JWT principal whose sub was mapped to ClaimTypes.NameIdentifier by the configured inbound mapping. HttpLoggingMiddleware looks only for raw sub.",
+      "impact": "The response log explicitly supplies UserId=Anonymous, and AddPropertyIfAbsent in the correct enterprise UserIdEnricher cannot replace that property. This weakens audit correlation; it is not an authorization bypass. The pre-auth incoming log is legitimately anonymous.",
+      "minimal_recommendation": "Use the shared subject resolver or the established sub/NameIdentifier fallback for the response record; cover mapped and unmapped principals with a captured logger.",
+      "dedup": "Existing claims guidance documents the convention, but no finding in the current register covers this HTTP audit-property collision."
+    }
+  ],
+  "privacy_observations": [
+    {
+      "observation": "Typed BusinessEvents envelopes expose PII/content when serialized, but their constructors were not found in application callers. Do not claim current use from declarations alone."
+    },
+    {
+      "observation": "Actual LoginCommandHandler sends Email/IpAddress, and first-category creation sends category.Name through IBusinessEventLogger Data scope at Information. The active CompactJsonFormatter sink retains structured scope properties. This is data-minimization evidence related to OPS-015, not proof of unauthorized log access or a credential leak.",
+      "source_refs": [
+        "Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/Login/LoginCommandHandler.cs:220-224",
+        "Services/CategoryApi/Planora.Category.Application/Features/Categories/Commands/CreateCategory/CreateCategoryCommandHandler.cs:55-59",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Services/BusinessEventLogger.cs:18-32",
+        "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs:40,77-85"
+      ]
+    }
+  ],
+  "existing_finding_dedup": [
+    {
+      "id": "OPS-015",
+      "relation": "Related privacy/log-content risk; keep distinct raw-query credential bypass and response-stream lifecycle candidates."
+    },
+    {
+      "id": "OPS-003 / OPS-010",
+      "relation": "Historical secret scanning findings do not cover runtime query redaction."
+    },
+    {
+      "id": "DIST-004 / DIST-005 / DIST-012",
+      "relation": "SignalR authorization/delivery/late-event findings do not cover memory-stream response wrapping."
+    }
+  ],
+  "test_search": {
+    "commands": [
+      "rg -n LogSanitizer|HttpLoggingMiddleware|LoggingConfiguration|Enricher|OperationContext|EventTypeContext tests --glob *.cs",
+      "rg -n ConfigureSerilog|ConfigureWebSerilog --glob *.cs --glob !LoggingConfiguration.cs ."
+    ],
+    "result": "No direct tests for the assigned logging middleware/enrichers/sanitizer helpers or callers of legacy host ConfigureSerilog/ConfigureWebSerilog were found. Existing Auth tests mock IBusinessEventLogger calls; they do not exercise concrete sink output.",
+    "executed_application_tests": false
+  },
+  "limitations": [
+    "No runtime, Kestrel, SignalR transport, malformed URL, cancellation or capture-sink experiment ran.",
+    "No .env, credential source, working logs, auth file, user data or live infrastructure was read.",
+    "Only assigned twelve full files count toward this partition. Supporting snippets/caller searches are not promoted to baseline reviewed coverage.",
+    "Current frontend forces WebSockets; server SSE/streaming impact remains condition-dependent pending reproduction.",
+    "No source, registry, CSV, PROGRESS or continuation-batch status was modified. Root owns candidate triage and stable IDs.",
+    "No production log reader permissions, retention compliance or complete sensitive-data absence is established."
+  ]
+}

@@ -323,7 +323,7 @@
     "verification": {
       "status": "PASS_LOCAL_IDENTITY_SCOPE",
       "evidence": "results/evidence/t03-activity-identity-verification.json",
-      "note": "Backend RED6F/2P and targeted60P; client RED3F/20P plus DTO2F, GREEN UI29P/backend18P. Optional source identity passes through events, persistence, authorized HTTP projection and BranchFeed attribution/suppression, preserving legacy null rows without guessed actor/time. Client evidence: results/evidence/t03-activity-client-verification.json. Final broad Unit1537P/2 separately verified restart facts, Errors94P, isolated frontend2279P with lint/typecheck/coverage/build0. BE022 late activity, live HTTP/browser and rollout gates remain open."
+      "note": "Backend RED6F/2P and targeted60P; client RED3F/20P plus DTO2F, GREEN UI29P/backend18P. Optional source identity passes through events, persistence, authorized HTTP projection and BranchFeed attribution/suppression, preserving legacy null rows without guessed actor/time. Client evidence: results/evidence/t03-activity-client-verification.json. Final broad Unit1537P/2 separately verified restart facts, Errors94P, isolated frontend2279P with lint/typecheck/coverage/build0. DIST012 late activity, live HTTP/browser and rollout gates remain open."
     }
   },
   {
@@ -3375,5 +3375,101 @@
     ],
     "dependencies": [],
     "limitations": "Static review CONT047001; parser-only check. Runtime/firewall state NOT_VERIFIED. See results/evidence/read-047-review.json."
+  },
+  {
+    "id": "BE-035",
+    "title": "Percent-encoded sensitive query names bypass HTTP log redaction",
+    "confidence": "CONFIRMED",
+    "priority": "P1",
+    "severity": "high",
+    "likelihood": "condition-dependent",
+    "package": "T12",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+        "lines": "23-26, 93-102, 119-126, 156-186"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "lines": "74-80, 200-203, 221"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs",
+        "lines": "192-202"
+      }
+    ],
+    "trigger": "A request supplies a percent-encoded spelling of the access_token or token query key. ASP.NET query consumers use the decoded name, while SanitizeQueryString compares the raw substring before equals.",
+    "impact": "The credential-bearing query value can be emitted at Information in both HTTP request and response Path properties. Clean removes controls/length only and does not redact the value. No actual credential or historical log was inspected.",
+    "fix": "Parse query names with the same decoding semantics as request consumers and redact the whole sensitive value; prefer an explicit safe query allowlist. Test harmless markers with encoded/case-varied/repeated/malformed keys and capture request+response records.",
+    "tests": [],
+    "dependencies": [],
+    "limitations": "Synthetic captured-logger regression; no real credential or runtime-log inspection. Other logging surfaces remain separate.",
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/read-013-query-redaction-verification.json",
+      "note": "Captured synthetic request/response/gRPC paths: RED7F/2P then9P; only decoded comparison key changed. Actual credential/history disclosure not claimed."
+    }
+  },
+  {
+    "id": "BE-036",
+    "title": "HTTP logging buffers all non-gRPC responses and leaves a disposed replacement stream",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T07",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+        "lines": "42-51, 57-83, 111-114"
+      },
+      {
+        "path": "Services/RealtimeApi/Planora.Realtime.Api/Program.cs",
+        "lines": "105-107, 200-221"
+      },
+      {
+        "path": "frontend/src/lib/realtime/client.ts",
+        "lines": "269-276"
+      },
+      {
+        "path": "Services/AuthApi/Planora.Auth.Api/Program.cs",
+        "lines": "185, 199-204"
+      }
+    ],
+    "trigger": "A non-gRPC response is large, long-lived/streaming, canceled or propagates an exception beyond the logger. Every response body is replaced with a MemoryStream; output is copied only after next completes and the original Body is never reassigned.",
+    "impact": "Response buffering has no size cap; downstream flushes target the memory stream. After return/throw Response.Body references the disposed stream, and a copy exception can mask the original failure. CopyToAsync does not observe RequestAborted. SignalR SSE/default transport is a condition-dependent reachable server surface; current frontend explicitly selects WebSockets, so no current-client fallback regression is claimed.",
+    "fix": "Log status/content-length without buffering; if byte counting is required, use bounded pass-through instrumentation and always restore Body in a finally block. Add isolated flush/cancellation/exception/large-response regressions and a real SSE transport test before claiming streaming impact.",
+    "tests": [],
+    "dependencies": [],
+    "limitations": "READ-013 source proof. Streaming impact and mapped-principal behavior not runtime-tested. See read-013b-review.json."
+  },
+  {
+    "id": "BE-037",
+    "title": "Authenticated HTTP response logs can retain UserId=Anonymous with inbound claim mapping",
+    "confidence": "CONFIRMED",
+    "priority": "P3",
+    "severity": "low",
+    "likelihood": "condition-dependent",
+    "package": "T02",
+    "evidence": [
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs",
+        "lines": "89, 101-102, 114, 122-126"
+      },
+      {
+        "path": "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/Enrichers/UserIdEnricher.cs",
+        "lines": "20-25"
+      },
+      {
+        "path": "docs/auth-security.md",
+        "lines": "Authentication Model / Reading the user id from claims"
+      }
+    ],
+    "trigger": "A successful request uses a JWT principal whose sub was mapped to ClaimTypes.NameIdentifier by the configured inbound mapping. HttpLoggingMiddleware looks only for raw sub.",
+    "impact": "The response log explicitly supplies UserId=Anonymous, and AddPropertyIfAbsent in the correct enterprise UserIdEnricher cannot replace that property. This weakens audit correlation; it is not an authorization bypass. The pre-auth incoming log is legitimately anonymous.",
+    "fix": "Use the shared subject resolver or the established sub/NameIdentifier fallback for the response record; cover mapped and unmapped principals with a captured logger.",
+    "tests": [],
+    "dependencies": [],
+    "limitations": "READ-013 source proof. Streaming impact and mapped-principal behavior not runtime-tested. See read-013b-review.json."
   }
 ]

@@ -243,6 +243,11 @@ week of production data.
   PII (user emails, login attempts). Restrict the trace backend's reader
   scope and leave the flag disabled when collection is unnecessary.
 - **Sensitive log content** — shared logging is not a universal redaction guarantee. Auth `Email__Provider=Log` writes verification/reset links with tokens for development. Inspect event payloads and restrict log readers/retention; do not assume FluentValidation scrubs log data.
+- **HTTP query credentials** — the request/response path logger compares form-decoded
+  query names case-insensitively before redacting sensitive values. Percent-encoded
+  spellings of `token`, `access_token` and the other configured sensitive names are
+  covered too; ordinary query formatting is preserved. This does not scrub every
+  application event, message payload or historical log.
 - **Probe traffic** — paths starting with the `/health` segment are filtered out of request
   tracing so liveness/readiness probes do not flood the trace backend.
   Health metrics are still emitted via the standard request-count counter,

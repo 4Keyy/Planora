@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "finding": "BE-035",
+  "result": "PASS_LOCAL_QUERY_REDACTION",
+  "source_head_before_fix": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "source_state": "Owned query-comparison fix and new focused tests, reviewed before scoped commit.",
+  "red": {
+    "path": ".buildcheck/sync-20261106/query-redaction/red/query-red.trx",
+    "total": 9,
+    "executed": 9,
+    "passed": 2,
+    "failed": 7,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0,
+    "inconclusive": 0,
+    "passedButRunAborted": 0,
+    "notRunnable": 0,
+    "notExecuted": 0,
+    "disconnected": 0,
+    "warning": 0,
+    "completed": 0,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "green": {
+    "path": ".buildcheck/sync-20261106/query-redaction/green/query-green.trx",
+    "total": 9,
+    "executed": 9,
+    "passed": 9,
+    "failed": 0,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0,
+    "inconclusive": 0,
+    "passedButRunAborted": 0,
+    "notRunnable": 0,
+    "notExecuted": 0,
+    "disconnected": 0,
+    "warning": 0,
+    "completed": 0,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "full_backend": [
+    {
+      "path": ".buildcheck/sync-20261106/backend-query-results/fkeyy_FKEYYLAPTOP_2026-11-06_22_04_38_net10.0.trx",
+      "total": 94,
+      "executed": 94,
+      "passed": 94,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    {
+      "path": ".buildcheck/sync-20261106/backend-query-results/fkeyy_FKEYYLAPTOP_2026-11-06_22_04_38_net10.0[1].trx",
+      "total": 1548,
+      "executed": 1546,
+      "passed": 1546,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    }
+  ],
+  "build": {
+    "exit_code": 0,
+    "warnings": 0,
+    "errors": 0,
+    "incremental": true,
+    "log": ".buildcheck/sync-20261106/backend-query-build.log"
+  },
+  "commands": [
+    "user SDK dotnet test UnitTests --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts --filter FullyQualifiedName~HttpLoggingQueryRedactionTests --logger trx",
+    "user SDK dotnet build Planora.sln --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts -warnaserror",
+    "user SDK dotnet test Planora.sln --no-build --configuration Release --artifacts-path .buildcheck/sync-20261106/backend-artifacts --logger trx"
+  ],
+  "environment_names": [
+    "PLANORA_TEST_POSTGRES",
+    "PLANORA_TEST_RABBIT_FIXTURE"
+  ],
+  "review": {
+    "agent": "ci_pr_review",
+    "result": "No actionable findings",
+    "trx_independently_inspected": true,
+    "runtime_repeated_by_reviewer": false
+  },
+  "limits": [
+    "Synthetic markers only; real credentials and historical runtime logs were not inspected.",
+    "Full suite skips the two separately orchestrated broker restart facts; seed/verify proof remains recorded in the repository-sync checkpoint.",
+    "Response-stream buffering/restoration and mapped-claim audit attribution are separate BE-036/BE-037 findings, unchanged by this fix."
+  ],
+  "source_sha256": {
+    "BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/HttpLoggingMiddleware.cs": "d689e25c4140fad6998e6280ffc2c2ee70388d12cd420334317bb564fb62842f",
+    "tests/Planora.UnitTests/BuildingBlocks/Middleware/HttpLoggingQueryRedactionTests.cs": "5a4816c1be54d93393ab3cf919993ef450f59b38460313d79ff215ede296e550"
+  }
+}
