@@ -133,8 +133,11 @@ unknown-commit, live HTTP or every cross-service delivery boundary.
 add a separate opt-in gate: `PLANORA_TEST_RABBIT_FIXTURE` must point to an explicitly verified
 disposable broker fixture; combined tests also require PostgreSQL. Broker restart seed/verify
 facts require explicit `PLANORA_TEST_RABBIT_RESTART_PHASE` orchestration. Do not point them
-at the working Compose broker. The default CI backend job currently supplies PostgreSQL only,
-so these RabbitMQ facts are skipped there; inspect reported skips before claiming full coverage.
+at the working Compose broker. CI creates a dedicated RabbitMQ container and volume with a
+random runtime credential and a fixture under `RUNNER_TEMP`; it waits for the application and
+AMQP listener before the suite. The two restart facts are skipped in the general invocation
+and then run explicitly as seed → broker restart → verify, with separate TRX evidence.
+Inspect all three invocations before claiming full provider coverage.
 
 ## Frontend Commands
 

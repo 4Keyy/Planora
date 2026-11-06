@@ -2,7 +2,7 @@ name: NuGet Vulnerability Tracking
 
 # Dependabot cannot scope NuGet updates to the central Directory.Packages.props.
 # Keep one issue across clean scans and regressions; Actions cannot open PRs here.
-# The former security/nuget-vuln-tracking branch is preserved and no longer written.
+# Its former report branch is archived at archive/nuget-vuln-tracking-20261106.
 on:
   schedule:
     - cron: '0 3 * * *'

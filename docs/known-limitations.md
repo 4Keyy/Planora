@@ -55,10 +55,11 @@ Passing unit tests does not establish production readiness or exhaustive securit
 - PostgreSQL-specific suites create and remove test databases. Supply only a disposable
   PostgreSQL server through `PLANORA_TEST_POSTGRES`.
 - Live broker tests need a separately verified RabbitMQ fixture and explicit restart
-  orchestration. The default CI backend job supplies PostgreSQL only and skips these facts.
+  orchestration. CI now provisions this fixture and runs the two restart facts separately;
+  skips in the general suite must be reconciled with those explicit seed/verify results.
 - The deep audit remains open, with pending per-file review, integration and operational
   gates. Local regression success and a verified local startup do not certify the release.
-- Secret-history scanning remains red pending provenance/usage/revocation decisions;
+- The complete local secret-history scan remains red pending provenance/usage/revocation decisions;
   do not suppress historical matches merely to obtain a successful security check. See
   [the security checkpoint](audits/planora-deep-audit/results/T12.md).
 - Browser suites require explicit frontend, gateway and test SMTP endpoints. Inspect skips

@@ -69,9 +69,62 @@ jobs:
             **/*.csproj
             Directory.Packages.props
             Directory.Build.props
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Prepare disposable RabbitMQ provider fixture
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto';
+          import { appendFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const password = randomBytes(32).toString('hex');
+          const fixture = join(process.env.RUNNER_TEMP, 'planora-rabbit.json');
+          writeFileSync(fixture, JSON.stringify({ HostName: '127.0.0.1', Port: 5672,
+            UserName: 'planora_ci', Password: password }), { mode: 0o600 });
+          writeFileSync(join(process.env.RUNNER_TEMP, 'planora-rabbit.env'),
+            `RABBITMQ_DEFAULT_USER=planora_ci\nRABBITMQ_DEFAULT_PASS=${password}\n`, { mode: 0o600 });
+          appendFileSync(process.env.GITHUB_ENV, `PLANORA_TEST_RABBIT_FIXTURE=${fixture}\n`);
+          NODE
+          docker run -d --name planora-ci-rabbit \
+            --label com.planora.ci="$GITHUB_RUN_ID" \
+            --env-file "$RUNNER_TEMP/planora-rabbit.env" \
+            --mount type=volume,source=planora-ci-rabbit-data,target=/var/lib/rabbitmq \
+            -p 127.0.0.1:5672:5672 rabbitmq:3.13-management-alpine
+          for attempt in {1..60}; do
+            if docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
+              && docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo '::error::Disposable RabbitMQ fixture did not become ready'
+          exit 1
       - run: dotnet restore Planora.sln
       - run: dotnet build Planora.sln --no-restore --configuration Release -warnaserror
       - run: dotnet test Planora.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory ./coverage/backend
+      - name: Seed durable quarantine before broker restart
+        env:
+          PLANORA_TEST_RABBIT_RESTART_PHASE: seed
+        run: dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-build --configuration Release --filter FullyQualifiedName~RestartSeed_LeavesConfirmedPoisonInQuarantine --logger trx --results-directory ./coverage/backend/restart-seed
+      - name: Restart the disposable broker
+        shell: bash
+        run: |
+          docker restart planora-ci-rabbit
+          for attempt in {1..60}; do
+            if docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_running > /dev/null 2>&1 \
+              && docker exec planora-ci-rabbit rabbitmq-diagnostics -q check_port_listener 5672 > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo '::error::Disposable RabbitMQ fixture did not recover after restart'
+          exit 1
+      - name: Verify durable quarantine after broker restart
+        env:
+          PLANORA_TEST_RABBIT_RESTART_PHASE: verify
+        run: dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --no-build --configuration Release --filter FullyQualifiedName~RestartVerify_QuarantineRetainsOriginalPersistentMessage --logger trx --results-directory ./coverage/backend/restart-verify
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-coverage-report
