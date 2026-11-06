@@ -1017,7 +1017,7 @@ in the rehash variant. The guarded transaction now rejects both attempts.
 Runtime checks remain open. Existing atomicity and configuration findings
 retain their separate evidence. [READ-041](results/evidence/read-041-review.md)
 
-## BE-002 — Todo producer checkpoints
+## BE-002 — Todo and Collaboration producer checkpoints
 
 CreateTodo and DuplicateTodo stage both integration events before their single save.
 CreateSubtask stages its branch event and complete notification fan-out,
@@ -1031,8 +1031,11 @@ retry and diagnostic count independence. The post-commit log-only count
 query is removed.
 UpdateTodo now stages its three branches and the selected owner-reopen
 completion resets. Seven provider tests cover handler failures, four success
-modes and deferred field-scoped reset. Collaboration producers and separate
-completion/concurrency findings remain open.
+modes and deferred field-scoped reset. Collaboration Add/Update/Delete now
+stage before one save as well. Eight provider tests cover failures, cancellation,
+reply/DTO success and fresh-context retry after a known pre-commit failure.
+POST after ambiguous commit, crash, concurrency and separate completion findings
+retain their open gates; this is local write-set evidence.
 PostgreSQL regressions cover second-event failure, rejected outbox INSERT
 and the complete successful event set. Other Todo and Collaboration
 producers remain open. [T03 evidence](results/T03.md)

@@ -61,13 +61,6 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
             comment.UpdateContent(request.Content, userId);
 
             _commentRepository.Update(comment);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // Live: the edited content reconciles in every open branch view of this task.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
-                new RealtimeSyncIntegrationEvent(
-                    RealtimeSyncAction.CommentUpdated, comment.Id, userId, branchTaskId: request.TaskId),
-                cancellationToken);
 
             // Resolve the comment author AND (when this is a reply) the quoted author's current
             // name + avatar live, in ONE batch — so the PUT response is the same complete, enriched
@@ -77,6 +70,14 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
                 idsToResolve.Add(replyAuthorId);
 
             var profiles = await _userService.GetUserProfilesAsync(idsToResolve, cancellationToken);
+
+            // Live: the edited content reconciles in every open branch view of this task.
+            await _outboxRepository.StageIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.CommentUpdated, comment.Id, userId, branchTaskId: request.TaskId),
+                cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             string authorName = comment.AuthorName;
             string? authorAvatarUrl = null;

@@ -40,7 +40,7 @@ public sealed class CommentCommandHandlerTests
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         // Two participant notifications (owner + 1 other, author excluded) plus the live-sync
         // branch event that pushes the new message to anyone viewing the branch = 3 outbox writes.
-        fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        fixture.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Fact]
@@ -341,7 +341,7 @@ public sealed class CommentCommandHandlerTests
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             Comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Comment c, CancellationToken _) => c);
-            Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+            Outbox.Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
                 .Callback<OutboxMessage, CancellationToken>((m, _) => OutboxMessages.Add(m))
                 .Returns(Task.CompletedTask);
             // Live profile resolution defaults to "unknown" — handlers must fall back gracefully.

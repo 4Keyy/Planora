@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
+  "current_sha": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -221,7 +221,14 @@
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/ViewerCompletionResetPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t03-update-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-046-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-046-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-046-review.md",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Common/OutboxExtensions.cs",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommandHandler.cs",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/DeleteComment/DeleteCommentCommandHandler.cs",
+    "tests/Planora.UnitTests/Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs",
+    "tests/Planora.UnitTests/Services/CollaborationApi/Infrastructure/CommentMutationOutboxPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t03-comment-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -262,9 +269,10 @@
     "Join/Leave RED5F/5P, GREEN409P, broad1497P, ErrorHandling94P, no skips. Ten provider tests include cancellation, fresh-context Join retry and strict-Moq count failure after real persistence. Source review no blocker; log-only count removed.",
     "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending.",
     "UpdateTodo RED5F/1P (success matrix4DB), GREEN416P, broad1504P, ErrorHandling94P without skips. Seven provider tests include deferred reset preserving concurrent independent fields. All7Todo producers staged; Collaboration remains. Stage reset materialization cost and late-completion/full-row races remain gates.",
-    "READ-046 full1path/852lines. OPS-016 process provenance and OPS-017 false stop success are source-confirmed; only PS5.1 parser0errors executed. No launcher/services/process operations. Coverage620/1558(39.79%),63batches pending."
+    "READ-046 full1path/852lines. OPS-016 process provenance and OPS-017 false stop success are source-confirmed; only PS5.1 parser0errors executed. No launcher/services/process operations. Coverage620/1558(39.79%),63batches pending.",
+    "Collaboration initialRED7F includes1test precision mismatch; corrected pre-fix RED6F/1P. GREEN74P/broad1511P; added known-failure fresh-context retry then75P/1512P; Errors94P, no skips. All10listed producers staged; profile dependency beforecommit. BE-002 stays local/partial for operational gates."
   ],
-  "next_step": "T03 Collaboration AddComment/UpdateComment/DeleteComment provider RED, then atomic staging. Keep authorization, content audience and timeline contracts; BE-005/006 and continuation findings stay open.",
+  "next_step": "T03 BE-005 provider RED: friendship revoke in both directions, subtasks and historical no-share workers; preserve unrelated participants, then atomic cleanup and staged sync.",
   "commands": [
     {
       "id": "readiness-red",
@@ -3045,6 +3053,155 @@
       "local_links": 1447,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "t03-comment-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CommentMutationOutboxPostgresTests' --logger 'trx;LogFileName=t03-comment-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 7,
+      "passed": 0,
+      "failed": 7,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-red.txt",
+      "log_sha256": "169a5f909dc276331d6f860b84f1a3298b29649c4c1202183b0adabb8c652438",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-red.trx",
+      "trx_sha256": "6b0b49d5e6fadd2c1aff3d3bc10eb460d8bfbdebacd234cfd23661373eb06845",
+      "test_run_times": {
+        "creation": "2026-11-06T01:10:32.9810784+03:00",
+        "queuing": "2026-11-06T01:10:32.9810786+03:00",
+        "start": "2026-11-06T01:10:25.9714338+03:00",
+        "finish": "2026-11-06T01:10:35.2782099+03:00"
+      },
+      "test_run_seconds": 9.307
+    },
+    {
+      "id": "t03-comment-red-precision",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CommentMutationOutboxPostgresTests' --logger 'trx;LogFileName=t03-comment-red-precision.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 7,
+      "passed": 1,
+      "failed": 6,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-red-precision.txt",
+      "log_sha256": "703983fb6015958387304e00af306407bbc24aa05355a09d1783161a64b47340",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-red-precision.trx",
+      "trx_sha256": "9003f8ea3662ba8075aae440d5bbace3ba75f09ed255d4f359ed4f44aff1fe55",
+      "test_run_times": {
+        "creation": "2026-11-06T01:12:18.3936331+03:00",
+        "queuing": "2026-11-06T01:12:18.3936334+03:00",
+        "start": "2026-11-06T01:12:14.9914523+03:00",
+        "finish": "2026-11-06T01:12:20.9685661+03:00"
+      },
+      "test_run_seconds": 5.977
+    },
+    {
+      "id": "t03-comment-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CollaborationApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-comment-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 74,
+      "passed": 74,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-green.txt",
+      "log_sha256": "d7c612fbd729dda8ae6a9735e668123ba9146b2dda064af4ebed24468039c573",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-green.trx",
+      "trx_sha256": "b63efcec2dc3f8251bcbcbecd8dfeacbf6f30b394aca25d9290d367bfcea212e",
+      "test_run_times": {
+        "creation": "2026-11-06T01:15:19.3719640+03:00",
+        "queuing": "2026-11-06T01:15:19.3719644+03:00",
+        "start": "2026-11-06T01:15:18.3688047+03:00",
+        "finish": "2026-11-06T01:15:23.6353817+03:00"
+      },
+      "test_run_seconds": 5.267
+    },
+    {
+      "id": "t03-comment-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-comment-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1511,
+      "passed": 1511,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-broad.txt",
+      "log_sha256": "df91092fb266759702bc6141b3c5a0cd946c8c6cd7e4f0e23b3e838e79888a81",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-broad.trx",
+      "trx_sha256": "2b2230968d52c6fcbacf879aa79039bcbda44c39b92530ec9b8c76913a782791",
+      "test_run_times": {
+        "creation": "2026-11-06T01:17:09.1794357+03:00",
+        "queuing": "2026-11-06T01:17:09.1794362+03:00",
+        "start": "2026-11-06T01:17:07.9373381+03:00",
+        "finish": "2026-11-06T01:17:39.1424889+03:00"
+      },
+      "test_run_seconds": 31.205
+    },
+    {
+      "id": "t03-comment-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-errors/\" --logger 'trx;LogFileName=t03-comment-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-errors.txt",
+      "log_sha256": "f6c35ade26ed9c6bacee46f909c730e521d1edb5a62e447033d8d9089786e42b",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-errors.trx",
+      "trx_sha256": "756cc11b6aeb50fc963db9b84a479538f9b5f750becc6bc1816fa4dbb06976a7",
+      "test_run_times": {
+        "creation": "2026-11-06T01:17:21.5257977+03:00",
+        "queuing": "2026-11-06T01:17:21.5257983+03:00",
+        "start": "2026-11-06T01:17:16.5255188+03:00",
+        "finish": "2026-11-06T01:17:32.1377696+03:00"
+      },
+      "test_run_seconds": 15.612
+    },
+    {
+      "id": "t03-comment-green-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CollaborationApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-comment-green-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 75,
+      "passed": 75,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-green-retry.txt",
+      "log_sha256": "725903d2e46a36cf1d2e53c05d739e59e9278532b61675866bf9323ae1e61b49",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-green-retry.trx",
+      "trx_sha256": "61144d856479e20b9c8dd0d79db16589306dd5709608787df736b88aa9d55836",
+      "test_run_times": {
+        "creation": "2026-11-06T01:18:43.3170705+03:00",
+        "queuing": "2026-11-06T01:18:43.3170709+03:00",
+        "start": "2026-11-06T01:18:42.3859987+03:00",
+        "finish": "2026-11-06T01:18:47.7086075+03:00"
+      },
+      "test_run_seconds": 5.323
+    },
+    {
+      "id": "t03-comment-broad-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-comment-broad-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1512,
+      "passed": 1512,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-broad-retry.txt",
+      "log_sha256": "14713768c7fdb630a4dc855ccca711d2927a3e87870f40ad3730ccfc575a4d97",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-broad-retry.trx",
+      "trx_sha256": "f28c213d993d256cfc29024ac9bd2e3d2bb0ab5e26cafa9be182491a131617dc",
+      "test_run_times": {
+        "creation": "2026-11-06T01:20:17.1943556+03:00",
+        "queuing": "2026-11-06T01:20:17.1943564+03:00",
+        "start": "2026-11-06T01:20:16.2640867+03:00",
+        "finish": "2026-11-06T01:20:42.3419705+03:00"
+      },
+      "test_run_seconds": 26.078
+    },
+    {
+      "id": "t03-comment-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 126,
+      "local_links": 1448,
+      "broken_links": 0,
+      "lint_issues": 0
     }
   ],
   "audit_coverage": {
@@ -3144,7 +3301,8 @@
     "results/evidence/read-045-review.md",
     "results/evidence/t03-update-verification.json",
     "results/evidence/read-046-review.json",
-    "results/evidence/read-046-review.md"
+    "results/evidence/read-046-review.md",
+    "results/evidence/t03-comment-verification.json"
   ],
   "local_commits": [
     {
@@ -3291,6 +3449,11 @@
       "task": "Verified Todo mutation checkpoint metadata",
       "sha": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
       "pushed": false
+    },
+    {
+      "task": "READ-046 Docker launcher source review",
+      "sha": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3318,7 +3481,7 @@
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
     "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment.",
-    "T03": "Collaboration producer commits, BE-005 workers, BE-006 activity identity and continuation findings including BE-028 through BE-034; late completion/full-row preference races remain."
+    "T03": "BE-005 workers, BE-006 activity identity, BE-021 derived erasure, continuation findings and ACK/crash/concurrency/HTTP gates beyond controlled producer write sets."
   },
   "new_findings": [
     "BE-008",

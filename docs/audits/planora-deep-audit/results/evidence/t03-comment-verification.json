@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "head": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
+  "red_head": "97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7",
+  "head_note": "READ-046 metadata changed HEAD after repeated RED; no Collaboration application source changed before that RED.",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Verified owned PostgreSQL immutable ID/label, loopback64345, tmpfs/no persistent mounts, reviewed Collaboration migrations. Broad also verified owned RabbitMQ ID/label/volume/ports/check_running and Redis test-only port1 unbound.",
+  "commands": [
+    {
+      "id": "t03-comment-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CommentMutationOutboxPostgresTests' --logger 'trx;LogFileName=t03-comment-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 7,
+      "passed": 0,
+      "failed": 7,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-red.txt",
+      "log_sha256": "169a5f909dc276331d6f860b84f1a3298b29649c4c1202183b0adabb8c652438",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-red.trx",
+      "trx_sha256": "6b0b49d5e6fadd2c1aff3d3bc10eb460d8bfbdebacd234cfd23661373eb06845",
+      "test_run_times": {
+        "creation": "2026-11-06T01:10:32.9810784+03:00",
+        "queuing": "2026-11-06T01:10:32.9810786+03:00",
+        "start": "2026-11-06T01:10:25.9714338+03:00",
+        "finish": "2026-11-06T01:10:35.2782099+03:00"
+      },
+      "test_run_seconds": 9.307
+    },
+    {
+      "id": "t03-comment-red-precision",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CommentMutationOutboxPostgresTests' --logger 'trx;LogFileName=t03-comment-red-precision.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 7,
+      "passed": 1,
+      "failed": 6,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-red-precision.txt",
+      "log_sha256": "703983fb6015958387304e00af306407bbc24aa05355a09d1783161a64b47340",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-red-precision.trx",
+      "trx_sha256": "9003f8ea3662ba8075aae440d5bbace3ba75f09ed255d4f359ed4f44aff1fe55",
+      "test_run_times": {
+        "creation": "2026-11-06T01:12:18.3936331+03:00",
+        "queuing": "2026-11-06T01:12:18.3936334+03:00",
+        "start": "2026-11-06T01:12:14.9914523+03:00",
+        "finish": "2026-11-06T01:12:20.9685661+03:00"
+      },
+      "test_run_seconds": 5.977
+    },
+    {
+      "id": "t03-comment-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CollaborationApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-comment-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 74,
+      "passed": 74,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-green.txt",
+      "log_sha256": "d7c612fbd729dda8ae6a9735e668123ba9146b2dda064af4ebed24468039c573",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-green.trx",
+      "trx_sha256": "b63efcec2dc3f8251bcbcbecd8dfeacbf6f30b394aca25d9290d367bfcea212e",
+      "test_run_times": {
+        "creation": "2026-11-06T01:15:19.3719640+03:00",
+        "queuing": "2026-11-06T01:15:19.3719644+03:00",
+        "start": "2026-11-06T01:15:18.3688047+03:00",
+        "finish": "2026-11-06T01:15:23.6353817+03:00"
+      },
+      "test_run_seconds": 5.267
+    },
+    {
+      "id": "t03-comment-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-comment-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1511,
+      "passed": 1511,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-broad.txt",
+      "log_sha256": "df91092fb266759702bc6141b3c5a0cd946c8c6cd7e4f0e23b3e838e79888a81",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-broad.trx",
+      "trx_sha256": "2b2230968d52c6fcbacf879aa79039bcbda44c39b92530ec9b8c76913a782791",
+      "test_run_times": {
+        "creation": "2026-11-06T01:17:09.1794357+03:00",
+        "queuing": "2026-11-06T01:17:09.1794362+03:00",
+        "start": "2026-11-06T01:17:07.9373381+03:00",
+        "finish": "2026-11-06T01:17:39.1424889+03:00"
+      },
+      "test_run_seconds": 31.205
+    },
+    {
+      "id": "t03-comment-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-errors/\" --logger 'trx;LogFileName=t03-comment-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-errors.txt",
+      "log_sha256": "f6c35ade26ed9c6bacee46f909c730e521d1edb5a62e447033d8d9089786e42b",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-errors.trx",
+      "trx_sha256": "756cc11b6aeb50fc963db9b84a479538f9b5f750becc6bc1816fa4dbb06976a7",
+      "test_run_times": {
+        "creation": "2026-11-06T01:17:21.5257977+03:00",
+        "queuing": "2026-11-06T01:17:21.5257983+03:00",
+        "start": "2026-11-06T01:17:16.5255188+03:00",
+        "finish": "2026-11-06T01:17:32.1377696+03:00"
+      },
+      "test_run_seconds": 15.612
+    },
+    {
+      "id": "t03-comment-green-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName~CollaborationApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-comment-green-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 75,
+      "passed": 75,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-green-retry.txt",
+      "log_sha256": "725903d2e46a36cf1d2e53c05d739e59e9278532b61675866bf9323ae1e61b49",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-green-retry.trx",
+      "trx_sha256": "61144d856479e20b9c8dd0d79db16589306dd5709608787df736b88aa9d55836",
+      "test_run_times": {
+        "creation": "2026-11-06T01:18:43.3170705+03:00",
+        "queuing": "2026-11-06T01:18:43.3170709+03:00",
+        "start": "2026-11-06T01:18:42.3859987+03:00",
+        "finish": "2026-11-06T01:18:47.7086075+03:00"
+      },
+      "test_run_seconds": 5.323
+    },
+    {
+      "id": "t03-comment-broad-retry",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/comment-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-comment-broad-retry.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1512,
+      "passed": 1512,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-comment-broad-retry.txt",
+      "log_sha256": "14713768c7fdb630a4dc855ccca711d2927a3e87870f40ad3730ccfc575a4d97",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-comment-broad-retry.trx",
+      "trx_sha256": "f28c213d993d256cfc29024ac9bd2e3d2bb0ab5e26cafa9be182491a131617dc",
+      "test_run_times": {
+        "creation": "2026-11-06T01:20:17.1943556+03:00",
+        "queuing": "2026-11-06T01:20:17.1943564+03:00",
+        "start": "2026-11-06T01:20:16.2640867+03:00",
+        "finish": "2026-11-06T01:20:42.3419705+03:00"
+      },
+      "test_run_seconds": 26.078
+    },
+    {
+      "id": "t03-comment-docs",
+      "command": "npm --prefix tools/docs run check",
+      "exit_code": 0,
+      "documents": 126,
+      "local_links": 1448,
+      "broken_links": 0,
+      "lint_issues": 0
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-red-precision",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_FailedStagingThenFreshContextRetryCreatesOnlyOneReplyAndEventSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-green-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_LastRecipientFailureLeavesNoNewCommentOrEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.DeleteReplyAsync_EventFailureLeavesCommentAlive",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_EventFailurePreservesOldContentAndEditedState",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.UpdateReplyAsync_UnexpectedProfileFailureLeavesStoredReplyAndEventsUntouched",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_RejectedNotificationInsertRollsBackCommentAndBranchSignal",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_FailedStagingThenFreshContextRetryCreatesOnlyOneReplyAndEventSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.AddReplyAsync_CancellationBeforeLastRecipientRollsBackCommentAndEvents",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-comment-broad-retry",
+      "test": "Planora.UnitTests.Services.CollaborationApi.Infrastructure.CommentMutationOutboxPostgresTests.CommentMutationsAsync_SuccessMatrixCommitsCompleteEventsAndPreservesQuoteAndOtherRows",
+      "outcome": "Passed"
+    }
+  ],
+  "test_correction": "Initial RED had6targeted failures plus a DTO-vs-PostgreSQL sub-microsecond assertion mismatch. Normalized timestamp assertion to persisted microseconds, retained UTC kind and exact remaining DTO fields. Repeated RED6F/1P before app changes. Retry-case added only after first GREEN.",
+  "sources": [
+    {
+      "url": "https://www.postgresql.org/docs/16/datatype-datetime.html",
+      "supports": "Table8.9 timestamp resolution is1microsecond."
+    }
+  ],
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers in three handlers, complete fanout, same serializer/authorization/DTO contracts, pre-commit profile lookup, corrected precision assertion or fresh-context retry case.",
+    "limits": "Profile failure is injected at interface, not live gRPC. Retry follows known pre-commit failure, not ACK ambiguity or success. Crash, concurrent edits, HTTP/gRPC, subtask reply and legacy genesis not newly exercised."
+  },
+  "doc_delta": "T15 records one-save comment writes and pre-commit profile lookup. HTTP201/200/204 traced unchanged controller; no live HTTP claim.",
+  "owned_code_sha256": {
+    "Services/CollaborationApi/Planora.Collaboration.Application/Common/OutboxExtensions.cs": "42d9f75da8960841f1b8bc26353d92b97c39d2fd923e11a9f71da18ad794f27f",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/AddComment/AddCommentCommandHandler.cs": "10c201fdd50e09a661d98d31324746c8622ae704afe17f69cb11a0149253d538",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/UpdateComment/UpdateCommentCommandHandler.cs": "15b5112fd89948d5f19760902603d5c9d8618dde92097e710207dd3a2a0688ac",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/DeleteComment/DeleteCommentCommandHandler.cs": "413f53d0857593c6ff9f2b95f01f703f749161aa4c8fc124a1d6c9aeaa3fd5dc",
+    "tests/Planora.UnitTests/Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs": "625d4f39630ba58b8983ab18a4620d40eadb2c5ff5f984fe299314a07c5829c1",
+    "tests/Planora.UnitTests/Services/CollaborationApi/Infrastructure/CommentMutationOutboxPostgresTests.cs": "9b6353f023d414e4153c77d682a4af4f2273f821a6db3dbcacc0738b9e9c2d99"
+  },
+  "trx_input_policy": "Owned local UTF-8 TRX only,16MiB bound, DTD/entity declarations rejected before parsing.",
+  "composition_trace": {
+    "scope": "source-only; no live host/DI startup",
+    "api_program": "Services/CollaborationApi/Planora.Collaboration.Api/Program.cs:36-42",
+    "scoped_context_repositories_uow": "Services/CollaborationApi/Planora.Collaboration.Infrastructure/DependencyInjection.cs:22-39",
+    "mediatr_without_autosave": "Services/CollaborationApi/Planora.Collaboration.Application/DependencyInjection.cs:15-24"
+  }
+}

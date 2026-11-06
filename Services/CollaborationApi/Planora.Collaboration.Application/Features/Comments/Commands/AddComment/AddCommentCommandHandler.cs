@@ -70,22 +70,23 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                     target.Type, target.Id, target.AuthorId, target.AuthorName, target.Preview);
 
             await _commentRepository.AddAsync(comment, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Live: push the new message into the task's branch room so everyone with the branch
             // open sees it appear instantly (both directions). The client refetches the comment
             // slice through the authorized endpoint, so the signal carries no comment content.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.CommentAdded, comment.Id, userId, branchTaskId: request.TaskId),
                 cancellationToken);
 
             // Fan out notifications to every other task participant. Written to the outbox so
-            // delivery is reliable and atomic-ish with the comment write (INV-COMM-3). RealtimeApi
+            // delivery shares one commit with the comment write (INV-COMM-3). RealtimeApi
             // consumes NotificationEvent and pushes it over SignalR. The quoted author gets a
             // dedicated "replied to you" instead of the generic line.
             await PublishNotificationsAsync(
                 userId, authorName, request.TaskId, access.ParticipantIds, target, cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Avatar URL comes from the live caller context — this is the author themselves,
             // so their JWT claim is the freshest source available on the write path.
@@ -240,7 +241,7 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                     JsonSerializer.Serialize(notification),
                     DateTime.UtcNow);
 
-                await _outboxRepository.AddAsync(outboxMessage, cancellationToken);
+                await _outboxRepository.StageAsync(outboxMessage, cancellationToken);
             }
         }
     }

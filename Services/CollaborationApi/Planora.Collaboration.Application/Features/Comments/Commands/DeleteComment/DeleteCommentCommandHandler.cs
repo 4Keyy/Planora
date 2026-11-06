@@ -60,13 +60,14 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.DeleteCom
 
             comment.MarkAsDeleted(userId);
             _commentRepository.Update(comment);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Live: the comment disappears from every open branch view of this task.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
+            await _outboxRepository.StageIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.CommentDeleted, comment.Id, userId, branchTaskId: request.TaskId),
                 cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result.Success();
         }
