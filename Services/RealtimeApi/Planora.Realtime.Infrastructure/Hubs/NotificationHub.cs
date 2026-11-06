@@ -17,27 +17,31 @@ namespace Planora.Realtime.Infrastructure.Hubs
     ///   • <b>Presence / typing</b> — ephemeral <c>UserTyping</c> / <c>UserStoppedTyping</c> signals
     ///     scoped to a branch room, never persisted.
     ///
-    /// Branch rooms (<c>task:{id}</c>) are authorization-gated: a client must pass
+    /// Per-user branch rooms (<c>task:{id}:user:{userId}</c>) are authorization-gated: a client must pass
     /// <see cref="ITaskBranchAuthorizer"/> (TodoApi's ownership/sharing check) before it is added
-    /// to a room, and typing signals are only relayed to rooms the caller has actually joined.
+    /// to a room. Delivery and typing resolve the current audience again, so stale memberships
+    /// never receive branch metadata after access is revoked.
     /// </summary>
     [Authorize]
     public sealed class NotificationHub : Hub
     {
-        private const string JoinedTasksKey = "joined-tasks";
+        internal const string JoinedTasksKey = "joined-tasks";
 
         private readonly ILogger<NotificationHub> _logger;
         private readonly IConnectionManager _connectionManager;
         private readonly ITaskBranchAuthorizer _branchAuthorizer;
+        private readonly RealtimeSessionMonitor _sessionMonitor;
 
         public NotificationHub(
             ILogger<NotificationHub> logger,
             IConnectionManager connectionManager,
-            ITaskBranchAuthorizer branchAuthorizer)
+            ITaskBranchAuthorizer branchAuthorizer,
+            RealtimeSessionMonitor sessionMonitor)
         {
             _logger = logger;
             _connectionManager = connectionManager;
             _branchAuthorizer = branchAuthorizer;
+            _sessionMonitor = sessionMonitor;
         }
 
         public override async Task OnConnectedAsync()
@@ -46,8 +50,12 @@ namespace Planora.Realtime.Infrastructure.Hubs
 
             if (!string.IsNullOrEmpty(userId))
             {
+                if (!await _sessionMonitor.ValidateAsync(Context, Context.ConnectionAborted))
+                    return;
+
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"user:{userId}");
                 await _connectionManager.AddConnectionAsync(userId, Context.ConnectionId);
+                _sessionMonitor.Register(Context);
 
                 _logger.LogInformation(
                     "✅ User {UserId} connected to SignalR (ConnectionId: {ConnectionId})",
@@ -60,6 +68,7 @@ namespace Planora.Realtime.Infrastructure.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
+            _sessionMonitor.Unregister(Context.ConnectionId);
             var userId = Context.UserIdentifier;
 
             if (!string.IsNullOrEmpty(userId))
@@ -73,9 +82,11 @@ namespace Planora.Realtime.Infrastructure.Hubs
                 {
                     foreach (var taskId in joined.Keys)
                     {
-                        await Clients.OthersInGroup($"task:{taskId}")
-                            .SendAsync("UserStoppedTyping", new { taskId, userId });
+                        if (Guid.TryParse(taskId, out var taskGuid))
+                            await RelayTypingAsync(taskGuid, "UserStoppedTyping", new { taskId, userId },
+                                CancellationToken.None, abortInvalid: false);
                     }
+                    joined.Clear();
                 }
 
                 _logger.LogInformation(
@@ -100,6 +111,9 @@ namespace Planora.Realtime.Infrastructure.Hubs
 
         public async Task Subscribe(string notificationType)
         {
+            if (!await _sessionMonitor.ValidateAsync(Context, Context.ConnectionAborted))
+                return;
+
             if (!AllowedTopics.Contains(notificationType))
             {
                 _logger.LogWarning(
@@ -115,6 +129,9 @@ namespace Planora.Realtime.Infrastructure.Hubs
 
         public async Task Unsubscribe(string notificationType)
         {
+            if (!await _sessionMonitor.ValidateAsync(Context, Context.ConnectionAborted))
+                return;
+
             if (!AllowedTopics.Contains(notificationType))
                 return;
 
@@ -133,7 +150,7 @@ namespace Planora.Realtime.Infrastructure.Hubs
         public async Task JoinTask(string taskId)
         {
             var userId = Context.UserIdentifier;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(taskId, out var taskGuid) || !Guid.TryParse(userId, out var userGuid))
+            if (!await _sessionMonitor.ValidateAsync(Context, Context.ConnectionAborted) || string.IsNullOrEmpty(userId) || !Guid.TryParse(taskId, out var taskGuid) || !Guid.TryParse(userId, out var userGuid))
                 return;
 
             if (!await _branchAuthorizer.CanAccessBranchAsync(taskGuid, userGuid, Context.ConnectionAborted))
@@ -142,7 +159,10 @@ namespace Planora.Realtime.Infrastructure.Hubs
                 return;
             }
 
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"task:{taskGuid}");
+            if (!await _sessionMonitor.ValidateAsync(Context, Context.ConnectionAborted))
+                return;
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, UserBranchGroup(taskGuid, userGuid));
             JoinedTasks.TryAdd(taskGuid.ToString(), 0);
             _logger.LogDebug("User {UserId} joined branch room task:{TaskId}", userId, taskGuid);
         }
@@ -153,12 +173,17 @@ namespace Planora.Realtime.Infrastructure.Hubs
             if (!Guid.TryParse(taskId, out var taskGuid))
                 return;
 
-            var key = taskGuid.ToString();
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"task:{taskGuid}");
-            JoinedTasks.TryRemove(key, out _);
-
-            await Clients.OthersInGroup($"task:{taskGuid}")
-                .SendAsync("UserStoppedTyping", new { taskId = key, userId = Context.UserIdentifier });
+            try
+            {
+                await RelayTypingAsync(taskGuid, "UserStoppedTyping", new
+                {
+                    taskId = taskGuid.ToString(), userId = Context.UserIdentifier,
+                }, Context.ConnectionAborted);
+            }
+            finally
+            {
+                await EvictTaskAsync(taskGuid);
+            }
         }
 
         /// <summary>
@@ -168,28 +193,60 @@ namespace Planora.Realtime.Infrastructure.Hubs
         /// </summary>
         public async Task StartTyping(string taskId)
         {
-            if (!Guid.TryParse(taskId, out var taskGuid) || !JoinedTasks.ContainsKey(taskGuid.ToString()))
+            if (!Guid.TryParse(taskId, out var taskGuid))
                 return;
 
-            await Clients.OthersInGroup($"task:{taskGuid}").SendAsync("UserTyping", new
+            await RelayTypingAsync(taskGuid, "UserTyping", new
             {
                 taskId = taskGuid.ToString(),
                 userId = Context.UserIdentifier,
                 name = ResolveDisplayName(),
-            });
+            }, Context.ConnectionAborted);
         }
 
         /// <summary>Clears the caller's typing indicator in a branch room (on send, blur, or idle timeout).</summary>
         public async Task StopTyping(string taskId)
         {
-            if (!Guid.TryParse(taskId, out var taskGuid) || !JoinedTasks.ContainsKey(taskGuid.ToString()))
+            if (!Guid.TryParse(taskId, out var taskGuid))
                 return;
 
-            await Clients.OthersInGroup($"task:{taskGuid}").SendAsync("UserStoppedTyping", new
+            await RelayTypingAsync(taskGuid, "UserStoppedTyping", new
             {
                 taskId = taskGuid.ToString(),
                 userId = Context.UserIdentifier,
-            });
+            }, Context.ConnectionAborted);
+        }
+
+        internal static string UserBranchGroup(Guid taskId, Guid userId) => $"task:{taskId}:user:{userId}";
+
+        private async Task RelayTypingAsync(Guid taskId, string eventName, object payload,
+            CancellationToken cancellationToken, bool abortInvalid = true)
+        {
+            if (!await _sessionMonitor.ValidateAsync(Context, cancellationToken, abortInvalid) || !JoinedTasks.ContainsKey(taskId.ToString()) ||
+                !Guid.TryParse(Context.UserIdentifier, out var userId))
+                return;
+
+            var audience = await _branchAuthorizer.GetAudienceAsync(taskId, userId, cancellationToken);
+            if (audience is null)
+                return;
+            if (audience.Count == 0)
+            {
+                await EvictTaskAsync(taskId);
+                return;
+            }
+            if (!await _sessionMonitor.ValidateAsync(Context, cancellationToken, abortInvalid))
+                return;
+
+            foreach (var recipient in audience)
+                await Clients.GroupExcept(UserBranchGroup(taskId, recipient), new[] { Context.ConnectionId })
+                    .SendAsync(eventName, payload, cancellationToken);
+        }
+
+        private async Task EvictTaskAsync(Guid taskId)
+        {
+            if (!JoinedTasks.TryRemove(taskId.ToString(), out _) || !Guid.TryParse(Context.UserIdentifier, out var userId))
+                return;
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, UserBranchGroup(taskId, userId));
         }
 
         /// <summary>Per-connection set of branch rooms this connection has joined (for typing authz).</summary>

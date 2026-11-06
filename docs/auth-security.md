@@ -396,8 +396,13 @@ Enforcement limits:
   [SecurityStampValidatorTests](../tests/Planora.UnitTests/BuildingBlocks/Security/SecurityStampValidatorTests.cs).
 - JWT `iat` has second precision but the stamp includes fractions of a second; a token
   issued immediately after rotation in the same second can still compare as older.
-- A successful WebSocket handshake checks the stamp once. Existing hub connections
-  are not disconnected on a later stamp rotation or JWT expiry by the inspected code.
+- Realtime revalidates active hub calls before/after their authorization RPC and
+  aborts revoked/expired sessions. Each node also checks its idle connections every
+  15 seconds; the actual idle revocation delay includes Redis lookup and scheduling
+  latency. Redis errors reject the connection. Native authentication-expiry closure
+  is enabled. Task-room delivery resolves the current Todo audience rather than
+  addressing every former room member. These are bounded checks, not instantaneous
+  cancellation of already in-flight packets.
 - The public body-token `validate-token` handler does not perform the Redis revocation
   checks used by the authenticated middleware/filter. It is not a revocation oracle.
 

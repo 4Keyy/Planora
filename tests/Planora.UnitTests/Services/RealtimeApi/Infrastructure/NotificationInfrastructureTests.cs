@@ -76,7 +76,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>(), RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext("user-1", "conn-1"),
             Groups = groups.Object
@@ -102,7 +102,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>(), RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext("user-1", "conn-1"),
             Groups = groups.Object
@@ -126,7 +126,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>(), RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId: null, connectionId: "conn-anon"),
             Groups = groups.Object
@@ -151,7 +151,7 @@ public class NotificationInfrastructureTests
         var authorizer = new Mock<ITaskBranchAuthorizer>();
         authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object, RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId.ToString(), "conn-1"),
             Groups = groups.Object,
@@ -159,7 +159,7 @@ public class NotificationInfrastructureTests
 
         await hub.JoinTask(taskId.ToString());
 
-        groups.Verify(x => x.AddToGroupAsync("conn-1", $"task:{taskId}", It.IsAny<CancellationToken>()), Times.Once);
+        groups.Verify(x => x.AddToGroupAsync("conn-1", $"task:{taskId}:user:{userId}", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class NotificationInfrastructureTests
         var authorizer = new Mock<ITaskBranchAuthorizer>();
         authorizer.Setup(x => x.CanAccessBranchAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object, RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId.ToString(), "conn-1"),
             Groups = groups.Object,
@@ -192,11 +192,12 @@ public class NotificationInfrastructureTests
         var taskId = Guid.NewGuid();
         var othersProxy = new Mock<IClientProxy>();
         var clients = new Mock<IHubCallerClients>();
-        clients.Setup(x => x.OthersInGroup($"task:{taskId}")).Returns(othersProxy.Object);
+        clients.Setup(x => x.GroupExcept($"task:{taskId}:user:{userId}", It.IsAny<IReadOnlyList<string>>())).Returns(othersProxy.Object);
         var authorizer = new Mock<ITaskBranchAuthorizer>();
         authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        authorizer.Setup(x => x.GetAudienceAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { userId });
 
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object, RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId.ToString(), "conn-1"),
             Groups = Mock.Of<IGroupManager>(),
@@ -221,7 +222,7 @@ public class NotificationInfrastructureTests
         var clients = new Mock<IHubCallerClients>();
         clients.Setup(x => x.OthersInGroup(It.IsAny<string>())).Returns(othersProxy.Object);
 
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), Mock.Of<ITaskBranchAuthorizer>())
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), Mock.Of<ITaskBranchAuthorizer>(), RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId.ToString(), "conn-1"),
             Groups = Mock.Of<IGroupManager>(),
@@ -243,11 +244,12 @@ public class NotificationInfrastructureTests
         var taskId = Guid.NewGuid();
         var othersProxy = new Mock<IClientProxy>();
         var clients = new Mock<IHubCallerClients>();
-        clients.Setup(x => x.OthersInGroup($"task:{taskId}")).Returns(othersProxy.Object);
+        clients.Setup(x => x.GroupExcept($"task:{taskId}:user:{userId}", It.IsAny<IReadOnlyList<string>>())).Returns(othersProxy.Object);
         var authorizer = new Mock<ITaskBranchAuthorizer>();
         authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        authorizer.Setup(x => x.GetAudienceAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { userId });
 
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object, RealtimeSessionMonitorTests.CreateMonitor())
         {
             Context = HubContext(userId.ToString(), "conn-1"),
             Groups = Mock.Of<IGroupManager>(),
@@ -282,6 +284,9 @@ public class NotificationInfrastructureTests
         // The hub stores per-connection branch-room membership in Context.Items (for typing authz
         // and disconnect cleanup); back it with a real dictionary so those paths don't NRE.
         context.SetupGet(x => x.Items).Returns(new Dictionary<object, object?>());
+        context.SetupGet(x => x.User).Returns(RealtimeSessionMonitorTests.Principal(
+            Guid.TryParse(userId, out var userGuid) ? userGuid : Guid.NewGuid(),
+            DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddMinutes(10)));
         return context.Object;
     }
 }

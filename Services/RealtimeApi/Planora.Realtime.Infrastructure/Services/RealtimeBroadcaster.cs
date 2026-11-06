@@ -14,13 +14,16 @@ namespace Planora.Realtime.Infrastructure.Services
     {
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly ILogger<RealtimeBroadcaster> _logger;
+        private readonly ITaskBranchAuthorizer _branchAuthorizer;
 
         public RealtimeBroadcaster(
             IHubContext<NotificationHub> hubContext,
-            ILogger<RealtimeBroadcaster> logger)
+            ILogger<RealtimeBroadcaster> logger,
+            ITaskBranchAuthorizer branchAuthorizer)
         {
             _hubContext = hubContext;
             _logger = logger;
+            _branchAuthorizer = branchAuthorizer;
         }
 
         public async Task FeedChangedAsync(
@@ -71,6 +74,13 @@ namespace Planora.Realtime.Infrastructure.Services
             if (branchTaskId == Guid.Empty)
                 return;
 
+            // Event delivery can lag behind a share/friendship revocation. Never address the
+            // old room wholesale: Todo resolves the live audience, and per-user rooms keep the
+            // Redis backplane working even when a subscriber is connected to another instance.
+            var audience = await _branchAuthorizer.GetAudienceAsync(branchTaskId, actorId, cancellationToken);
+            if (audience is null || audience.Count == 0)
+                return;
+
             var payload = new
             {
                 action,
@@ -81,7 +91,7 @@ namespace Planora.Realtime.Infrastructure.Services
             };
 
             await _hubContext.Clients
-                .Group($"task:{branchTaskId}")
+                .Groups(audience.Select(userId => NotificationHub.UserBranchGroup(branchTaskId, userId)).ToArray())
                 .SendAsync("BranchChanged", payload, cancellationToken);
 
             _logger.LogDebug(

@@ -26,10 +26,13 @@ public static class DependencyInjection
     {
         services.AddSingleton<IConnectionManager, ConnectionManager>();
         services.AddSingleton<INotificationService, NotificationService>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<RealtimeSessionMonitor>();
+        services.AddHostedService(sp => sp.GetRequiredService<RealtimeSessionMonitor>());
 
-        // Live data-sync fan-out over SignalR (TaskFeedChanged / BranchChanged). Singleton like
-        // NotificationService — it only holds the hub context, which is itself a singleton.
-        services.AddSingleton<IRealtimeBroadcaster, RealtimeBroadcaster>();
+        // Branch delivery revalidates the audience through the scoped Todo authorizer. The bus
+        // already opens a scope per event, so no scoped dependency is captured by a singleton.
+        services.AddScoped<IRealtimeBroadcaster, RealtimeBroadcaster>();
 
         // Branch-room join authorization → TodoApi gRPC. The x-service-key header is added by the
         // shared interceptor (INV-COMM-2); the URL mirrors the Collaboration service's wiring.

@@ -218,7 +218,8 @@ public class Program
 
             app.MapControllers();
             app.MapGrpcService<RealtimeGrpcService>();
-            app.MapHub<NotificationHub>("/hubs/notifications");
+            app.MapHub<NotificationHub>("/hubs/notifications", options =>
+                options.CloseOnAuthenticationExpiration = true);
             // Health Checks — /health/live, /health/ready, /health (aggregate)
             app.MapPlanoraHealthEndpoints();
 

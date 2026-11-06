@@ -30,8 +30,36 @@ namespace Planora.Realtime.Infrastructure.Grpc
             Guid userId,
             CancellationToken cancellationToken = default)
         {
+            var response = await CheckAccessAsync(taskId, userId, cancellationToken);
+            return response is { Exists: true, HasAccess: true };
+        }
+
+        public async Task<IReadOnlyList<Guid>?> GetAudienceAsync(
+            Guid taskId,
+            Guid requesterId,
+            CancellationToken cancellationToken = default)
+        {
+            var response = await CheckAccessAsync(taskId, requesterId, cancellationToken);
+            if (response is null)
+                return null;
+            if (!response.Exists || !response.HasAccess)
+                return Array.Empty<Guid>();
+
+            return response.ParticipantIds
+                .Select(id => Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToArray();
+        }
+
+        private async Task<CheckTaskCommentAccessResponse?> CheckAccessAsync(
+            Guid taskId,
+            Guid userId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (taskId == Guid.Empty || userId == Guid.Empty)
-                return false;
+                return new CheckTaskCommentAccessResponse();
 
             try
             {
@@ -43,21 +71,25 @@ namespace Planora.Realtime.Infrastructure.Grpc
                     },
                     cancellationToken: cancellationToken);
 
-                return response.Exists && response.HasAccess;
+                return response;
             }
             catch (OperationCanceledException)
             {
                 throw;
             }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled && cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
             catch (RpcException ex)
             {
-                // Fail closed: if Todo can't authorize the join, the room is not entered. A user
-                // who should have access can simply reopen the branch once Todo is reachable again.
+                // Fail closed for both joins and delivery, while distinguishing an outage from
+                // an authoritative revocation so existing subscriptions can resume afterwards.
                 _logger.LogWarning(
                     ex,
-                    "Todo gRPC unavailable while authorizing branch join for task {TaskId}, user {UserId}: Status={Status}",
+                    "Todo gRPC unavailable while authorizing branch access for task {TaskId}, user {UserId}: Status={Status}",
                     taskId, userId, ex.StatusCode);
-                return false;
+                return null;
             }
         }
     }

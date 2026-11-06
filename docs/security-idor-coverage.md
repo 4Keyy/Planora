@@ -145,14 +145,18 @@ Sources: [NotificationsController](../Services/RealtimeApi/Planora.Realtime.Api/
 | `POST /realtime/api/v1/notifications/broadcast` | Admin-only, all users; no identical type whitelist | same suite; attribute/source |
 | `GET /realtime/api/v1/connections/active` | caller's local connections | [ConnectionsControllerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs); inventory is process-local |
 | `GET /realtime/api/v1/connections/stats` | Admin-only aggregate | same suite; attribute/source |
-| `Subscribe`/`Unsubscribe` | static `system`, `announcements`, `todos`; no client-controlled `user:{otherUser}` group | hub source; no dedicated hub test file found |
-| `JoinTask` | current Todo branch access; RPC failure denies join | [TaskBranchAuthorizerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Grpc/TaskBranchAuthorizerTests.cs), `NoAccessOrMissingTask_ReturnsFalse`, `TodoGrpcFailure_FailsClosed_ReturnsFalseWithoutThrowing`; authorizer regressions, not full hub tests |
-| `StartTyping`/`StopTyping` | must already have joined room locally | source; no current-access recheck |
-| `LeaveTask` | removes caller; sends stopped-typing to any valid task id without prior membership check | source; **AZ-06**, signal injection does not grant content reads |
+| `Subscribe`/`Unsubscribe` | static `system`, `announcements`, `todos`; no client-controlled `user:{otherUser}` group | hub source and [RealtimePrivacyTests](../tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/RealtimePrivacyTests.cs) |
+| `JoinTask` | authenticated, current stamp/expiry and Todo branch access; private per-user task group | [TaskBranchAuthorizerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Grpc/TaskBranchAuthorizerTests.cs), RealtimePrivacyTests |
+| `StartTyping`/`StopTyping` | joined room plus fresh Todo audience and session validation before/after RPC; denial evicts caller, outage suppresses send | RealtimePrivacyTests; no former-member group broadcast |
+| `LeaveTask` | requires joined membership; stopped-typing is sent only to the current audience | RealtimePrivacyTests; AZ-06 resolved |
 
-Existing rooms are not evicted on friendship/sharing removal. Existing WebSockets
-are not disconnected on JWT expiry or later security-stamp rotation by the inspected
-code. Authorization at connect/join time does not prove continuous current access.
+Task-room broadcasts address only current Todo participants through per-user groups,
+preserving Redis backplane routing. A silent revoked member may remain physically
+in its group, but current sends no longer address that group; a denied invocation
+removes its membership. Dependency outage suppresses sends without treating it as
+authoritative access removal. Each node's [RealtimeSessionMonitor](../Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/RealtimeSessionMonitor.cs)
+aborts invalid/expired or Redis-unverifiable sessions. Its idle check interval is
+15 seconds plus lookup/scheduling latency; native JWT-expiry closure is also enabled.
 
 ## Shared Administration
 
@@ -186,10 +190,11 @@ authorization and uncached list selection. The findings below remain open.
 | Finding | Trigger and impact | Missing regression / remediation direction |
 |---|---|---|
 | **AZ-03 (medium)** | former comment author deletes known regular comment after branch access removed: author/owner checked, `HasAccess` ignored | deletion denial matching existing `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden` |
-| **AZ-05 (medium)** | task room stays subscribed after access removal; JWT revocation/expiry does not end existing socket | room eviction/continuous authorization/expiry integration tests |
-| **AZ-06 (low)** | `LeaveTask` emits `UserStoppedTyping` to a room caller never joined | assert no unrelated-room event; require membership before signaling |
 
-Stamp fail-open/TTL behavior, public token-validation discrepancies, IP quotas and
+AZ-05/AZ-06 are covered by current-audience/session checks and the
+[monitor regressions](../tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/RealtimeSessionMonitorTests.cs).
+Live transport/backplane acceptance is tracked in the [T06 report](audits/planora-deep-audit/results/T06.md).
+Stamp TTL behavior, public token-validation discrepancies, IP quotas and
 dependency advisories are described in [the security reference](auth-security.md#known-security-gaps--clarifications).
 Passing a broader suite does not remove these source findings.
 

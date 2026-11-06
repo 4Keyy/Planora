@@ -28,8 +28,9 @@ Passing unit tests does not establish production readiness or exhaustive securit
   for remaining branch-access and subscription-revocation constraints.
 - Security-stamp lookup errors fail closed, but the marker has a fixed cache TTL.
   Missing markers after a successful lookup remain valid, so stamp-write ordering
-  and Redis persistence still matter. Existing realtime subscriptions are not
-  uniformly reauthorized on every access change.
+  and Redis persistence still matter. Realtime idle-session revocation uses a
+  15-second check interval plus Redis/scheduling latency; task-room delivery and
+  typing recheck the current audience. Already in-flight messages cannot be recalled.
 - Friend and affinity caches isolate cached data and in-flight results by viewer. Preserve
   account-switch, logout and late-response regressions when changing shared caches.
 - Public token-validation responses do not substitute for authenticated access checks.

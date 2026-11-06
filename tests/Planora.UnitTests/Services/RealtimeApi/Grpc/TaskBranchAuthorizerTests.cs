@@ -71,6 +71,69 @@ public sealed class TaskBranchAuthorizerTests
             auth.CanAccessBranchAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
     }
 
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task Audience_UsesFreshDomainResponseAndFiltersMalformedIds()
+    {
+        var taskId = Guid.NewGuid();
+        var requester = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var response = new CheckTaskCommentAccessResponse { Exists = true, HasAccess = true };
+        response.ParticipantIds.AddRange(new[] { requester.ToString(), friend.ToString(), requester.ToString(), "invalid", Guid.Empty.ToString() });
+        var calls = 0;
+        var auth = Create(request =>
+        {
+            var access = Assert.IsType<CheckTaskCommentAccessRequest>(request);
+            Assert.Equal(taskId.ToString(), access.TaskId);
+            Assert.Equal(requester.ToString(), access.RequesterId);
+            calls++;
+            return response;
+        });
+
+        Assert.Equal(new[] { requester, friend }, await auth.GetAudienceAsync(taskId, requester));
+        response.ParticipantIds.Remove(friend.ToString());
+        Assert.Equal(new[] { requester }, await auth.GetAudienceAsync(taskId, requester));
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    [Trait("TestType", "Resilience")]
+    public async Task Audience_DistinguishesAuthoritativeDenialFromUnavailableAuthority()
+    {
+        var taskId = Guid.NewGuid();
+        var requester = Guid.NewGuid();
+        var denied = Create(_ => new CheckTaskCommentAccessResponse { Exists = true });
+        var unavailable = Create(_ => new RpcException(new Status(StatusCode.Unavailable, "unavailable")));
+
+        Assert.Empty((await denied.GetAudienceAsync(taskId, requester))!);
+        Assert.Null(await unavailable.GetAudienceAsync(taskId, requester));
+    }
+
+    [Fact]
+    [Trait("TestType", "Resilience")]
+    public async Task Audience_CancellationPropagates()
+    {
+        var auth = Create(_ => new OperationCanceledException());
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            auth.GetAudienceAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Resilience")]
+    public async Task Audience_GrpcCancellationPropagatesInsteadOfBecomingAnOutage()
+    {
+        using var source = new CancellationTokenSource();
+        var auth = Create(_ =>
+        {
+            source.Cancel();
+            return new RpcException(new Status(StatusCode.Cancelled, "cancelled"));
+        });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            auth.GetAudienceAsync(Guid.NewGuid(), Guid.NewGuid(), source.Token));
+    }
+
     /// <summary>Minimal CallInvoker that runs a handler and shapes the result into an AsyncUnaryCall.</summary>
     private sealed class UnaryInvoker(Func<object, object> handler) : CallInvoker
     {

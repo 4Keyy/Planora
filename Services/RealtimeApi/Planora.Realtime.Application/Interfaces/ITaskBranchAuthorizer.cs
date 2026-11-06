@@ -9,5 +9,12 @@ namespace Planora.Realtime.Application.Interfaces
     public interface ITaskBranchAuthorizer
     {
         Task<bool> CanAccessBranchAsync(Guid taskId, Guid userId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the current content audience when the requester still has access. An empty
+        /// audience is an authoritative denial; null means the authority is unavailable. Neither
+        /// permits delivery, but an outage must not permanently evict an otherwise valid member.
+        /// </summary>
+        Task<IReadOnlyList<Guid>?> GetAudienceAsync(Guid taskId, Guid requesterId, CancellationToken cancellationToken = default);
     }
 }
