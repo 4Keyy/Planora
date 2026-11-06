@@ -49,7 +49,15 @@ public sealed class AuthPasswordResetPostgresTests
 
         var stamp = new Mock<ISecurityStampService>();
         stamp.Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
-            .Returns((Guid _, CancellationToken token) => AssertCommittedResetAsync(database, user.Id, token));
+            .Returns(async (Guid _, CancellationToken token) =>
+            {
+                await using var observer = CreateContext(database.Options<AuthDbContext>());
+                var pending = await observer.Users.AsNoTracking().Include(row => row.RefreshTokens)
+                    .SingleAsync(row => row.Id == user.Id, token);
+                Assert.Equal(OriginalPasswordHash, pending.PasswordHash);
+                Assert.Equal(resetHash, pending.PasswordResetToken);
+                Assert.True(Assert.Single(pending.RefreshTokens).IsActive);
+            });
         var email = new Mock<IEmailService>();
         email.Setup(x => x.SendPasswordChangedNotificationAsync(
                 user.Email.Value, user.FirstName, It.IsAny<CancellationToken>()))

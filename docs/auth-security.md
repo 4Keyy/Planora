@@ -72,12 +72,14 @@ Replay revocation takes its active-session snapshot after acquiring the same loc
 legitimate refresh can still trigger the deliberate account-wide replay response; serialization
 does not distinguish a racing client from a stolen token.
 
-Password change and revoke-all load current active tokens under that lock and persist their
-revocations before rotating the Redis stamp. Logout and single-session revoke use a conditional
+Password reset/change, revoke-all and refresh replay perform their Redis stamp callback
+after SQL mutation and before commit, while holding the user lock. A failed callback rolls
+back SQL; a later commit failure can conservatively leave the stamp. Logout and single-session revoke use a conditional
 update matching token ID, owner, hash and active lifetime. A delayed request cannot overwrite or
 revoke a newer token generation; single-session revoke reports an inactive-session conflict when
-the expected generation no longer matches. Database commits and Redis stamp writes remain separate
-operations, subject to the stamp availability limits below.
+the expected generation no longer matches. Redis and PostgreSQL are separate stores;
+this ordering does not make a successful Redis write durable against later Redis data loss.
+ChangeEmail, Disable2FA and DeleteUser still need the same pre-commit ordering.
 
 ### The landing page's sandbox session
 
@@ -321,8 +323,8 @@ The login validator accepts six decimal TOTP digits or an uppercase `XXXXX-XXXXX
 TOTP uses a 20-byte Base32 secret, 30-second steps and a ±2-step verification window.
 Successful verification reserves `totp:used:{userId}:{timeStep}` in Redis with `NX` and
 a three-minute TTL. A reused step or Redis failure rejects the TOTP (fail closed);
-an unused recovery code remains an alternative. This replay policy differs from the
-fail-open security-stamp policy below.
+an unused recovery code remains an alternative. Security-stamp lookup errors also
+fail closed; an absent stamp after a successful lookup remains valid.
 
 Code:
 
@@ -348,7 +350,7 @@ A token issued before an available stamp is rejected with `401`.
 | `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
 | `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or an attacker presenting a stolen value; the server cannot distinguish these causes. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
 
-The stamp rotates **only on successful execution** of the command. A wrong-password attempt does not invalidate active sessions — otherwise an observer could DoS a legitimate user. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin both the success-path stamp call and the failure-path absence-of-call.
+Credential validation must succeed before stamp rotation: a wrong-password attempt does not invalidate active sessions. For reset/change password, revoke-all and refresh replay, the stamp is written before SQL commit. A failed commit can therefore conservatively invalidate access tokens even though SQL rolls back. Regression tests pin both credential-failure absence of stamp calls and this failure ordering.
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 
@@ -385,8 +387,10 @@ Enforcement limits:
 - The stamp TTL is hardcoded to **120 minutes**, not derived from access-token settings.
   An access lifetime longer than that can outlive the revocation marker. Keep lifetime
   below the marker lifetime until this relationship is enforced in code.
-- Missing Redis/stamp, malformed stamp or Redis errors fail open. When a valid stamp
-  exists, absent/unparseable `iat` fails closed. These choices are pinned in
+- Missing Redis, Redis errors, malformed/empty stored stamps and invalid principals
+  fail closed. When a valid stamp exists, absent, unparseable or out-of-range `iat`
+  rejects the token. A successful lookup returning no stamp remains valid: stamps
+  record security events, not every login. These choices are pinned in
   [SecurityStampValidatorTests](../tests/Planora.UnitTests/BuildingBlocks/Security/SecurityStampValidatorTests.cs).
 - JWT `iat` has second precision but the stamp includes fractions of a second; a token
   issued immediately after rotation in the same second can still compare as older.

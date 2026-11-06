@@ -150,8 +150,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                 userId, attackerIp);
 
             await _unitOfWork.RefreshTokens.RevokeActiveAfterReplayAsync(
-                userId, attackerIp, ReuseDetectedReason, cancellationToken);
-            await _securityStamp.SetStampAsync(userId, cancellationToken);
+                userId, attackerIp, ReuseDetectedReason,
+                token => _securityStamp.SetStampAsync(userId, token), cancellationToken);
         }
     }
 }

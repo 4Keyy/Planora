@@ -57,15 +57,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
                 }
 
                 var ipAddress = _currentUserService.IpAddress ?? "unknown";
-                if (!await _unitOfWork.TryRevokeAllSessionsAsync(user.Id, verifiedPasswordHash, ipAddress, cancellationToken))
+                if (!await _unitOfWork.TryRevokeAllSessionsAsync(user.Id, verifiedPasswordHash, ipAddress,
+                        token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken))
                     return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
-
-                // SECURITY: this command's raison d'être. Refresh-token revocation alone
-                // kills future refresh attempts but leaves outstanding access tokens
-                // valid until they expire on their own. Rotating the security stamp
-                // makes every existing access token fail on its next authenticated
-                // request, so "revoke all sessions" actually does what the name says.
-                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
                 _logger.LogInformation("All sessions revoked for user: {UserId}", user.Id);
                 return Result.Success();

@@ -107,12 +107,10 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
 
             var newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
             var updated = await _unitOfWork.TryChangePasswordAsync(
-                user.Id, verifiedPasswordHash, newPasswordHash, PasswordHistoryLimit, cancellationToken);
+                user.Id, verifiedPasswordHash, newPasswordHash, PasswordHistoryLimit,
+                token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken);
             if (updated is null)
                 return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Current password is incorrect"));
-
-            // Invalidate all access tokens issued before this point
-            await _securityStamp.SetStampAsync(updated.Id, cancellationToken);
 
             await _emailService.SendPasswordChangedNotificationAsync(
                 updated.Email.Value,

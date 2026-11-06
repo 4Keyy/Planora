@@ -124,6 +124,14 @@ namespace Planora.Auth.Infrastructure.Persistence
             string expectedTokenHash,
             string passwordHash,
             CancellationToken cancellationToken = default) =>
+            TryResetPasswordAsync(userId, expectedTokenHash, passwordHash, static _ => Task.CompletedTask, cancellationToken);
+
+        public Task<User?> TryResetPasswordAsync(
+            Guid userId,
+            string expectedTokenHash,
+            string passwordHash,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default) =>
             TryCommitSessionMutationAsync(
                 userId,
                 (context, token) =>
@@ -144,6 +152,7 @@ namespace Planora.Auth.Infrastructure.Persistence
                     return Task.CompletedTask;
                 },
                 (context, token) => HasPasswordAsync(context, userId, passwordHash, token),
+                beforeCommit,
                 cancellationToken);
 
         public Task<User?> TryChangePasswordAsync(
@@ -151,6 +160,16 @@ namespace Planora.Auth.Infrastructure.Persistence
             string verifiedPasswordHash,
             string passwordHash,
             int passwordHistoryLimit,
+            CancellationToken cancellationToken = default) =>
+            TryChangePasswordAsync(userId, verifiedPasswordHash, passwordHash, passwordHistoryLimit,
+                static _ => Task.CompletedTask, cancellationToken);
+
+        public Task<User?> TryChangePasswordAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string passwordHash,
+            int passwordHistoryLimit,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken = default) =>
             TryCommitSessionMutationAsync(
                 userId,
@@ -167,12 +186,22 @@ namespace Planora.Auth.Infrastructure.Persistence
                     user.ChangePassword(passwordHash, userId);
                 },
                 (context, token) => HasPasswordAsync(context, userId, passwordHash, token),
+                beforeCommit,
                 cancellationToken);
+
+        public Task<bool> TryRevokeAllSessionsAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string ipAddress,
+            CancellationToken cancellationToken = default) =>
+            TryRevokeAllSessionsAsync(userId, verifiedPasswordHash, ipAddress,
+                static _ => Task.CompletedTask, cancellationToken);
 
         public async Task<bool> TryRevokeAllSessionsAsync(
             Guid userId,
             string verifiedPasswordHash,
             string ipAddress,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken = default)
         {
             var user = await TryCommitSessionMutationAsync(
@@ -185,6 +214,7 @@ namespace Planora.Auth.Infrastructure.Persistence
                 },
                 async (context, token) => !await context.RefreshTokens.AnyAsync(row =>
                     row.UserId == userId && row.RevokedAt == null && row.ExpiresAt > DateTime.UtcNow, token),
+                beforeCommit,
                 cancellationToken);
             return user is not null;
         }
@@ -194,8 +224,10 @@ namespace Planora.Auth.Infrastructure.Persistence
             Func<AuthDbContext, CancellationToken, Task<User?>> loadLockedUser,
             Func<AuthDbContext, User, CancellationToken, Task> applyMutation,
             Func<AuthDbContext, CancellationToken, Task<bool>> verifySucceeded,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken)
         {
+            ArgumentNullException.ThrowIfNull(beforeCommit);
             User? changedUser = null;
             var committed = await _context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
                 _context,
@@ -214,6 +246,9 @@ namespace Planora.Auth.Infrastructure.Persistence
                         .LoadAsync(token);
                     await applyMutation(context, changedUser, token);
                     await context.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
+                    // Fail the SQL transaction if access-token invalidation cannot be persisted.
+                    // The user lock stays held until both this callback and the commit complete.
+                    await beforeCommit(token);
                     return true;
                 },
                 verifySucceeded,

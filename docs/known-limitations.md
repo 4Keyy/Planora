@@ -26,8 +26,10 @@ Passing unit tests does not establish production readiness or exhaustive securit
 
 - Check the [authorization map](security-idor-coverage.md#known-findings-and-missing-regressions)
   for remaining branch-access and subscription-revocation constraints.
-- Security-stamp lookups have fail-open behaviour and a fixed cache TTL; existing realtime
-  subscriptions are not uniformly reauthorized on every access change.
+- Security-stamp lookup errors fail closed, but the marker has a fixed cache TTL.
+  Missing markers after a successful lookup remain valid, so stamp-write ordering
+  and Redis persistence still matter. Existing realtime subscriptions are not
+  uniformly reauthorized on every access change.
 - Friend and affinity caches isolate cached data and in-flight results by viewer. Preserve
   account-switch, logout and late-response regressions when changing shared caches.
 - Public token-validation responses do not substitute for authenticated access checks.

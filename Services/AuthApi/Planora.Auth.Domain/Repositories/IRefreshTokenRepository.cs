@@ -10,6 +10,7 @@ namespace Planora.Auth.Domain.Repositories
             string ipAddress,
             string reason,
             CancellationToken cancellationToken = default);
+
         Task<bool> TryRotateAsync(
             RefreshToken current,
             RefreshToken successor,
@@ -19,6 +20,13 @@ namespace Planora.Auth.Domain.Repositories
             Guid userId,
             string ipAddress,
             string reason,
+            CancellationToken cancellationToken = default);
+
+        Task RevokeActiveAfterReplayAsync(
+            Guid userId,
+            string ipAddress,
+            string reason,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<RefreshToken>> GetActiveTokensByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);

@@ -82,7 +82,17 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             string ipAddress,
             string reason,
             CancellationToken cancellationToken = default) =>
-            _context.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
+            RevokeActiveAfterReplayAsync(userId, ipAddress, reason, static _ => Task.CompletedTask, cancellationToken);
+
+        public Task RevokeActiveAfterReplayAsync(
+            Guid userId,
+            string ipAddress,
+            string reason,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(beforeCommit);
+            return _context.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync(token);
                 // Take the active-row snapshot after any in-flight rotation commits.
@@ -95,8 +105,10 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                         .SetProperty(row => row.RevokedByIp, ipAddress)
                         .SetProperty(row => row.RevokedReason, reason)
                         .SetProperty(row => row.ReplacedByToken, (string?)null), token);
+                await beforeCommit(token);
                 await transaction.CommitAsync(token);
             }, cancellationToken);
+        }
 
         public async Task<IReadOnlyList<RefreshToken>> GetActiveTokensByUserIdAsync(
             Guid userId,

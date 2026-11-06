@@ -23,7 +23,7 @@ public sealed class AuthSessionRevocationPostgresTests
     private readonly PasswordHasher _hasher = new();
 
     [PostgresFact]
-    public async Task ChangePasswordAsync_RevokesCurrentSessionsWithPasswordAndHistoryBeforeStamp()
+    public async Task ChangePasswordAsync_WritesStampBeforeCommittingPasswordHistoryAndSessions()
     {
         await using var database = await TemporaryDatabase.CreateAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -58,23 +58,23 @@ public sealed class AuthSessionRevocationPostgresTests
         Assert.True(result.IsSuccess);
         stamp.Verify(x => x.SetStampAsync(before.Owner.Id, It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(atStamp);
+        Assert.Equal(before.Owner.PasswordHash, atStamp.Owner.PasswordHash);
+        Assert.Equal(before.History.Count, atStamp.History.Count);
+        Assert.Equal(2, atStamp.Sessions.Count(row => row.UserId == before.Owner.Id && row.IsActive));
         var persisted = await ReadSnapshotAsync(database, before.Owner.Id, timeout.Token);
-        foreach (var snapshot in new[] { atStamp, persisted })
-        {
-            Assert.True(_hasher.VerifyPassword(NewPassword, snapshot.Owner.PasswordHash));
-            Assert.NotNull(snapshot.Owner.LastPasswordChangedAt);
-            Assert.Equal(5, snapshot.History.Count);
-            var retained = before.History.OrderByDescending(entry => entry.ChangedAt).Take(4)
-                .Select(entry => entry.Id).ToHashSet();
-            Assert.Equal(4, snapshot.History.Count(entry => retained.Contains(entry.Id)));
-            Assert.Equal(before.Owner.PasswordHash, Assert.Single(snapshot.History,
-                entry => !retained.Contains(entry.Id)).PasswordHash);
-            AssertSessionsRevoked(before, snapshot, "Password changed", "system");
-        }
+        Assert.True(_hasher.VerifyPassword(NewPassword, persisted.Owner.PasswordHash));
+        Assert.NotNull(persisted.Owner.LastPasswordChangedAt);
+        Assert.Equal(5, persisted.History.Count);
+        var retained = before.History.OrderByDescending(entry => entry.ChangedAt).Take(4)
+            .Select(entry => entry.Id).ToHashSet();
+        Assert.Equal(4, persisted.History.Count(entry => retained.Contains(entry.Id)));
+        Assert.Equal(before.Owner.PasswordHash, Assert.Single(persisted.History,
+            entry => !retained.Contains(entry.Id)).PasswordHash);
+        AssertSessionsRevoked(before, persisted, "Password changed", "system");
     }
 
     [PostgresFact]
-    public async Task RevokeAllSessionsAsync_RevokesOnlyOwnersCurrentSessionsBeforeStamp()
+    public async Task RevokeAllSessionsAsync_WritesStampBeforeCommittingOwnersSessionRevocation()
     {
         await using var database = await TemporaryDatabase.CreateAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -96,17 +96,15 @@ public sealed class AuthSessionRevocationPostgresTests
         Assert.True(result.IsSuccess);
         stamp.Verify(x => x.SetStampAsync(before.Owner.Id, It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(atStamp);
+        Assert.Equal(2, atStamp.Sessions.Count(row => row.UserId == before.Owner.Id && row.IsActive));
         var persisted = await ReadSnapshotAsync(database, before.Owner.Id, timeout.Token);
-        foreach (var snapshot in new[] { atStamp, persisted })
-        {
-            Assert.Equal(before.Owner.PasswordHash, snapshot.Owner.PasswordHash);
-            Assert.Equal(before.Owner.LastPasswordChangedAt, snapshot.Owner.LastPasswordChangedAt);
-            var originalHistory = Assert.Single(before.History);
-            var unchangedHistory = Assert.Single(snapshot.History);
-            Assert.Equal((originalHistory.Id, originalHistory.PasswordHash, originalHistory.ChangedAt),
-                (unchangedHistory.Id, unchangedHistory.PasswordHash, unchangedHistory.ChangedAt));
-            AssertSessionsRevoked(before, snapshot, "Revoked all tokens", ClientIp);
-        }
+        Assert.Equal(before.Owner.PasswordHash, persisted.Owner.PasswordHash);
+        Assert.Equal(before.Owner.LastPasswordChangedAt, persisted.Owner.LastPasswordChangedAt);
+        var originalHistory = Assert.Single(before.History);
+        var unchangedHistory = Assert.Single(persisted.History);
+        Assert.Equal((originalHistory.Id, originalHistory.PasswordHash, originalHistory.ChangedAt),
+            (unchangedHistory.Id, unchangedHistory.PasswordHash, unchangedHistory.ChangedAt));
+        AssertSessionsRevoked(before, persisted, "Revoked all tokens", ClientIp);
     }
 
     [PostgresFact]

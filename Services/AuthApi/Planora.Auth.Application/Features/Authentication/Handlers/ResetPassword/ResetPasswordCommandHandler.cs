@@ -84,12 +84,10 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
 
                 var newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
                 var changedUser = await _unitOfWork.TryResetPasswordAsync(
-                    user.Id, tokenHash, newPasswordHash, cancellationToken);
+                    user.Id, tokenHash, newPasswordHash,
+                    token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken);
                 if (changedUser is null)
                     return InvalidToken();
-
-                // Invalidate all access tokens issued before this point
-                await _securityStamp.SetStampAsync(changedUser.Id, cancellationToken);
 
                 await _emailService.SendPasswordChangedNotificationAsync(
                     changedUser.Email.Value,

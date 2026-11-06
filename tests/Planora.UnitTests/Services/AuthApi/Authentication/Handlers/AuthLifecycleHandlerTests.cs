@@ -459,17 +459,22 @@ public class AuthLifecycleHandlerTests
         fixture.Users.Setup(x => x.GetByRefreshTokenAsync("rotated-value", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         fixture.CurrentUser.SetupGet(x => x.IpAddress).Returns("9.9.9.9");
+        fixture.RefreshTokens.Setup(x => x.RevokeActiveAfterReplayAsync(
+                user.Id, "9.9.9.9", "Reuse detected — chain invalidated",
+                It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns((Guid _, string _, string _, Func<CancellationToken, Task> beforeCommit, CancellationToken token) => beforeCommit(token));
 
         // When: the attacker replays the already-rotated token.
         var result = await fixture.CreateRefreshTokenHandler().Handle(
             new RefreshTokenCommand { RefreshToken = "rotated-value" },
             CancellationToken.None);
 
-        // Then: the repository revokes the live chain before the security stamp is updated.
+        // The repository must perform access-token invalidation before committing the chain revocation.
         Assert.True(result.IsFailure);
         Assert.Equal("INVALID_REFRESH_TOKEN", result.Error!.Code);
         fixture.RefreshTokens.Verify(x => x.RevokeActiveAfterReplayAsync(
-            user.Id, "9.9.9.9", "Reuse detected — chain invalidated", It.IsAny<CancellationToken>()), Times.Once);
+            user.Id, "9.9.9.9", "Reuse detected — chain invalidated",
+            It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()), Times.Once);
         fixture.SecurityStamp.Verify(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 

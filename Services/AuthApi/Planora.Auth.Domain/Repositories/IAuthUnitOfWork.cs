@@ -26,6 +26,13 @@ namespace Planora.Auth.Domain.Repositories
             string passwordHash,
             CancellationToken cancellationToken = default);
 
+        Task<User?> TryResetPasswordAsync(
+            Guid userId,
+            string expectedTokenHash,
+            string passwordHash,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default);
+
         Task<User?> TryChangePasswordAsync(
             Guid userId,
             string verifiedPasswordHash,
@@ -33,10 +40,25 @@ namespace Planora.Auth.Domain.Repositories
             int passwordHistoryLimit,
             CancellationToken cancellationToken = default);
 
+        Task<User?> TryChangePasswordAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string passwordHash,
+            int passwordHistoryLimit,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default);
+
         Task<bool> TryRevokeAllSessionsAsync(
             Guid userId,
             string verifiedPasswordHash,
             string ipAddress,
+            CancellationToken cancellationToken = default);
+
+        Task<bool> TryRevokeAllSessionsAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            string ipAddress,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken = default);
 
         Task ClearExpiredPasswordResetAsync(
