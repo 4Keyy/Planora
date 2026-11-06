@@ -221,6 +221,9 @@ namespace Planora.Collaboration.Infrastructure.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<Guid?>("SourceSubtaskId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("TaskId")
                         .HasColumnType("uuid");
 
@@ -246,6 +249,8 @@ namespace Planora.Collaboration.Infrastructure.Migrations
                     b.HasIndex("TaskId", "CreatedAt");
 
                     b.HasIndex("TaskId", "ReplyToId");
+
+                    b.HasIndex("TaskId", "SourceSubtaskId");
 
                     b.ToTable("comments", "collaboration");
                 });

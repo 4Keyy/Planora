@@ -114,7 +114,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 await _outboxRepository.StageIntegrationEventAsync(
                                     new TaskActivityIntegrationEvent(
                                         todoItem.ParentTodoId.Value, userId, completerName,
-                                        TaskActivityType.SubtaskCompleted, todoItem.Title),
+                                        TaskActivityType.SubtaskCompleted, todoItem.Title, todoItem.Id),
                                     cancellationToken);
 
                                 // Notify the other branch participants that a subtask was completed
@@ -490,7 +490,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 await _outboxRepository.StageIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(
                         todoItem.ParentTodoId.Value, userId, ownerName,
-                        TaskActivityType.SubtaskCompleted, todoItem.Title),
+                        TaskActivityType.SubtaskCompleted, todoItem.Title, todoItem.Id),
                     cancellationToken);
 
                 // Same as the collaborator path: notify the other participants (owner excluded).

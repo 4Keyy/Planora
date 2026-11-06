@@ -36,13 +36,18 @@ namespace Planora.BuildingBlocks.Application.Messaging.Events
         /// <summary>Optional context for the sentence, e.g. the subtask title. Null for plain task events.</summary>
         public string? Detail { get; init; }
 
-        public TaskActivityIntegrationEvent(Guid taskId, Guid actorId, string actorName, string activityType, string? detail = null)
+        /// <summary>Identity of a subtask whose activity is posted to its parent's branch. Absent on legacy payloads.</summary>
+        public Guid? SourceSubtaskId { get; init; }
+
+        public TaskActivityIntegrationEvent(Guid taskId, Guid actorId, string actorName, string activityType,
+            string? detail = null, Guid? sourceSubtaskId = null)
         {
             TaskId = taskId;
             ActorId = actorId;
             ActorName = actorName;
             ActivityType = activityType;
             Detail = detail;
+            SourceSubtaskId = sourceSubtaskId;
         }
     }
 }

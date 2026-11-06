@@ -17,12 +17,11 @@ namespace Planora.Collaboration.Domain.Repositories
         Task<int> SoftDeleteByAuthorAsync(Guid authorId, Guid deletedBy, CancellationToken ct = default);
 
         /// <summary>
-        /// Soft-deletes the subtask announcement system comments ("… added a subtask: {title}" /
-        /// "… completed a subtask: {title}") within a parent task's branch, used when that subtask
-        /// is deleted. Matches the deterministic sentence suffix produced by the activity consumer.
+        /// Soft-deletes identity-backed subtask activity within its parent branch. Legacy entries
+        /// without a source identity are preserved; display text is not used to infer identity.
         /// </summary>
         Task SoftDeleteSubtaskActivityAsync(
-            Guid parentTaskId, string subtaskTitle, Guid deletedBy, CancellationToken ct = default);
+            Guid parentTaskId, Guid subtaskId, Guid deletedBy, CancellationToken ct = default);
 
         /// <summary>
         /// Batch-loads the live (non-deleted) comments with the given ids inside one task's

@@ -65,12 +65,13 @@ public sealed class IntegrationEventConsumerTests
             Mock.Of<ILogger<TaskActivityEventConsumer>>());
 
         await consumer.HandleAsync(
-            new TaskActivityIntegrationEvent(taskId, Guid.NewGuid(), "Carol", activity), CancellationToken.None);
+            new TaskActivityIntegrationEvent(taskId, Guid.NewGuid(), "Carol", activity, sourceSubtaskId: Guid.NewGuid()), CancellationToken.None);
 
         Assert.NotNull(captured);
         Assert.True(captured!.IsSystemComment);
         Assert.Contains(expectedFragment, captured.Content);
         Assert.Contains("Carol", captured.Content);
+        Assert.Null(captured.SourceSubtaskId);
     }
 
     [Theory]
@@ -80,6 +81,7 @@ public sealed class IntegrationEventConsumerTests
     public async Task SubtaskActivity_WritesSystemCommentWithTitle(string activity, string expectedFragment)
     {
         var parentId = Guid.NewGuid();
+        var sourceSubtaskId = Guid.NewGuid();
         var comments = new Mock<ICommentRepository>();
         Comment? captured = null;
         comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
@@ -90,12 +92,13 @@ public sealed class IntegrationEventConsumerTests
             Mock.Of<ILogger<TaskActivityEventConsumer>>());
 
         await consumer.HandleAsync(
-            new TaskActivityIntegrationEvent(parentId, Guid.NewGuid(), "Dave", activity, "Draft outline"),
+            new TaskActivityIntegrationEvent(parentId, Guid.NewGuid(), "Dave", activity, "Draft outline", sourceSubtaskId),
             CancellationToken.None);
 
         Assert.NotNull(captured);
         Assert.True(captured!.IsSystemComment);
         Assert.Equal(parentId, captured.TaskId); // posted to the PARENT's branch
+        Assert.Equal(sourceSubtaskId, captured.SourceSubtaskId);
         Assert.Contains("Dave", captured.Content);
         Assert.Contains(expectedFragment, captured.Content);
     }
@@ -153,9 +156,9 @@ public sealed class IntegrationEventConsumerTests
             new SubtaskDeletedIntegrationEvent(parentId, subtaskId, actor, "Draft outline"),
             CancellationToken.None);
 
-        // Targets the parent branch + title (not a whole-branch wipe).
+        // Identity scopes deletion even when two subtasks have the same display title.
         comments.Verify(x => x.SoftDeleteSubtaskActivityAsync(
-            parentId, "Draft outline", actor, It.IsAny<CancellationToken>()), Times.Once);
+            parentId, subtaskId, actor, It.IsAny<CancellationToken>()), Times.Once);
         comments.Verify(x => x.SoftDeleteByTaskIdAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

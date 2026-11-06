@@ -26,6 +26,7 @@ namespace Planora.Collaboration.Domain.Entities
         public string Content { get; private set; } = string.Empty;
         public bool IsSystemComment { get; private set; }
         public bool IsGenesisComment { get; private set; }
+        public Guid? SourceSubtaskId { get; private set; }
 
         // ── Reply reference (all null/false on a plain comment) ─────────────────────────────
         // The reference is a SNAPSHOT taken server-side at reply time: the preview and author
@@ -145,7 +146,7 @@ namespace Planora.Collaboration.Domain.Entities
             ReplyToDeleted = true;
         }
 
-        public static Comment CreateSystem(Guid taskId, string content)
+        public static Comment CreateSystem(Guid taskId, string content, Guid? sourceSubtaskId = null)
         {
             if (taskId == Guid.Empty)
                 throw new InvalidValueObjectException(nameof(Comment), "TaskId cannot be empty");
@@ -160,6 +161,7 @@ namespace Planora.Collaboration.Domain.Entities
                 Content = content.Trim(),
                 IsSystemComment = true,
                 IsGenesisComment = false,
+                SourceSubtaskId = sourceSubtaskId,
             };
         }
 

@@ -108,6 +108,8 @@ Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/**
 !Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053345_InitialPreReplyBaseline.Designer.cs
 !Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.cs
 !Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261104053426_AddReplyReferences.Designer.cs
+!Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261106182312_AddSubtaskActivityIdentity.cs
+!Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/20261106182312_AddSubtaskActivityIdentity.Designer.cs
 !Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/CollaborationDbContextModelSnapshot.cs
 !Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations
 Services/MessagingApi/Planora.Messaging.Infrastructure/Migrations/**

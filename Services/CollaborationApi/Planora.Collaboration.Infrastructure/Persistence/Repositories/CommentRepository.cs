@@ -70,22 +70,15 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
         }
 
         public async Task SoftDeleteSubtaskActivityAsync(
-            Guid parentTaskId, string subtaskTitle, Guid deletedBy, CancellationToken ct = default)
+            Guid parentTaskId, Guid subtaskId, Guid deletedBy, CancellationToken ct = default)
         {
-            var title = (subtaskTitle ?? string.Empty).Trim();
-            if (title.Length == 0)
+            if (subtaskId == Guid.Empty)
                 return;
 
-            // The activity consumer writes deterministic sentences ending with the subtask title,
-            // e.g. "Ann added a subtask: Buy milk". Match those exact suffixes within the parent's
-            // branch so we never touch a regular comment or a different subtask's announcement.
-            var addedSuffix = $"added a subtask: {title}";
-            var completedSuffix = $"completed a subtask: {title}";
-
-            // Load-then-update keeps parity with SoftDeleteByTaskIdAsync (InMemory-friendly).
+            // Keep xmin-backed tracked updates in the same save as the reply-target flags.
             var comments = await DbSet
                 .Where(c => c.TaskId == parentTaskId && c.IsSystemComment && !c.IsDeleted &&
-                            (c.Content.EndsWith(addedSuffix) || c.Content.EndsWith(completedSuffix)))
+                            c.SourceSubtaskId == subtaskId)
                 .ToListAsync(ct);
 
             foreach (var comment in comments)

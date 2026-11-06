@@ -7,8 +7,8 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
     /// <summary>
     /// Removes a deleted subtask's announcement comments from the PARENT task's branch. A subtask
     /// has no branch of its own, so deleting it must not wipe the parent timeline — only the
-    /// "added a subtask: …" / "completed a subtask: …" system comments it produced. Naturally
-    /// idempotent: a redelivered event finds no remaining matching comments.
+    /// identity-backed system comments it produced. Legacy entries with no source identity survive.
+    /// Naturally idempotent: a redelivered event finds no remaining matching comments.
     /// </summary>
     public sealed class SubtaskDeletedEventConsumer : IIntegrationEventHandler<SubtaskDeletedIntegrationEvent>
     {
@@ -29,7 +29,7 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
         public async Task HandleAsync(SubtaskDeletedIntegrationEvent @event, CancellationToken cancellationToken)
         {
             await _commentRepository.SoftDeleteSubtaskActivityAsync(
-                @event.ParentTaskId, @event.Title, @event.ActorId, cancellationToken);
+                @event.ParentTaskId, @event.SubtaskId, @event.ActorId, cancellationToken);
 
             // Replies that quoted the deleted subtask survive — only their quote flips to the
             // "deleted target" state (snapshot preview is kept for context).

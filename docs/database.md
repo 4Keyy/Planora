@@ -60,7 +60,8 @@ in [Realtime Persistence](#realtime-persistence):
 
 Reviewed migration chains are tracked for all six stores and explicitly admitted to Docker
 build contexts. Auth, Category and Messaging use `InitialReviewedBaseline` migrations;
-Collaboration has a pre-replies baseline followed by `AddReplyReferences`. Their helpers use
+Collaboration has a pre-replies baseline followed by `AddReplyReferences` and
+`AddSubtaskActivityIdentity`. Their helpers use
 `VersionedDatabaseStartup`: a session advisory lock serializes preparation, history must be a
 chronological prefix of the compiled chain, and mapped types, nullability, defaults, keys and
 indexes are checked before adoption and after migration. Auth's role seeds have stable IDs;
@@ -354,9 +355,10 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 ### Collaboration Schema Bootstrap
 
 `CollaborationDatabaseStartup` uses the tracked
-`20261104053345_InitialPreReplyBaseline` and `20261104053426_AddReplyReferences` chain.
-Preparation can adopt an equivalent unmanaged schema at either reviewed prefix, preserving
-comments, then apply any remaining migration. A partial reply schema or unknown/gapped history
+`20261104053345_InitialPreReplyBaseline`, `20261104053426_AddReplyReferences` and
+`20261106182312_AddSubtaskActivityIdentity` chain.
+Preparation can adopt an equivalent unmanaged schema at any of these reviewed prefixes,
+preserving comments, then apply remaining migrations. A partial reply/identity schema or unknown/gapped history
 is rejected. The database `planora_collaboration` is created by the dependency waiter when absent.
 
 The compatibility CLI flag below selects this guarded chain; it no longer performs a separate
@@ -366,8 +368,16 @@ unverified `ALTER TABLE ... IF NOT EXISTS` patch. Review the target and backup b
 dotnet run --project tools/Planora.Migrator -- --upgrade-collaboration-replies
 ```
 
-The migration adds the six reply columns and `(TaskId, ReplyToId)` index. Repeated preparation
+The reply migration adds six columns and the `(TaskId, ReplyToId)` index. The activity migration
+adds nullable UUID `Comment.SourceSubtaskId` and the `(TaskId, SourceSubtaskId)` index. New
+subtask completion events carry the subtask ID; deletion matches that ID inside its parent
+branch. Existing null-identity activity is preserved without a title-based backfill or delete.
+The identity migration does not rewrite existing comment rows. Repeated preparation
 validates known history and schema instead of assuming that an existing column is compatible.
+
+Coordinate schema, reader and writer rollout: older guarded binaries reject the new migration
+history. Do not automatically apply `Down`, which discards the new identity metadata. The
+isolated upgrade checks do not establish production lock duration or backup/restore readiness.
 
 ### Data Migration From Todo
 

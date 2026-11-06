@@ -25,6 +25,7 @@ public sealed class LegacyCollaborationModelCustomizer(ModelCustomizerDependenci
     public override void Customize(ModelBuilder modelBuilder, DbContext context)
     {
         base.Customize(modelBuilder, context);
+        PreSubtaskActivityIdentityModelCustomizer.RemoveSourceIdentity(modelBuilder);
 
         var comment = modelBuilder.Entity<Comment>();
         var replyIndex = comment.Metadata.GetIndexes().SingleOrDefault(index =>
@@ -45,7 +46,7 @@ public sealed class LegacyCollaborationModelCustomizer(ModelCustomizerDependenci
 public sealed class LegacyCollaborationBaselineFactoryTests
 {
     [Fact]
-    public void LegacyModel_RemovesOnlyReplyColumnsAndIndex_WithoutContaminatingTheCurrentModel()
+    public void LegacyModel_RemovesReplyAndActivityIdentity_WithoutContaminatingTheCurrentModel()
     {
         using var current = new CollaborationDbContext(
             new DbContextOptionsBuilder<CollaborationDbContext>().UseNpgsql().Options);
@@ -57,7 +58,8 @@ public sealed class LegacyCollaborationBaselineFactoryTests
         string[] replyProperties =
         [
             nameof(Comment.ReplyToType), nameof(Comment.ReplyToId), nameof(Comment.ReplyToAuthorId),
-            nameof(Comment.ReplyToAuthorName), nameof(Comment.ReplyToPreview), nameof(Comment.ReplyToDeleted)
+            nameof(Comment.ReplyToAuthorName), nameof(Comment.ReplyToPreview), nameof(Comment.ReplyToDeleted),
+            nameof(Comment.SourceSubtaskId)
         ];
 
         Assert.Null(legacy.Database.GetConnectionString());
@@ -91,7 +93,8 @@ public sealed class LegacyCollaborationBaselineFactoryTests
                 legacyTable!.Columns.Select(column => column.Name).OrderBy(name => name, StringComparer.Ordinal));
             Assert.Equal(
                 currentTable.Indexes.Where(index => !isCommentTable ||
-                        !index.Columns.Select(column => column.Name).SequenceEqual(new[] { "TaskId", "ReplyToId" }))
+                        (!index.Columns.Select(column => column.Name).SequenceEqual(new[] { "TaskId", "ReplyToId" }) &&
+                         !index.Columns.Select(column => column.Name).SequenceEqual(new[] { "TaskId", "SourceSubtaskId" })))
                     .Select(IndexDefinition).OrderBy(value => value, StringComparer.Ordinal),
                 legacyTable.Indexes.Select(IndexDefinition).OrderBy(value => value, StringComparer.Ordinal));
         }

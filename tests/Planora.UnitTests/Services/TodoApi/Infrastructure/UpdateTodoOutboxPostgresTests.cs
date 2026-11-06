@@ -94,6 +94,30 @@ public sealed class UpdateTodoOutboxPostgresTests
         }
     }
 
+    [PostgresFact]
+    public async Task OwnerSubtaskCompletionAsync_PersistsSourceIdentityInTheParentActivity()
+    {
+        await using var database = await TemporaryDatabase.CreateAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var seed = await SeedAsync(database, Mode.SubtaskComplete, timeout.Token);
+        await using var context = new TodoDbContext(database.Options<TodoDbContext>());
+        var outbox = new ControlledOutbox(new OutboxRepository(context));
+        var handler = CreateHandler(context, seed, Mode.SubtaskComplete, outbox, seed.Root.UserId);
+
+        var result = await handler.Handle(Command(seed, Mode.SubtaskComplete), timeout.Token);
+
+        Assert.True(result.IsSuccess);
+        await using var observer = new TodoDbContext(database.Options<TodoDbContext>());
+        var activityMessage = await observer.OutboxMessages.AsNoTracking()
+            .SingleAsync(message => message.Type == typeof(TaskActivityIntegrationEvent).AssemblyQualifiedName, timeout.Token);
+        var activity = JsonSerializer.Deserialize<TaskActivityIntegrationEvent>(activityMessage.Content)!;
+        Assert.Equal(seed.Root.Id, activity.TaskId);
+        Assert.Equal(seed.Subtask.Id, activity.SourceSubtaskId);
+        Assert.Equal(seed.Root.UserId, activity.ActorId);
+        Assert.Equal(TaskActivityType.SubtaskCompleted, activity.ActivityType);
+        Assert.Equal(seed.Subtask.Title, activity.Detail);
+    }
+
     private static async Task AssertWriteFailureAsync(Mode mode, int failAt)
     {
         await using var database = await TemporaryDatabase.CreateAsync();
@@ -122,13 +146,13 @@ public sealed class UpdateTodoOutboxPostgresTests
         mode is Mode.OwnerComplete or Mode.OwnerReopen ? seed.Root.UserId : seed.CollaboratorId;
 
     private static UpdateTodoCommandHandler CreateHandler(
-        TodoDbContext context, Seed seed, Mode mode, IOutboxRepository outbox)
+        TodoDbContext context, Seed seed, Mode mode, IOutboxRepository outbox, Guid? actorOverride = null)
     {
-        var actorId = CurrentActor(seed, mode);
+        var actorId = actorOverride ?? CurrentActor(seed, mode);
         var currentUser = new Mock<ICurrentUserContext>();
         currentUser.SetupGet(user => user.UserId).Returns(actorId);
         currentUser.SetupGet(user => user.Name).Returns(
-            mode is Mode.OwnerComplete or Mode.OwnerReopen ? "Audit Owner" : "Audit Collaborator");
+            actorId == seed.Root.UserId ? "Audit Owner" : "Audit Collaborator");
         var friendships = new Mock<IFriendshipService>();
         friendships.Setup(service => service.AreFriendsAsync(
                 seed.CollaboratorId, seed.Root.UserId, It.IsAny<CancellationToken>()))
@@ -311,6 +335,7 @@ public sealed class UpdateTodoOutboxPostgresTests
             _ => TaskActivityType.Completed,
         }, activity.ActivityType);
         Assert.Equal(mode == Mode.SubtaskComplete ? seed.Subtask.Title : null, activity.Detail);
+        Assert.Equal(mode == Mode.SubtaskComplete ? seed.Subtask.Id : (Guid?)null, activity.SourceSubtaskId);
         var sync = JsonSerializer.Deserialize<RealtimeSyncIntegrationEvent>(
             Assert.Single(messages, message => message.Type == typeof(RealtimeSyncIntegrationEvent).AssemblyQualifiedName).Content)!;
         Assert.Equal(mode == Mode.SubtaskComplete ? seed.Subtask.Id : seed.Root.Id, sync.EntityId);

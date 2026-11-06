@@ -53,7 +53,10 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
                 return;
             }
 
-            var systemComment = Comment.CreateSystem(@event.TaskId, text);
+            var sourceSubtaskId = @event.ActivityType is TaskActivityType.SubtaskCreated or TaskActivityType.SubtaskCompleted
+                ? @event.SourceSubtaskId
+                : null;
+            var systemComment = Comment.CreateSystem(@event.TaskId, text, sourceSubtaskId);
             await _commentRepository.AddAsync(systemComment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

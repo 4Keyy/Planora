@@ -10,6 +10,7 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.TaskId).IsRequired();
             builder.Property(x => x.AuthorId).IsRequired();
+            builder.Property(x => x.SourceSubtaskId).IsRequired(false);
 
             builder.Property(x => x.AuthorName)
                 .IsRequired()
@@ -58,6 +59,7 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Configurations
             // Reply-target lookups: the SubtaskDeleted cascade ("flag every reply quoting this
             // subtask") and any per-target fan-in are both keyed by (TaskId, ReplyToId).
             builder.HasIndex(x => new { x.TaskId, x.ReplyToId });
+            builder.HasIndex(x => new { x.TaskId, x.SourceSubtaskId });
 
             // Optimised for timeline reads (ordered by creation per task).
             builder.HasIndex(x => new { x.TaskId, x.CreatedAt });
