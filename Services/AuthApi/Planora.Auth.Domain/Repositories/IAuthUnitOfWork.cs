@@ -1,4 +1,5 @@
 using Planora.Auth.Domain.Entities;
+using Planora.Auth.Domain.ValueObjects;
 
 namespace Planora.Auth.Domain.Repositories
 {
@@ -64,6 +65,28 @@ namespace Planora.Auth.Domain.Repositories
         Task ClearExpiredPasswordResetAsync(
             Guid userId,
             string expectedTokenHash,
+            CancellationToken cancellationToken = default);
+
+        Task<User?> TryChangeEmailAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Email email,
+            string verificationTokenHash,
+            DateTime verificationTokenExpiry,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default);
+
+        Task<User?> TryDisableTwoFactorAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default);
+
+        Task<User?> TryDeleteUserAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Func<User, CancellationToken, Task> stageDeletion,
+            Func<CancellationToken, Task> beforeCommit,
             CancellationToken cancellationToken = default);
     }
 }

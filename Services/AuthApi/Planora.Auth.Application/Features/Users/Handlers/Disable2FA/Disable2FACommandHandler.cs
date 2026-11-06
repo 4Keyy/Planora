@@ -46,7 +46,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Disable2FA
                         Error.NotFound("USER_NOT_FOUND", "User not found"));
                 }
 
-                if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+                var verifiedPasswordHash = user.PasswordHash;
+                if (!_passwordHasher.VerifyPassword(command.Password, verifiedPasswordHash))
                 {
                     _logger.LogWarning("Invalid password during 2FA disable: {UserId}", user.Id);
                     return Result.Failure(
@@ -59,17 +60,10 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Disable2FA
                         Error.Conflict("2FA_NOT_ENABLED", "Two-factor authentication is not enabled"));
                 }
 
-                user.DisableTwoFactor();
-
-                _unitOfWork.Users.Update(user);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                // SECURITY: disabling 2FA reduces the account's security posture.
-                // Rotate the security stamp so every existing access token is rejected
-                // on its next authenticated request — the user re-authenticates on
-                // every device, eliminating the window where a stolen access token
-                // could continue to operate against a now-weaker account.
-                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+                var updated = await _unitOfWork.TryDisableTwoFactorAsync(user.Id, verifiedPasswordHash,
+                    token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken);
+                if (updated is null)
+                    return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
 
                 _logger.LogInformation("2FA disabled for user: {UserId}", user.Id);
                 return Result.Success();

@@ -183,6 +183,7 @@ public class UserSecurityHandlerTests
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.Users.Setup(x => x.GetByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+        SetupChangeEmail(fixture, user);
         fixture.EmailService
             .Setup(x => x.SendEmailVerificationAsync("new@example.com", user.FirstName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<string, string, string, CancellationToken>((_, _, link, _) => verificationLink = link)
@@ -200,8 +201,9 @@ public class UserSecurityHandlerTests
         Assert.StartsWith("https://app.example.com/auth/verify-email?token=", verificationLink);
         var rawToken = new Uri(verificationLink!).Query.TrimStart('?').Split('=')[1];
         Assert.Equal(OpaqueToken.Hash(rawToken), user.EmailVerificationToken);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryChangeEmailAsync(user.Id, user.PasswordHash,
+            It.IsAny<Email>(), It.IsAny<string>(), It.IsAny<DateTime>(),
+            It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -220,14 +222,15 @@ public class UserSecurityHandlerTests
         Assert.Equal("INVALID_PASSWORD", invalid.Error!.Code);
 
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+        SetupDisableTwoFactor(fixture, user);
         var success = await fixture.CreateDisable2FAHandler().Handle(
             new Disable2FACommand { Password = "password" },
             CancellationToken.None);
 
         Assert.True(success.IsSuccess);
         Assert.False(user.TwoFactorEnabled);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryDisableTwoFactorAsync(user.Id, user.PasswordHash,
+            It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()), Times.Once);
 
         var notEnabled = await fixture.CreateDisable2FAHandler().Handle(
             new Disable2FACommand { Password = "password" },
@@ -269,7 +272,8 @@ public class UserSecurityHandlerTests
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
         fixture.UnitOfWork
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryDisableTwoFactorAsync(user.Id, user.PasswordHash,
+                It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("save failed"));
 
         var result = await fixture.CreateDisable2FAHandler().Handle(
@@ -291,6 +295,7 @@ public class UserSecurityHandlerTests
         user.EnableTwoFactor("secret");
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+        SetupDisableTwoFactor(fixture, user);
 
         var result = await fixture.CreateDisable2FAHandler().Handle(
             new Disable2FACommand { Password = "password" },
@@ -557,6 +562,29 @@ public class UserSecurityHandlerTests
 
     private static User CreateUser(string email = "user@example.com")
         => User.Create(Email.Create(email), "old-hash", "Ada", "Lovelace");
+
+    private static void SetupChangeEmail(AuthUserFixture fixture, User user) =>
+        fixture.UnitOfWork.Setup(x => x.TryChangeEmailAsync(user.Id, user.PasswordHash,
+                It.IsAny<Email>(), It.IsAny<string>(), It.IsAny<DateTime>(),
+                It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Guid id, string _, Email email, string hash, DateTime expiry,
+                Func<CancellationToken, Task> beforeCommit, CancellationToken token) =>
+            {
+                user.ChangeEmail(email, id);
+                user.SetEmailVerificationToken(hash, expiry);
+                await beforeCommit(token);
+                return user;
+            });
+
+    private static void SetupDisableTwoFactor(AuthUserFixture fixture, User user) =>
+        fixture.UnitOfWork.Setup(x => x.TryDisableTwoFactorAsync(user.Id, user.PasswordHash,
+                It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Guid _, string _, Func<CancellationToken, Task> beforeCommit, CancellationToken token) =>
+            {
+                user.DisableTwoFactor();
+                await beforeCommit(token);
+                return user;
+            });
 
     private sealed class AuthUserFixture
     {

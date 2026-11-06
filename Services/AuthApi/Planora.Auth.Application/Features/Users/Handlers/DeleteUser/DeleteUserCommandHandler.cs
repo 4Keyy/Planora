@@ -51,52 +51,37 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
                     Error.NotFound("USER_NOT_FOUND", "User not found"));
             }
 
-            if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+            var verifiedPasswordHash = user.PasswordHash;
+            if (!_passwordHasher.VerifyPassword(command.Password, verifiedPasswordHash))
             {
                 _logger.LogWarning("Invalid password during account deletion attempt: {UserId}", user.Id);
                 return Result.Failure(
                     Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
             }
 
-            user.MarkAsDeleted(user.Id);
-            user.Deactivate(user.Id);
+            var deleted = await _unitOfWork.TryDeleteUserAsync(
+                user.Id, verifiedPasswordHash,
+                async (owner, token) =>
+                {
+                    // Stage from the locked owner on every attempt: the same SQL commit owns deletion and cleanup.
+                    var integrationEvent = new UserDeletedIntegrationEvent(owner.Id, owner.Email.Value);
+                    await _outbox.StageAsync(new OutboxMessage(
+                        typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName!,
+                        JsonSerializer.Serialize(integrationEvent), DateTime.UtcNow), token);
+                },
+                token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken);
+            if (deleted is null)
+                return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
 
-            _unitOfWork.Users.Update(user);
-
-            // The canonical outbox shares this unit of work's context. Save the tracked
-            // deletion and its staged cleanup event together. A Redis or broker outage
-            // after this commit must not leave other services with an unrepeatable deletion.
-            var integrationEvent = new UserDeletedIntegrationEvent(user.Id, user.Email.Value);
-            await _outbox.StageAsync(new OutboxMessage(
-                typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName!,
-                JsonSerializer.Serialize(integrationEvent),
-                DateTime.UtcNow), cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // SECURITY: rotate the security stamp on soft-delete so that any access
-            // token issued before the deletion is immediately rejected. Without
-            // this, a deleted user's outstanding token could still hit endpoints
-            // until it expired naturally — and any handler that did not separately
-            // check IsDeleted would treat the request as authentic.
             try
             {
-                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+                // Deletion already committed. Cleanup has its own bounded token, independent of the request.
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await _avatarStorage.DeleteAsync(user.Id, cleanup.Token);
             }
-            finally
+            catch (Exception ex)
             {
-                // PRIVACY: even a security-stamp outage must not skip deleting the public
-                // avatar. Filesystem failures remain best-effort and are retried by retention;
-                // a stamp failure itself still propagates rather than reporting success.
-                try
-                {
-                    // Deletion already committed. Give cleanup its own bounded time to take the avatar lock.
-                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    await _avatarStorage.DeleteAsync(user.Id, cleanup.Token);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not delete the avatar of deleted user {UserId}; the retention purge retries", user.Id);
-                }
+                _logger.LogWarning(ex, "Could not delete the avatar of deleted user {UserId}; the retention purge retries", user.Id);
             }
 
             _logger.LogInformation("User account deleted: {UserId}, Email: {Email}", user.Id, user.Email.Value);

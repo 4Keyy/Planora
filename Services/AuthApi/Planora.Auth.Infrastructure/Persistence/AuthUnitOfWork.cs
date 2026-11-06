@@ -219,6 +219,69 @@ namespace Planora.Auth.Infrastructure.Persistence
             return user is not null;
         }
 
+        public Task<User?> TryChangeEmailAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Email email,
+            string verificationTokenHash,
+            DateTime verificationTokenExpiry,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default) =>
+            TryCommitSessionMutationAsync(
+                userId,
+                (context, token) => LoadPasswordOwnerAsync(context, userId, verifiedPasswordHash, token),
+                (_, user, _) =>
+                {
+                    user.ChangeEmail(email, userId);
+                    user.SetEmailVerificationToken(verificationTokenHash, verificationTokenExpiry);
+                    return Task.CompletedTask;
+                },
+                (context, token) => context.Users.AnyAsync(user => user.Id == userId &&
+                    user.Email == email && user.EmailVerificationToken == verificationTokenHash, token),
+                beforeCommit,
+                cancellationToken);
+
+        public Task<User?> TryDisableTwoFactorAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default) =>
+            TryCommitSessionMutationAsync(
+                userId,
+                (context, token) => LoadPasswordOwnerAsync(context, userId, verifiedPasswordHash, token),
+                (_, user, _) =>
+                {
+                    user.DisableTwoFactor();
+                    return Task.CompletedTask;
+                },
+                (context, token) => context.Users.AnyAsync(user => user.Id == userId &&
+                    !user.TwoFactorEnabled && !user.IsTwoFactorEnabled && user.TwoFactorSecret == null, token),
+                beforeCommit,
+                cancellationToken);
+
+        public Task<User?> TryDeleteUserAsync(
+            Guid userId,
+            string verifiedPasswordHash,
+            Func<User, CancellationToken, Task> stageDeletion,
+            Func<CancellationToken, Task> beforeCommit,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(stageDeletion);
+            return TryCommitSessionMutationAsync(
+                userId,
+                (context, token) => LoadPasswordOwnerAsync(context, userId, verifiedPasswordHash, token),
+                async (_, user, token) =>
+                {
+                    user.MarkAsDeleted(userId);
+                    user.Deactivate(userId);
+                    await stageDeletion(user, token);
+                },
+                (context, token) => context.Users.IgnoreQueryFilters()
+                    .AnyAsync(user => user.Id == userId && user.IsDeleted, token),
+                beforeCommit,
+                cancellationToken);
+        }
+
         private async Task<User?> TryCommitSessionMutationAsync(
             Guid userId,
             Func<AuthDbContext, CancellationToken, Task<User?>> loadLockedUser,

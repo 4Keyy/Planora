@@ -79,7 +79,9 @@ update matching token ID, owner, hash and active lifetime. A delayed request can
 revoke a newer token generation; single-session revoke reports an inactive-session conflict when
 the expected generation no longer matches. Redis and PostgreSQL are separate stores;
 this ordering does not make a successful Redis write durable against later Redis data loss.
-ChangeEmail, Disable2FA and DeleteUser still need the same pre-commit ordering.
+ChangeEmail, Disable2FA and DeleteUser use the same locked pre-commit ordering.
+Deletion stages its cleanup outbox row in that transaction and removes the avatar
+only after commit. A failed stamp write preserves the account, avatar and SQL state.
 
 ### The landing page's sandbox session
 
@@ -350,7 +352,7 @@ A token issued before an available stamp is rejected with `401`.
 | `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
 | `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or an attacker presenting a stolen value; the server cannot distinguish these causes. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
 
-Credential validation must succeed before stamp rotation: a wrong-password attempt does not invalidate active sessions. For reset/change password, revoke-all and refresh replay, the stamp is written before SQL commit. A failed commit can therefore conservatively invalidate access tokens even though SQL rolls back. Regression tests pin both credential-failure absence of stamp calls and this failure ordering.
+Credential validation must succeed before stamp rotation: a wrong-password attempt does not invalidate active sessions. All seven shipped rotation paths write the stamp before SQL commit under the user lock. A failed commit can therefore conservatively invalidate access tokens even though SQL rolls back. Regression tests pin credential revalidation, credential-failure absence of stamp calls and this failure ordering.
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 

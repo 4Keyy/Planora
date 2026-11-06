@@ -55,7 +55,8 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
                     Error.NotFound("USER_NOT_FOUND", "User not found"));
             }
 
-            if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
+            var verifiedPasswordHash = user.PasswordHash;
+            if (!_passwordHasher.VerifyPassword(command.Password, verifiedPasswordHash))
             {
                 _logger.LogWarning("Invalid password during email change: {UserId}", user.Id);
                 return Result.Failure(
@@ -88,24 +89,20 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
 
             var verificationToken = OpaqueToken.Generate();
 
-            user.ChangeEmail(newEmail, user.Id);
-            user.SetEmailVerificationToken(
-                OpaqueToken.Hash(verificationToken),
-                DateTime.UtcNow.Add(EmailVerificationTokenLifetime));
-
-            _unitOfWork.Users.Update(user);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // Invalidate all existing access tokens — email is identity-critical.
-            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+            var updated = await _unitOfWork.TryChangeEmailAsync(
+                user.Id, verifiedPasswordHash, newEmail, OpaqueToken.Hash(verificationToken),
+                DateTime.UtcNow.Add(EmailVerificationTokenLifetime),
+                token => _securityStamp.SetStampAsync(user.Id, token), cancellationToken);
+            if (updated is null)
+                return Result.Failure(Error.Unauthorized("INVALID_PASSWORD", "Password is incorrect"));
 
             var verificationLink = FrontendLinkBuilder.EmailVerification(
                 _frontendOptions.Value,
                 verificationToken);
 
             await _emailService.SendEmailVerificationAsync(
-                user.Email.Value,
-                user.FirstName,
+                updated.Email.Value,
+                updated.FirstName,
                 verificationLink,
                 cancellationToken);
 

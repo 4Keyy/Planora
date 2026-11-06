@@ -128,6 +128,7 @@ public sealed class UserCommandHandlerTests
         var user = CreateUser("delete-success@example.com", "Delete", "Success");
         var fixture = CreateDeleteFixture(user.Id);
         OutboxMessage? stagedMessage = null;
+        var committed = false;
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
         fixture.Outbox
@@ -135,14 +136,28 @@ public sealed class UserCommandHandlerTests
             .Callback<OutboxMessage, CancellationToken>((message, _) => stagedMessage = message)
             .Returns(Task.CompletedTask);
         fixture.UnitOfWork
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => Assert.NotNull(stagedMessage))
-            .ReturnsAsync(1);
+            .Setup(x => x.TryDeleteUserAsync(user.Id, user.PasswordHash,
+                It.IsAny<Func<User, CancellationToken, Task>>(), It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Guid _, string _, Func<User, CancellationToken, Task> stageDeletion,
+                Func<CancellationToken, Task> beforeCommit, CancellationToken token) =>
+            {
+                user.MarkAsDeleted(user.Id);
+                user.Deactivate(user.Id);
+                await stageDeletion(user, token);
+                await beforeCommit(token);
+                committed = true;
+                return user;
+            });
         fixture.SecurityStamp
             .Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
-            .Callback(() => fixture.UnitOfWork.Verify(
-                x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once))
+            .Callback(() =>
+            {
+                Assert.NotNull(stagedMessage);
+                Assert.False(committed);
+            })
             .Returns(Task.CompletedTask);
+        fixture.AvatarStorage.Setup(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Callback(() => Assert.True(committed)).Returns(Task.CompletedTask);
 
         var result = await fixture.Handler.Handle(
             new DeleteUserCommand { Password = "Password123!" },
@@ -152,8 +167,8 @@ public sealed class UserCommandHandlerTests
         Assert.True(user.IsDeleted);
         Assert.False(user.IsActive);
         Assert.Equal(user.Id, user.DeletedBy);
-        fixture.Users.Verify(x => x.Update(user), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryDeleteUserAsync(user.Id, user.PasswordHash,
+            It.IsAny<Func<User, CancellationToken, Task>>(), It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(stagedMessage);
         Assert.Equal(OutboxMessageStatus.Pending, stagedMessage.Status);
         Assert.Equal(typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName, stagedMessage.Type);
@@ -183,7 +198,7 @@ public sealed class UserCommandHandlerTests
         var fixture = CreateDeleteFixture(user.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
-        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        SetupDeleteMutation(fixture, user);
         fixture.AvatarStorage
             .Setup(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("file in use"));
@@ -203,23 +218,23 @@ public sealed class UserCommandHandlerTests
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
-    public async Task DeleteUser_WhenSecurityStampFails_PreservesCleanupEventAndStillDeletesAvatar()
+    public async Task DeleteUser_WhenSecurityStampFails_DoesNotRunPostCommitAvatarCleanup()
     {
         var user = CreateUser("delete-redis-down@example.com", "Delete", "RedisDown");
         var fixture = CreateDeleteFixture(user.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
-        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        SetupDeleteMutation(fixture, user);
         fixture.SecurityStamp.Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("Redis unavailable"));
 
         await Assert.ThrowsAsync<IOException>(() => fixture.Handler.Handle(
             new DeleteUserCommand { Password = "Password123!" }, CancellationToken.None));
 
-        Assert.True(user.IsDeleted);
         fixture.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        fixture.AvatarStorage.Verify(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.TryDeleteUserAsync(user.Id, user.PasswordHash,
+            It.IsAny<Func<User, CancellationToken, Task>>(), It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()), Times.Once);
+        fixture.AvatarStorage.Verify(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -230,7 +245,8 @@ public sealed class UserCommandHandlerTests
         var fixture = CreateDeleteFixture(user.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
-        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+        fixture.UnitOfWork.Setup(x => x.TryDeleteUserAsync(user.Id, user.PasswordHash,
+                It.IsAny<Func<User, CancellationToken, Task>>(), It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("Database unavailable"));
 
         await Assert.ThrowsAsync<IOException>(() => fixture.Handler.Handle(
@@ -418,6 +434,19 @@ public sealed class UserCommandHandlerTests
                 mapper.Object,
                 Mock.Of<ILogger<UpdateUserCommandHandler>>()));
     }
+
+    private static void SetupDeleteMutation(DeleteFixture fixture, User user) =>
+        fixture.UnitOfWork.Setup(x => x.TryDeleteUserAsync(user.Id, user.PasswordHash,
+                It.IsAny<Func<User, CancellationToken, Task>>(), It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Guid _, string _, Func<User, CancellationToken, Task> stageDeletion,
+                Func<CancellationToken, Task> beforeCommit, CancellationToken token) =>
+            {
+                user.MarkAsDeleted(user.Id);
+                user.Deactivate(user.Id);
+                await stageDeletion(user, token);
+                await beforeCommit(token);
+                return user;
+            });
 
     private static DeleteFixture CreateDeleteFixture(Guid? currentUserId)
     {
