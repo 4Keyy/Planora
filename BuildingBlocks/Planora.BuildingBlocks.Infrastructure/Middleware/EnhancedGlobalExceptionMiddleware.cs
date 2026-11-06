@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using StackExchange.Redis;
 using DomainExceptions = Planora.BuildingBlocks.Domain.Exceptions;
 
 namespace Planora.BuildingBlocks.Infrastructure.Middleware;
@@ -120,6 +121,19 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
                 TraceId = traceId,
                 UserId = userId,
                 ElapsedMilliseconds = elapsedMs
+            },
+
+            RedisConnectionException redisEx => new DomainExceptions.ProblemDetailsContext
+            {
+                ErrorCode = ErrorCode.Infrastructure.ExternalServiceUnavailable,
+                Title = ErrorCategory.ServiceUnavailable.GetTitle(),
+                Detail = "External service unavailable",
+                StatusCode = 503,
+                Instance = instance,
+                TraceId = traceId,
+                UserId = userId,
+                ElapsedMilliseconds = elapsedMs,
+                InnerException = redisEx
             },
 
             TimeoutException timeoutEx => new DomainExceptions.ProblemDetailsContext

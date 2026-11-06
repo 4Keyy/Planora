@@ -444,6 +444,14 @@ The backend is selected at startup:
 
 Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
 
+Redis limiter connection failures return `503` with
+`INFRASTRUCTURE.EXTERNAL_SERVICE_UNAVAILABLE`; Redis timeouts use the existing
+`503` timeout response. Requests remain blocked, including anonymous endpoints.
+Authentication runs before the limiter and authorization after it, so a failed
+stamp lookup can be followed by `503` when that same outage prevents checking the
+rate limit. Redis server/command errors remain `500`; diagnostic details are not
+included in the public response. This mapping does not shorten Redis timeouts.
+
 Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs`
@@ -584,7 +592,7 @@ Code:
 6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by Skia; original container metadata/trailing bytes are not copied. This does not prove that all malicious decoder inputs or information encoded in visible pixels are eliminated.
 7. **Variants** — three sizes are produced server-side per upload: `64×64`, `128×128`, `512×512`, each cropped center with Mitchell cubic sampling. Clients pick the closest fit; bandwidth is saved by avoiding full-resolution downloads for thumbnail rendering.
 8. **Storage** — `LocalAvatarStorage.PutAsync` writes variants to `{WebRoot}/avatars/{userId:N}/{contentHash}/{size}.webp`. The hash is the lowercase hex SHA-256 prefix (16 chars) of all variant bytes concatenated. Content-addressed paths make URL invalidation automatic when bytes change.
-9. **Publication and cleanup** — avatar upload holds a filesystem mutation lock through file publication, the tracked user-profile save and pruning. Each variant is written to a temporary file in its target directory, then renamed, so an interrupted write does not truncate a published file. `PutAsync` preserves earlier revisions; the handler prunes them only after the database saves the new URL. Failed saves preserve the previously referenced files and can leave an unreferenced new revision. Pruning is best-effort, so older revisions may remain after cleanup failure. The lock coordinates processes sharing the same filesystem; it does not provide distributed ownership for separate container filesystems. Account deletion attempts `DeleteAsync` even if the Redis security-stamp update fails; cleanup is best-effort, while a stamp failure still propagates. Deleted-account purge retries avatar removal before deleting Auth-owned dependents or the account, preserving those rows on failure. Browser/proxy copies cached under the `immutable` header can outlive file deletion.
+9. **Publication and cleanup** — avatar upload holds a filesystem mutation lock through file publication, the tracked user-profile save and pruning. Each variant is written to a temporary file in its target directory, then renamed, so an interrupted write does not truncate a published file. `PutAsync` preserves earlier revisions; the handler prunes them only after the database saves the new URL. Failed saves preserve the previously referenced files and can leave an unreferenced new revision. Pruning is best-effort, so older revisions may remain after cleanup failure. The lock coordinates processes sharing the same filesystem; it does not provide distributed ownership for separate container filesystems. Account deletion attempts `DeleteAsync` only after the SQL transaction and security-stamp write succeed; cleanup is best-effort and a failed stamp write preserves the account and avatar. Deleted-account purge retries avatar removal before deleting Auth-owned dependents or the account, preserving those rows on failure. Browser/proxy copies cached under the `immutable` header can outlive file deletion.
 10. **Path-traversal guard** — storage refuses to write or delete anything that resolves outside the uploads root.
 11. **Cache-Control** — `Services/AuthApi/Planora.Auth.Api/Program.cs` configures `UseStaticFiles` to emit `Cache-Control: public, max-age=31536000, immutable` and `X-Content-Type-Options: nosniff` for any URL under `/avatars/`. `ServeUnknownFileTypes` is `false` so only known content types ship.
 
@@ -628,15 +636,16 @@ The repository has a root [`SECURITY.md`](../SECURITY.md) policy. The documented
 ## Known Security Gaps / Clarifications
 
 The [authorization coverage map](security-idor-coverage.md#known-findings-and-missing-regressions)
-records remaining access-control gaps, including comment deletion checking actor identity
-without current branch access and existing room subscriptions surviving access changes.
+records remaining access-control gaps. Comment deletion now requires current
+branch access; live task events recheck the current audience and sockets recheck
+authentication periodically as described above.
 The frozen-audience change closes public join friendship bypass, revoked-subtask-creator
 mutation shortcuts and the cached Todo list authorization path.
 
 | Topic | Observed behavior | Operational implication |
 |---|---|---|
-| Revocation | stamp errors fail open; TTL is fixed at 120 minutes | Redis availability and access lifetime bound revocation guarantees |
-| Live rooms | no eviction/recheck after task access or JWT changes | existing connections can retain subscriptions until disconnect |
+| Revocation | stamp errors fail closed; TTL is fixed at 120 minutes | retain Redis state and keep access-token lifetime within the stamp window |
+| Live rooms | current audience checked for task events; JWT/stamp checked on calls and periodically for idle sockets | idle closure includes the 15-second monitor interval and dependency latency |
 | Public token validation | no stamp/blacklist check; expiry computed from current time | use JWT `exp` and authenticated endpoint behavior, not this response, to infer access validity |
 | Rate limiting | middleware runs after authentication; anonymous and gateway auth windows use IPs; trusted proxy parser accepts IPs only | verify actual client IP for anonymous quotas and keep Redis scopes distinct per service |
 | Avatar decode | dimensions checked after decode | retain decoder updates and resource limits; re-encoding is not a universal payload guarantee |
