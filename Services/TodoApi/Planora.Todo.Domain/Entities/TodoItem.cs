@@ -497,6 +497,31 @@ namespace Planora.Todo.Domain.Entities
             AddDomainEvent(new TodoWorkerLeftDomainEvent(Id, workerUserId));
         }
 
+        /// <summary>Revokes one former friend's share and worker row, preserving every other participant.</summary>
+        public bool RevokeSharedAccess(Guid revokedUserId)
+        {
+            if (revokedUserId == UserId)
+                return false;
+
+            var removedShares = _sharedWith.RemoveAll(share => share.SharedWithUserId == revokedUserId);
+            var worker = _workers.FirstOrDefault(item => item.UserId == revokedUserId);
+            if (worker != null)
+            {
+                _workers.Remove(worker);
+                AddDomainEvent(new TodoWorkerRemovedDomainEvent(Id, revokedUserId));
+            }
+
+            if (removedShares == 0 && worker == null)
+                return false;
+
+            // Guard the child removals with the aggregate's xmin, including a repeated/backward clock tick.
+            var previousUpdatedAt = UpdatedAt;
+            MarkAsModified(UserId);
+            if (previousUpdatedAt.HasValue && UpdatedAt!.Value <= previousUpdatedAt.Value)
+                UpdatedAt = previousUpdatedAt.Value.AddTicks(TimeSpan.TicksPerMicrosecond);
+            return true;
+        }
+
         private void CleanupWorkersOnAccessChange(IEnumerable<Guid> allowedUserIds)
         {
             // Only legacy public rows still grant access dynamically to the owner's friends.

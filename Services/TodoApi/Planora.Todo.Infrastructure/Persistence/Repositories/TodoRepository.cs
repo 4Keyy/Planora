@@ -413,6 +413,34 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             await Context.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<TodoItem>> StageRevokeFriendshipAccessAsync(
+            Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+        {
+            if (userId == friendId)
+                return Array.Empty<TodoItem>();
+
+            var todos = await DbSet
+                .AsTracking()
+                .Where(todo =>
+                    (todo.UserId == userId &&
+                        (todo.SharedWith.Any(share => share.SharedWithUserId == friendId) ||
+                         todo.Workers.Any(worker => worker.UserId == friendId))) ||
+                    (todo.UserId == friendId &&
+                        (todo.SharedWith.Any(share => share.SharedWithUserId == userId) ||
+                         todo.Workers.Any(worker => worker.UserId == userId))))
+                .OrderBy(todo => todo.Id)
+                .AsSplitQuery()
+                .Include(todo => todo.SharedWith)
+                .Include(todo => todo.Workers)
+                .ToListAsync(cancellationToken);
+
+            var changed = new List<TodoItem>();
+            foreach (var todo in todos)
+                if (todo.RevokeSharedAccess(todo.UserId == userId ? friendId : userId))
+                    changed.Add(todo);
+            return changed;
+        }
+
         public async Task<int> RemoveUserFromOthersTodosAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             // Loaded and removed rather than ExecuteDelete, so the consumer's single SaveChangesAsync

@@ -108,6 +108,14 @@ namespace Planora.Todo.Domain.Repositories
         Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Tracks targeted share/worker removal in both owner directions, including subtasks and
+        /// historical workers without shares. Returns changed aggregates with their original xmin;
+        /// the caller stages sync events and saves the entire write set once.
+        /// </summary>
+        Task<IReadOnlyList<TodoItem>> StageRevokeFriendshipAccessAsync(
+            Guid userId, Guid friendId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes what a deleted account left on other people's tasks: the shares naming it, its
         /// "in progress" worker rows and its per-viewer preferences (personal category, hidden flag,
         /// personal completion). Tracked removals — the caller saves. Returns the number of rows removed.

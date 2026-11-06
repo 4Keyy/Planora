@@ -1142,3 +1142,13 @@ OPS-016 and OPS-017 gained source evidence. Local port-owner calls do pass
 RepoRoot, so the Docker omission does not apply to those calls.
 PowerShell 5.1 parser-only validation passed with zero syntax errors.
 [READ-047](results/evidence/read-047-review.md)
+
+## BE-005 — Targeted revocation checkpoint
+
+PASS_LOCAL: baseline PostgreSQL RED8F/0P reproduced retained workers and
+occupied capacity. Targeted share/worker cleanup now preserves owners and
+other users and commits with the complete thin sync set once. Ten provider
+facts, Todo/outbox426P, broad1522P and ErrorHandling94P passed without skips.
+Late unselected legacy joins, friendship generations and live broker/UI
+gates remain explicit; this is not a global revocation-race certification.
+[T03 proof](results/evidence/t03-friendship-verification.json)

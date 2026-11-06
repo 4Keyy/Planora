@@ -1,0 +1,418 @@
+{
+  "schema_version": 1,
+  "head": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
+  "red_head": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
+  "head_note": "READ-047 metadata changed HEAD after tests; no further application source changes. Baseline application hashes verified before RED.",
+  "sdk": "10.0.300",
+  "cwd": "F:/Projects/Planora",
+  "fixtures": "Owned PostgreSQL immutable ID/label, loopback64345, tmpfs/no persistent mounts and reviewed Todo migrations verified. Broad also verified owned RabbitMQ ID/label/volume/loopback ports/check_running and Redis test-only port1 unbound.",
+  "commands": [
+    {
+      "id": "t03-friendship-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~FriendshipRevocationPostgresTests' --logger 'trx;LogFileName=t03-friendship-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 8,
+      "passed": 0,
+      "failed": 8,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-red.txt",
+      "log_sha256": "114e8f7155c7a486201656e7d5af8d90ad645e2dcfa4a14cd0e49a54f451169b",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-red.trx",
+      "trx_sha256": "9c2dd70783b6d17b82563ae6af21066517c36b5de6cc7df620389e5e9d495ffc",
+      "test_run_times": {
+        "creation": "2026-11-06T09:00:30.0563062+03:00",
+        "queuing": "2026-11-06T09:00:30.0563066+03:00",
+        "start": "2026-11-06T09:00:23.3210852+03:00",
+        "finish": "2026-11-06T09:00:34.0151938+03:00"
+      },
+      "test_run_seconds": 10.694
+    },
+    {
+      "id": "t03-friendship-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-friendship-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 424,
+      "passed": 424,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-green.txt",
+      "log_sha256": "ec9bc9bb18f0ca39865c3b182f1fbae60d461e94513109f23b93dee33f09a72e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-green.trx",
+      "trx_sha256": "fad2ab2b497a2333c5eb88c6db42d998dd0be32c37ebbdb7e3fb55f425e25607",
+      "test_run_times": {
+        "creation": "2026-11-06T09:01:57.8864003+03:00",
+        "queuing": "2026-11-06T09:01:57.8864009+03:00",
+        "start": "2026-11-06T09:01:56.7843678+03:00",
+        "finish": "2026-11-06T09:02:08.7663015+03:00"
+      },
+      "test_run_seconds": 11.982
+    },
+    {
+      "id": "t03-friendship-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-friendship-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1520,
+      "passed": 1520,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-broad.txt",
+      "log_sha256": "fc91f10634e81a0b26e1dea089ad785d8b89426e20d9fd85043cc6a09465c677",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-broad.trx",
+      "trx_sha256": "30b7f84a0d7fc99a470b9eaa53824da9a904605971a2e7aad8660df2b9ec7a1c",
+      "test_run_times": {
+        "creation": "2026-11-06T09:02:34.7565832+03:00",
+        "queuing": "2026-11-06T09:02:34.7565837+03:00",
+        "start": "2026-11-06T09:02:33.3185802+03:00",
+        "finish": "2026-11-06T09:03:09.0994454+03:00"
+      },
+      "test_run_seconds": 35.781
+    },
+    {
+      "id": "t03-friendship-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-errors/\" --logger 'trx;LogFileName=t03-friendship-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-errors.txt",
+      "log_sha256": "ce7ee09456160db8206da3388e51ec7d1d1f3f948ac410654d411f3c181a1846",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-errors.trx",
+      "trx_sha256": "3cf0a72e76ab0bf7f9b2dfff12a03086c1b0d0d4d1441bebbdfd83221674b697",
+      "test_run_times": {
+        "creation": "2026-11-06T09:02:51.5630871+03:00",
+        "queuing": "2026-11-06T09:02:51.5630876+03:00",
+        "start": "2026-11-06T09:02:46.2367060+03:00",
+        "finish": "2026-11-06T09:03:02.8242023+03:00"
+      },
+      "test_run_seconds": 16.587
+    },
+    {
+      "id": "t03-friendship-green-legacy",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-friendship-green-legacy.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 426,
+      "passed": 426,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-green-legacy.txt",
+      "log_sha256": "824c6523c6982aac2acf7d74443576a492cfcacd810aaa223a4fa4370aa0c354",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-green-legacy.trx",
+      "trx_sha256": "b845185e09ccb8acdcf4b054b3690343cf5a9620bfa57d1668aa2d8de6f5dd0d",
+      "test_run_times": {
+        "creation": "2026-11-06T09:04:01.6157082+03:00",
+        "queuing": "2026-11-06T09:04:01.6157086+03:00",
+        "start": "2026-11-06T09:04:00.5991945+03:00",
+        "finish": "2026-11-06T09:04:12.6814794+03:00"
+      },
+      "test_run_seconds": 12.082
+    },
+    {
+      "id": "t03-friendship-broad-legacy",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-friendship-broad-legacy.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1522,
+      "passed": 1522,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-broad-legacy.txt",
+      "log_sha256": "7ebc87dae345f2c9294863c7dd56c9c740b2cfd82498a81474f1f22ca2467fef",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-broad-legacy.trx",
+      "trx_sha256": "9268cb45f011289c52521f2c1300caa1ac4fc072bb32fb689adfc15471f009ca",
+      "test_run_times": {
+        "creation": "2026-11-06T09:05:22.5499459+03:00",
+        "queuing": "2026-11-06T09:05:22.5499460+03:00",
+        "start": "2026-11-06T09:05:21.6653969+03:00",
+        "finish": "2026-11-06T09:05:50.0207662+03:00"
+      },
+      "test_run_seconds": 28.355
+    },
+    {
+      "id": "t03-friendship-docs",
+      "command": "node tools/docs/check.mjs --include-untracked; node tools/docs/lint.mjs --include-untracked",
+      "exit_code": 0,
+      "documents": 127,
+      "local_links": 1454,
+      "broken_links": 0,
+      "lint_issues": 0,
+      "logs": [
+        {
+          "path": ".buildcheck/deep-audit-t03/t03-friendship-docs-links.txt",
+          "sha256": "6c4fee5cc2fdd2f7b63893da1fc9ebd3600ccd861f219e4dbf83f81ac96eb96a"
+        },
+        {
+          "path": ".buildcheck/deep-audit-t03/t03-friendship-docs-lint.txt",
+          "sha256": "2b3aee0e189b5611e8dfa944f3e77980b2fa1d2d6df6d0bd19b9e72d6fce8c4b"
+        }
+      ]
+    }
+  ],
+  "focused_cases": [
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RepeatedEventInFreshContextAddsNoSignalsOrFurtherChanges",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RemovesHistoricalWorkerEvenWhenNoShareExists",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RejectedSignalInsertRollsBackEveryShareAndWorkerRemoval",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_StagingFailureRollsBackAndFreshContextRetryCommitsOneCompleteSet",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansBothTaskTreesAndPreservesOwnersOtherParticipantsAndPreferences",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_TouchesAffectedAggregateSoPreviouslyLoadedEditFailsXminCheck",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_FreesLastWorkerSlotForCurrentFriendAndRevokedPeerCannotRejoin",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-red",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CancellationBeforeSecondSignalPersistsNoPartialCleanup",
+      "outcome": "Failed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_TouchesAffectedAggregateSoPreviouslyLoadedEditFailsXminCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RepeatedEventInFreshContextAddsNoSignalsOrFurtherChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RemovesHistoricalWorkerEvenWhenNoShareExists",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CancellationBeforeSecondSignalPersistsNoPartialCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansBothTaskTreesAndPreservesOwnersOtherParticipantsAndPreferences",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_FreesLastWorkerSlotForCurrentFriendAndRevokedPeerCannotRejoin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_StagingFailureRollsBackAndFreshContextRetryCommitsOneCompleteSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RejectedSignalInsertRollsBackEveryShareAndWorkerRemoval",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_StagingFailureRollsBackAndFreshContextRetryCommitsOneCompleteSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansBothTaskTreesAndPreservesOwnersOtherParticipantsAndPreferences",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_FreesLastWorkerSlotForCurrentFriendAndRevokedPeerCannotRejoin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RejectedSignalInsertRollsBackEveryShareAndWorkerRemoval",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RemovesHistoricalWorkerEvenWhenNoShareExists",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_TouchesAffectedAggregateSoPreviouslyLoadedEditFailsXminCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RepeatedEventInFreshContextAddsNoSignalsOrFurtherChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CancellationBeforeSecondSignalPersistsNoPartialCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansBothTaskTreesAndPreservesOwnersOtherParticipantsAndPreferences",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RemovesHistoricalWorkerEvenWhenNoShareExists",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_LegacyFeedAudienceIsResolvedOncePerOwnerAndLookupFailureOnlyNarrowsSignals",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RepeatedEventInFreshContextAddsNoSignalsOrFurtherChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_StagingFailureRollsBackAndFreshContextRetryCommitsOneCompleteSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CancellationBeforeSecondSignalPersistsNoPartialCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_FreesLastWorkerSlotForCurrentFriendAndRevokedPeerCannotRejoin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansSoftDeletedTaskTreeWithoutChangingDeletionMetadata",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RejectedSignalInsertRollsBackEveryShareAndWorkerRemoval",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-green-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_TouchesAffectedAggregateSoPreviouslyLoadedEditFailsXminCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansBothTaskTreesAndPreservesOwnersOtherParticipantsAndPreferences",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RemovesHistoricalWorkerEvenWhenNoShareExists",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RepeatedEventInFreshContextAddsNoSignalsOrFurtherChanges",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_RejectedSignalInsertRollsBackEveryShareAndWorkerRemoval",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_FreesLastWorkerSlotForCurrentFriendAndRevokedPeerCannotRejoin",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_StagingFailureRollsBackAndFreshContextRetryCommitsOneCompleteSet",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_TouchesAffectedAggregateSoPreviouslyLoadedEditFailsXminCheck",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CancellationBeforeSecondSignalPersistsNoPartialCleanup",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_CleansSoftDeletedTaskTreeWithoutChangingDeletionMetadata",
+      "outcome": "Passed"
+    },
+    {
+      "command": "t03-friendship-broad-legacy",
+      "test": "Planora.UnitTests.Services.TodoApi.Infrastructure.FriendshipRevocationPostgresTests.RevokeAsync_LegacyFeedAudienceIsResolvedOncePerOwnerAndLookupFailureOnlyNarrowsSignals",
+      "outcome": "Passed"
+    }
+  ],
+  "baseline_application_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs": "712632259f32758e18b378c4b366471770a5723de9d8744f109609ae2ac5d953",
+    "Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoRepository.cs": "d9a4eec342cabe329f56a52a061501b45d8a2bb72b74d8656895d4aeaf81992b",
+    "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs": "f272c7de7450f61bf8962123b44ef812dd54fbf1caa6174f077e7cc9079132e2",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs": "da79c3754c2483f31b71ca95e1ecb91b5ed413eec488dd114b9007eef30736b8"
+  },
+  "owned_code_sha256": {
+    "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs": "077955512341ce373d8a1f3f4a1ff5a68897958ffdf285fbb5d0a1ba6dc53a1a",
+    "Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoRepository.cs": "5339e731dab71bb898c905638903f7d979f5cada59b78ce48fee8dc7b3717458",
+    "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs": "1d44167d4debbab16feee0ab37b53a892144818f58fe18b28c1441c4cee2f08d",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs": "ea751e4bfad809ecacd778b646e390d6a399f9a7d921486dd1639102af7cacec",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/FriendshipRemovedRegistrationTests.cs": "eab45488eaf9d9b4824c5e27d01a0ca75958cc421856c3ede5def98c234d1ae0",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/FriendshipRevocationPostgresTests.cs": "cc2dba2779fb6aa6410f485c969fa85997482dd50b240ca1500566f814fa281e"
+  },
+  "scope": [
+    "Ten provider facts (eleven disposable databases per full fact selection): both owner directions/root+child, historical worker without share, preserve other workers/owners/tags/preferences/metadata.",
+    "Stage failure and fresh-context known-failure retry, rejected realtime INSERT, real cancellation, repeated-event no-op, actual Join handler capacity/revoked authorization with mocked live friendship.",
+    "Selected aggregate xmin rejects previously loaded edit; future stored UpdatedAt proves monotonic touch under a backward clock.",
+    "Two post-first-GREEN characterization facts: legacy public audience lookup cached once per owner, successful extra recipient and IOException fallback; soft-deleted root/child cleanup preserves deletion metadata.",
+    "Only thin RealtimeSync payload keys; no NotificationEvent or voluntary TaskActivity. Root audience includes former peer; child invalidates parent branch; system ActorId empty."
+  ],
+  "review": {
+    "reviewer": "duplicate_review",
+    "result": "No blockers in targeted staged implementation or ten provider cases; two later characterization facts distinguished from original8F RED. Reviewer read code/log only, no independent runtime run."
+  },
+  "composition_trace": [
+    {
+      "path": "Services/TodoApi/Planora.Todo.Infrastructure/DependencyInjection.cs",
+      "lines": "35-60",
+      "supports": "Same scoped TodoDbContext backs repository, UoW and outbox; no manual transaction or retry-policy change."
+    },
+    {
+      "path": "Services/TodoApi/Planora.Todo.Application/Common/TodoAccessPolicy.cs",
+      "lines": "15-18",
+      "supports": "Live friendship AND stored visibility still guards non-owner access; policy unchanged."
+    }
+  ],
+  "limits": [
+    "Late in-flight join on an unselected legacy-public task with neither peer share nor worker is not fenced by selected aggregate xmin. Split queries are not a consistent read snapshot.",
+    "FriendshipRemoved event has no friendship generation. Late old delivery after reaccept/new sharing may revoke new state; existing cross-generation contract risk requires separate T01/T02/T03 decision.",
+    "No broker ACK/inbox atomicity, process crash, live Auth/gRPC/HTTP/SignalR or browser experiment. Known-failure retry is not success-POST/ambiguous-commit idempotency.",
+    "Affected aggregates and their shares/workers are materialized for one atomic save; large pair audiences and memory/latency costs not measured.",
+    "ErrorHandling94 passed for the same application source before adding the two final test-only characterization facts. No lowered gates or skipped selected tests."
+  ],
+  "doc_delta": "T15 features/auth-security: revocation removes only peer shares/workers in both task trees with thin staged sync; preserves owner/others/preferences and current live access guard. Generation/in-flight and operational residuals remain explicit.",
+  "trx_input_policy": "Owned local UTF-8 TRX only,16MiB bound, DTD/entity declarations rejected before parsing."
+}

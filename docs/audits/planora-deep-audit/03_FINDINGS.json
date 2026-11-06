@@ -264,7 +264,12 @@
       "T01",
       "T05"
     ],
-    "limitations": "Статический consistency defect. Реальный пользовательский сценарий не запускался."
+    "limitations": "Provider mutation/rollback/cancellation/repeat/capacity and selected xmin verified locally with synthetic friendship boundary. No live user/broker/UI run, generation-aware event or universal in-flight join guarantee. Large affected audiences not measured.",
+    "verification": {
+      "status": "PASS_LOCAL",
+      "evidence": "results/evidence/t03-friendship-verification.json",
+      "note": "Baseline8F/0P; final10provider facts pass, Todo/outbox426P, broad1522P, Errors94P, zero skips. Targeted shares/workers and staged thin signals commit once. Cross-generation/late unselected legacy joins and operational gates remain open."
+    }
   },
   {
     "id": "BE-006",

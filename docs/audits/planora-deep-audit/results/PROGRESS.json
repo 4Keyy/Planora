@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
+  "current_sha": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -230,7 +230,14 @@
     "tests/Planora.UnitTests/Services/CollaborationApi/Infrastructure/CommentMutationOutboxPostgresTests.cs",
     "docs/audits/planora-deep-audit/results/evidence/t03-comment-verification.json",
     "docs/audits/planora-deep-audit/results/evidence/read-047-review.json",
-    "docs/audits/planora-deep-audit/results/evidence/read-047-review.md"
+    "docs/audits/planora-deep-audit/results/evidence/read-047-review.md",
+    "Services/TodoApi/Planora.Todo.Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs",
+    "Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoRepository.cs",
+    "Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs",
+    "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Handlers/FriendshipRemovedRegistrationTests.cs",
+    "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/FriendshipRevocationPostgresTests.cs",
+    "docs/audits/planora-deep-audit/results/evidence/t03-friendship-verification.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -274,9 +281,10 @@
     "READ-046 full1path/852lines. OPS-016 process provenance and OPS-017 false stop success are source-confirmed; only PS5.1 parser0errors executed. No launcher/services/process operations. Coverage620/1558(39.79%),63batches pending.",
     "Collaboration initialRED7F includes1test precision mismatch; corrected pre-fix RED6F/1P. GREEN74P/broad1511P; added known-failure fresh-context retry then75P/1512P; Errors94P, no skips. All10listed producers staged; profile dependency beforecommit. BE-002 stays local/partial for operational gates.",
     "BE-005 design: additive tracked targeted cleanup + domain removes only revoked peer, parent xmin touch, complete realtime-only event set + oneSave. Legacy share API retained. No generation-aware or universal late-join claim.",
-    "READ-047 full1path/1690lines. OPS-018 protocol/remote-scope verifier source-confirmed; only PS5.1 parser0errors executed, no launcher/firewall/process/Docker operations. Existing OPS-009/016/017 extended, port RepoRoot omission refuted for Local calls. Coverage621/1558(39.86%),62batches pending."
+    "READ-047 full1path/1690lines. OPS-018 protocol/remote-scope verifier source-confirmed; only PS5.1 parser0errors executed, no launcher/firewall/process/Docker operations. Existing OPS-009/016/017 extended, port RepoRoot omission refuted for Local calls. Coverage621/1558(39.86%),62batches pending.",
+    "BE-005 RED8F/0P. Original8provider facts GREEN424P/broad1520P/Errors94P; added legacy+soft-delete characterization facts then426P/1522P, all0skip. One atomic shares/workers/thin sync write set, explicit tracking and selected xmin. No generation or universal late legacy join claim. Registration full review promotes1baseline file: coverage622/1558(39.92%),62batches pending."
   ],
-  "next_step": "T03 BE-005: provider RED for targeted bidirectional shares/workers cleanup, staged thin sync and selected aggregate xmin; preserve unrelated users. Generation/late in-flight authorization remain separate gates.",
+  "next_step": "T03 BE-006: freeze backward-compatible optional SourceSubtaskId contract (T01/T07), nullable Comment column/migration and reviewed startup compatibility (T08); provider RED duplicate-title/rename/legacy/out-of-order before source changes.",
   "commands": [
     {
       "id": "readiness-red",
@@ -3223,6 +3231,145 @@
       "parser_errors": 0,
       "target_script_executed": false,
       "modules_imported": false
+    },
+    {
+      "id": "t03-friendship-red",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~FriendshipRevocationPostgresTests' --logger 'trx;LogFileName=t03-friendship-red.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 1,
+      "total": 8,
+      "passed": 0,
+      "failed": 8,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-red.txt",
+      "log_sha256": "114e8f7155c7a486201656e7d5af8d90ad645e2dcfa4a14cd0e49a54f451169b",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-red.trx",
+      "trx_sha256": "9c2dd70783b6d17b82563ae6af21066517c36b5de6cc7df620389e5e9d495ffc",
+      "test_run_times": {
+        "creation": "2026-11-06T09:00:30.0563062+03:00",
+        "queuing": "2026-11-06T09:00:30.0563066+03:00",
+        "start": "2026-11-06T09:00:23.3210852+03:00",
+        "finish": "2026-11-06T09:00:34.0151938+03:00"
+      },
+      "test_run_seconds": 10.694
+    },
+    {
+      "id": "t03-friendship-green",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-friendship-green.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 424,
+      "passed": 424,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-green.txt",
+      "log_sha256": "ec9bc9bb18f0ca39865c3b182f1fbae60d461e94513109f23b93dee33f09a72e",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-green.trx",
+      "trx_sha256": "fad2ab2b497a2333c5eb88c6db42d998dd0be32c37ebbdb7e3fb55f425e25607",
+      "test_run_times": {
+        "creation": "2026-11-06T09:01:57.8864003+03:00",
+        "queuing": "2026-11-06T09:01:57.8864009+03:00",
+        "start": "2026-11-06T09:01:56.7843678+03:00",
+        "finish": "2026-11-06T09:02:08.7663015+03:00"
+      },
+      "test_run_seconds": 11.982
+    },
+    {
+      "id": "t03-friendship-broad",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-friendship-broad.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1520,
+      "passed": 1520,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-broad.txt",
+      "log_sha256": "fc91f10634e81a0b26e1dea089ad785d8b89426e20d9fd85043cc6a09465c677",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-broad.trx",
+      "trx_sha256": "30b7f84a0d7fc99a470b9eaa53824da9a904605971a2e7aad8660df2b9ec7a1c",
+      "test_run_times": {
+        "creation": "2026-11-06T09:02:34.7565832+03:00",
+        "queuing": "2026-11-06T09:02:34.7565837+03:00",
+        "start": "2026-11-06T09:02:33.3185802+03:00",
+        "finish": "2026-11-06T09:03:09.0994454+03:00"
+      },
+      "test_run_seconds": 35.781
+    },
+    {
+      "id": "t03-friendship-errors",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-errors/\" --logger 'trx;LogFileName=t03-friendship-errors.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-errors.txt",
+      "log_sha256": "ce7ee09456160db8206da3388e51ec7d1d1f3f948ac410654d411f3c181a1846",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-errors.trx",
+      "trx_sha256": "3cf0a72e76ab0bf7f9b2dfff12a03086c1b0d0d4d1441bebbdfd83221674b697",
+      "test_run_times": {
+        "creation": "2026-11-06T09:02:51.5630871+03:00",
+        "queuing": "2026-11-06T09:02:51.5630876+03:00",
+        "start": "2026-11-06T09:02:46.2367060+03:00",
+        "finish": "2026-11-06T09:03:02.8242023+03:00"
+      },
+      "test_run_seconds": 16.587
+    },
+    {
+      "id": "t03-friendship-green-legacy",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName~TodoApi|FullyQualifiedName~OutboxStaging' --logger 'trx;LogFileName=t03-friendship-green-legacy.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 426,
+      "passed": 426,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-green-legacy.txt",
+      "log_sha256": "824c6523c6982aac2acf7d74443576a492cfcacd810aaa223a4fa4370aa0c354",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-green-legacy.trx",
+      "trx_sha256": "b845185e09ccb8acdcf4b054b3690343cf5a9620bfa57d1668aa2d8de6f5dd0d",
+      "test_run_times": {
+        "creation": "2026-11-06T09:04:01.6157082+03:00",
+        "queuing": "2026-11-06T09:04:01.6157086+03:00",
+        "start": "2026-11-06T09:04:00.5991945+03:00",
+        "finish": "2026-11-06T09:04:12.6814794+03:00"
+      },
+      "test_run_seconds": 12.082
+    },
+    {
+      "id": "t03-friendship-broad-legacy",
+      "command": "& 'C:/Users/fkeyy/.dotnet/dotnet.exe' test tests/Planora.UnitTests/Planora.UnitTests.csproj -c Release --no-restore --no-build \"-p:OutDir=F:/Projects/Planora/.buildcheck/deep-audit-t03/friendship-out/\" --filter 'FullyQualifiedName!~RestartSeed&FullyQualifiedName!~RestartVerify' --logger 'trx;LogFileName=t03-friendship-broad-legacy.trx' --results-directory .buildcheck/deep-audit-t03/results",
+      "exit_code": 0,
+      "total": 1522,
+      "passed": 1522,
+      "failed": 0,
+      "skipped": 0,
+      "log": ".buildcheck/deep-audit-t03/t03-friendship-broad-legacy.txt",
+      "log_sha256": "7ebc87dae345f2c9294863c7dd56c9c740b2cfd82498a81474f1f22ca2467fef",
+      "trx": ".buildcheck/deep-audit-t03/results/t03-friendship-broad-legacy.trx",
+      "trx_sha256": "9268cb45f011289c52521f2c1300caa1ac4fc072bb32fb689adfc15471f009ca",
+      "test_run_times": {
+        "creation": "2026-11-06T09:05:22.5499459+03:00",
+        "queuing": "2026-11-06T09:05:22.5499460+03:00",
+        "start": "2026-11-06T09:05:21.6653969+03:00",
+        "finish": "2026-11-06T09:05:50.0207662+03:00"
+      },
+      "test_run_seconds": 28.355
+    },
+    {
+      "id": "t03-friendship-docs",
+      "command": "node tools/docs/check.mjs --include-untracked; node tools/docs/lint.mjs --include-untracked",
+      "exit_code": 0,
+      "documents": 127,
+      "local_links": 1454,
+      "broken_links": 0,
+      "lint_issues": 0,
+      "logs": [
+        {
+          "path": ".buildcheck/deep-audit-t03/t03-friendship-docs-links.txt",
+          "sha256": "6c4fee5cc2fdd2f7b63893da1fc9ebd3600ccd861f219e4dbf83f81ac96eb96a"
+        },
+        {
+          "path": ".buildcheck/deep-audit-t03/t03-friendship-docs-lint.txt",
+          "sha256": "2b3aee0e189b5611e8dfa944f3e77980b2fa1d2d6df6d0bd19b9e72d6fce8c4b"
+        }
+      ]
     }
   ],
   "audit_coverage": {
@@ -3230,7 +3377,7 @@
     "baseline_read_or_reviewed": 230,
     "pending_batches": 62,
     "complete": false,
-    "current_read_or_reviewed": 621,
+    "current_read_or_reviewed": 622,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3326,7 +3473,8 @@
     "results/evidence/read-046-review.md",
     "results/evidence/t03-comment-verification.json",
     "results/evidence/read-047-review.json",
-    "results/evidence/read-047-review.md"
+    "results/evidence/read-047-review.md",
+    "results/evidence/t03-friendship-verification.json"
   ],
   "local_commits": [
     {
@@ -3483,6 +3631,11 @@
       "task": "Collaboration comment staged mutation/fanout verified",
       "sha": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
       "pushed": false
+    },
+    {
+      "task": "READ-047 local launcher source review",
+      "sha": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3510,7 +3663,7 @@
     "T08": "T14: inventory deployed schemas, verify full operational restore and controlled apply with owner approval",
     "T09": "T02/T14: dedicated Data Protection key storage design, backup/capacity/OOM and synthetic decrypt-after-restore before authorized switch",
     "T02": "Access stamp availability, outgoing invitation privacy, BE-021 derived erasure and T14 key-ring/volume deployment.",
-    "T03": "BE-005 workers, BE-006 activity identity, BE-021 derived erasure, continuation findings and ACK/crash/concurrency/HTTP gates beyond controlled producer write sets."
+    "T03": "BE-006 activity identity and contract/schema handoff, BE-021 derived erasure, continuation findings; BE-005 cross-generation/late unselected legacy joins and ACK/crash/HTTP/broker gates remain."
   },
   "new_findings": [
     "BE-008",
