@@ -137,6 +137,16 @@ test.describe('real-service card height and layout motion', () => {
       data: { title: 'Motion pagination overflow fixture', priority: 1, isPublic: false, sharedWithUserIds: [] },
     }));
     expect(result.ok()).toBe(true);
+    const created: { id?: unknown; value?: { id?: unknown }; data?: { id?: unknown } } = await result.json();
+    const overflowId = created.value?.id ?? created.data?.id ?? created.id;
+    if (typeof overflowId !== 'string' || !overflowId) throw new Error('Expected the overflow fixture task id');
+    // Hidden VeryLow overflow stays behind all six Medium fixtures, even when the
+    // measured card folds and Dashboard refreshes its real six-item first page.
+    const hiddenOverflow = await retryRateLimited(() => fixtures.owner.context.request.patch(API_BASE + '/todos/api/v1/todos/' + overflowId + '/hidden', {
+      headers: { Authorization: 'Bearer ' + fixtures.owner.token, 'X-CSRF-Token': fixtures.owner.csrf },
+      data: { hidden: true },
+    }));
+    expect(hiddenOverflow.ok(), 'the overflow fixture is hidden before the dashboard loads').toBe(true);
     const context = await browser.newContext({ baseURL: FRONTEND_BASE, storageState: fixtures.storage, viewport: { width: 768, height: 1000 } });
     const page = await context.newPage();
     const requests = watchRequests(page);

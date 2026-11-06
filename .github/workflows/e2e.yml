@@ -96,14 +96,72 @@ jobs:
               fi
 
               if [ "${attempt}" -eq 90 ]; then
-                docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml ps
-                docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml logs --tail=200
+                echo '::error::Gateway health prerequisite did not become ready; redacted startup diagnostics follow'
                 exit 1
               fi
 
               sleep 2
             done
           done
+
+      - name: Capture failed stack startup diagnostics
+        if: ${{ failure() }}
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const output = join(process.env.RUNNER_TEMP, 'planora-e2e-startup-diagnostics');
+          mkdirSync(output, { recursive: true });
+          let environment;
+          try {
+            environment = new Map(readFileSync('.env.e2e', 'utf8').split(/\r?\n/)
+              .filter(line => /^[A-Z][A-Z0-9_]*=/.test(line))
+              .map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+          } catch {
+            environment = new Map();
+          }
+          const required = ['POSTGRES_PASSWORD', 'REDIS_PASSWORD', 'RABBITMQ_PASSWORD',
+            'JWT_SECRET', 'GRPC_SERVICE_KEY', 'E2E_SMTP_PASSWORD'];
+          if (required.some(key => !environment.get(key))) {
+            writeFileSync(join(output, 'unavailable.txt'),
+              'Startup diagnostics were withheld because the disposable secret-redaction inputs are incomplete.\n');
+            console.log('Startup diagnostics withheld: incomplete disposable redaction inputs');
+          } else {
+            const values = [...environment].filter(([key, value]) => value && (required.includes(key) || value.length >= 8))
+              .map(([, value]) => value)
+              .sort((a, b) => b.length - a.length);
+            const redact = text => values.reduce((safe, value) => safe.split(value).join('[redacted]'), text);
+            const compose = ['compose', '--env-file', '.env.e2e', '-f', 'docker-compose.yml',
+              '-f', 'frontend/e2e/docker-compose.http.yml'];
+            const invoke = args => spawnSync('docker', args, {
+              encoding: 'utf8', timeout: 15_000, maxBuffer: 8 * 1024 * 1024,
+            });
+            const capture = args => {
+              const result = invoke(args);
+              return redact(`exit=${result.status}\n${result.stdout ?? ''}${result.stderr ?? ''}${result.error?.message ?? ''}`);
+            };
+            writeFileSync(join(output, 'compose-state.txt'), capture([...compose, 'ps', '--all', '--format', 'json']));
+            const ids = (invoke([...compose, 'ps', '--all', '--quiet']).stdout ?? '').split(/\s+/)
+              .filter(id => /^[a-f0-9]{12,64}$/.test(id));
+            writeFileSync(join(output, 'container-state.txt'), ids.map(id =>
+              capture(['inspect', '--format', '{{.Name}} restartCount={{.RestartCount}} {{json .State}}', id])).join('\n'));
+            writeFileSync(join(output, 'startup-logs.txt'),
+              capture([...compose, 'logs', '--no-color', '--tail=200']));
+            console.log('Saved redacted Compose state, container health/restarts and startup logs');
+          }
+          NODE
+
+      - name: Upload redacted stack startup diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-startup-diagnostics-${{ matrix.shard }}
+          path: ${{ runner.temp }}/planora-e2e-startup-diagnostics
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Install frontend dependencies
         run: npm ci
