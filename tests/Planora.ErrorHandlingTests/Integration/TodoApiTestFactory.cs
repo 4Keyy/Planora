@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using StackExchange.Redis;
+using Moq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -51,6 +52,7 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
     private bool _grpcNotFound;
     private bool _grpcValidationError;
     private bool _circuitBreakerOpen;
+    private bool _securityStampLookupFailure;
 
     public TodoApiTestFactory()
     {
@@ -117,9 +119,18 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
             // Mock Redis cache
             services.AddSingleton<IDistributedCache, MemoryDistributedCache>();
 
-            // No Redis multiplexer in tests — the security-stamp check degrades
-            // gracefully to a no-op when IConnectionMultiplexer is unavailable.
+            // A successful empty lookup keeps the real JWT revocation hook active.
+            // An absent multiplexer would reject every token under its fail-closed contract.
             services.RemoveAll<IConnectionMultiplexer>();
+            var stampDatabase = new Mock<IDatabase>();
+            stampDatabase.Setup(database => database.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                .Returns(() => _securityStampLookupFailure
+                    ? Task.FromException<RedisValue>(new InvalidOperationException("Synthetic security-stamp lookup failure"))
+                    : Task.FromResult(RedisValue.Null));
+            var redis = new Mock<IConnectionMultiplexer>();
+            redis.Setup(connection => connection.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+                .Returns(stampDatabase.Object);
+            services.AddSingleton<IConnectionMultiplexer>(redis.Object);
 
             // Add middleware for simulating failures
             if (_databaseFailure)
@@ -147,6 +158,11 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
     public void SimulateDatabaseFailure(bool enable)
     {
         _databaseFailure = enable;
+    }
+
+    public void SimulateSecurityStampLookupFailure(bool enable)
+    {
+        _securityStampLookupFailure = enable;
     }
 
     /// <summary>

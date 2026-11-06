@@ -51,6 +51,30 @@ public class ErrorHandlingIntegrationTests : IClassFixture<TodoApiTestFactory>
 
     [Fact]
     [Trait("TestType", "Integration")]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task TodoApi_WhenSecurityStampLookupFails_RejectsTheSameAuthenticatedToken()
+    {
+        using var before = await _client.GetAsync("/api/v1/todos");
+        before.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        _factory.SimulateSecurityStampLookupFailure(true);
+        try
+        {
+            using var rejected = await _client.GetAsync("/api/v1/todos");
+            rejected.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+        finally
+        {
+            _factory.SimulateSecurityStampLookupFailure(false);
+        }
+
+        using var recovered = await _client.GetAsync("/api/v1/todos");
+        recovered.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("TestType", "Integration")]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Acceptance")]
     public async Task CreateTodo_WithValidPayload_ReturnsCreatedTodo()

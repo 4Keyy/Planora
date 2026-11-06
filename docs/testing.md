@@ -666,6 +666,12 @@ exercise middleware and HTTP behavior but do not establish PostgreSQL transactio
 query-translation, production Redis stamp-check or real-gateway correctness. Its
 `CreateGatewayClient()` is a simulated client, not a running Ocelot gateway.
 
+The substituted Redis multiplexer returns a successful absent security stamp for
+ordinary JWT validation. Removing it would correctly reject authenticated requests
+under the production fail-closed contract. An HTTP regression keeps the same valid
+JWT across healthy lookup, simulated lookup failure and recovery, expecting
+`200 → 401 → 200`; the hook is not bypassed for the business-error scenarios.
+
 ## CI Checks
 
 `.github/workflows/ci.yml` runs documentation, backend, and frontend checks.
