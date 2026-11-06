@@ -38,8 +38,17 @@ Planora configuration comes from environment variables, `appsettings*.json`, Doc
 | `*/appsettings.Docker.json` | Docker service defaults where present |
 | `*/Properties/launchSettings.json` | developer launch profiles; some values are examples and are not the source of truth for Compose |
 | `frontend/next.config.js` | frontend API base URL normalization and security headers |
+| `deploy/cloudru/compose.yml` | Single-VM production listeners, isolated database credentials, trusted proxy addresses and persistent uploads |
 | `frontend/src/lib/config.ts` | runtime API URL validation/fallback |
 | `Start-Planora-*.ps1` | process orchestration and local env conversion |
+
+For the single-VM overlay, `API_GATEWAY_INTERNAL_URL` is an optional server-only
+HTTP(S) origin used by Next.js rewrites. Invalid values fall back to the normalized
+public API origin; the value is not embedded in `nextConfig.env`. Set it at build
+time together with `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_API_SAME_ORIGIN=1`.
+Changing a rewrite origin requires rebuilding the frontend image. See the
+[Cloud.ru deployment guide](../deploy/cloudru/README.md) for its private env-file,
+per-database secrets, trusted proxy addresses and maintenance-first edge defaults.
 
 ## Required Docker Compose Variables
 

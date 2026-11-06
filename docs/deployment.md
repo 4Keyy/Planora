@@ -30,6 +30,7 @@ for routine commands, and the [known limitations](known-limitations.md) for veri
 | [`Start-Planora-Docker.ps1`](../Start-Planora-Docker.ps1) | Infrastructure/backend/gateway in Docker; frontend on host |
 | [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) | EF migration CLI, collaboration backfill and reply-column upgrade |
 | [`deploy/fly/`](../deploy/fly/) | Nine manifests: gateway, six services, migrator, reserved outbox worker |
+| [`deploy/cloudru/`](../deploy/cloudru/README.md) | Single-VM overlay: production APIs, frontend, HTTPS, private service ports and maintenance-first cutover |
 | [`deploy/fly/setup.ps1`](../deploy/fly/setup.ps1) | Creates apps discovered from manifests; requires PowerShell 7 |
 | [`deploy/fly/set-secrets.ps1`](../deploy/fly/set-secrets.ps1) | Stages a per-app subset from an ignored env file; requires PowerShell 7 |
 | [`scripts/Verify-Phase1-Prereqs.ps1`](../scripts/Verify-Phase1-Prereqs.ps1) | Limited account/secret/build checks, not a production acceptance test |

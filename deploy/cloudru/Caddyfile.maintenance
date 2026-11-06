@@ -1,0 +1,4 @@
+{$PUBLIC_HOST} {
+    header -Server
+    respond "Planora is being prepared. Please try again later." 503
+}

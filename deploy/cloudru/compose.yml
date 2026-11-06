@@ -1,0 +1,165 @@
+# Merge with the root docker-compose.yml using compose.sh (Compose >= 2.24.4).
+x-runtime: &runtime
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  DOTNET_PROCESSOR_COUNT: "2"
+  DOTNET_GCHeapHardLimit: "0x10000000"
+  OpenTelemetry__OtlpEndpoint: ""
+  Cors__AllowedOrigins__0: https://${PUBLIC_HOST:?required}
+  Cors__AllowedOrigins__1: https://${PUBLIC_HOST:?required}
+  Retention__Enabled: "false"
+  Retention__RunOnStartup: "false"
+
+services:
+  postgres:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+  redis:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 384m
+    # The Auth Data Protection ring shares this store with caches: never evict it.
+    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD:?required}", --maxmemory, 256mb, --maxmemory-policy, noeviction]
+  rabbitmq:
+    <<: *runtime
+    ports: !reset []
+    hostname: ${RABBITMQ_HOSTNAME:?preserve the restored broker hostname}
+    mem_limit: 512m
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit vm_memory_high_watermark 0.5"
+    healthcheck:
+      test: [CMD, su-exec, rabbitmq, rabbitmq-diagnostics, -q, check_running]
+      start_period: 40s
+      retries: 12
+  auth-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      ASPNETCORE_WEBROOT: /data/uploads
+      Kestrel__Endpoints__Http__Url: "http://+:80"
+      ForwardedHeaders__KnownProxies__0: 172.30.77.11
+      Cors__AllowedOrigins__0: https://${PUBLIC_HOST:?required}
+      Frontend__BaseUrl: https://${PUBLIC_HOST:?required}
+      ConnectionStrings__AuthDatabase: "Host=postgres;Port=5432;Database=planora_auth_db;Username=planora_auth;Password=${AUTH_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+      Email__Provider: ${Email__Provider:?configure a production email provider}
+      Email__SmtpHost: ${Email__SmtpHost:-}
+      Email__SmtpPort: ${Email__SmtpPort:-587}
+      Email__EnableSsl: ${Email__EnableSsl:-true}
+      Email__Username: ${Email__Username:-}
+      Email__Password: ${Email__Password:-}
+      Email__FromEmail: ${Email__FromEmail:-}
+      Email__FromName: ${Email__FromName:-Planora}
+      Email__TimeoutSeconds: ${Email__TimeoutSeconds:-30}
+    volumes:
+      - ${PLANORA_SHARED_DIR:?required}/uploads:/data/uploads
+  category-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      Kestrel__Endpoints__Rest__Url: "http://+:80"
+      Kestrel__Endpoints__Grpc__Url: "http://+:81"
+      ConnectionStrings__CategoryDatabase: "Host=postgres;Port=5432;Database=planora_category;Username=planora_category;Password=${CATEGORY_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+  todo-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      Kestrel__Endpoints__Rest__Url: "http://+:80"
+      Kestrel__Endpoints__Grpc__Url: "http://+:81"
+      ConnectionStrings__TodoDatabase: "Host=postgres;Port=5432;Database=planora_todo;Username=planora_todo;Password=${TODO_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+  collaboration-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      Kestrel__Endpoints__Rest__Url: "http://+:80"
+      ConnectionStrings__CollaborationDatabase: "Host=postgres;Port=5432;Database=planora_collaboration;Username=planora_collaboration;Password=${COLLABORATION_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+  messaging-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      Kestrel__Endpoints__Http__Url: "http://+:80"
+      ConnectionStrings__MessagingDatabase: "Host=postgres;Port=5432;Database=planora_messaging;Username=planora_messaging;Password=${MESSAGING_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+  realtime-api:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 512m
+    environment:
+      <<: *api-environment
+      Kestrel__Endpoints__Http__Url: "http://+:80"
+      ConnectionStrings__RealtimeDatabase: "Host=postgres;Port=5432;Database=planora_realtime;Username=planora_realtime;Password=${REALTIME_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+  api-gateway:
+    <<: *runtime
+    ports: !reset []
+    mem_limit: 384m
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Kestrel__Endpoints__Http__Url: "http://+:80"
+      OpenTelemetry__OtlpEndpoint: ""
+      DOTNET_PROCESSOR_COUNT: "2"
+      DOTNET_GCHeapHardLimit: "0x08000000"
+      ForwardedHeaders__KnownProxies__0: 172.30.77.10
+      Cors__AllowedOrigins__0: https://${PUBLIC_HOST:?required}
+      Cors__AllowedOrigins__1: https://${PUBLIC_HOST:?required}
+      Email__Provider: Log
+      Email__Username: ""
+      Email__Password: ""
+      Email__FromEmail: ""
+    volumes:
+      - ${PLANORA_SHARED_DIR:?required}/gateway-routes.json:/app/ocelot.json:ro
+    networks:
+      planora-network:
+        ipv4_address: 172.30.77.11
+  frontend:
+    <<: *runtime
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${PUBLIC_HOST:?required}
+        API_GATEWAY_INTERNAL_URL: http://api-gateway:80
+    environment:
+      NEXT_PUBLIC_API_URL: https://${PUBLIC_HOST:?required}
+      API_GATEWAY_INTERNAL_URL: http://api-gateway:80
+      NEXT_PUBLIC_API_SAME_ORIGIN: "1"
+    mem_limit: 512m
+    networks: [planora-network]
+  edge:
+    <<: *runtime
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?required}
+    ports: ["80:80", "443:443"]
+    mem_limit: 128m
+    volumes:
+      # Opening network ports initially serves only maintenance, never application data.
+      - ${PLANORA_CADDYFILE:-./deploy/cloudru/Caddyfile.maintenance}:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      planora-network:
+        ipv4_address: 172.30.77.10
+
+networks:
+  planora-network:
+    ipam:
+      # Keep dynamic containers away from the two explicitly trusted proxy addresses.
+      config: [{ subnet: 172.30.77.0/24, ip_range: 172.30.77.128/25 }]
+volumes:
+  caddy_data:
+  caddy_config:

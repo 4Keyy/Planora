@@ -1,0 +1,13 @@
+{$PUBLIC_HOST} {
+    encode zstd gzip
+    header Strict-Transport-Security "max-age=31536000"
+    header -Server
+
+    @api path /auth/api/* /todos/api/* /categories/api/* /collaboration/api/* /messaging/api/* /friendships /friendships/* /avatars/* /realtime/* /health/ready
+    handle @api {
+        reverse_proxy api-gateway:80
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

@@ -37,6 +37,21 @@ const safeApiUrl = (() => {
   return defaultApiUrl
 })()
 
+// Containers reach the gateway on a private origin; browser URLs and image policy stay public.
+// Keep this out of nextConfig.env, whose values are embedded into the client bundle.
+const apiGatewayInternalUrl = (() => {
+  try {
+    const url = new URL(process.env.API_GATEWAY_INTERNAL_URL || safeApiUrl)
+    if ((url.protocol === 'http:' || url.protocol === 'https:') && url.pathname === '/' &&
+        !url.search && !url.hash && !url.username && !url.password) {
+      return url.origin
+    }
+  } catch {
+    // Preserve the existing public gateway fallback for invalid internal origins.
+  }
+  return safeApiUrl
+})()
+
 // True when the API gateway is a loopback / RFC1918 private host — i.e. a local run (the -Prod
 // launcher serves on localhost / the LAN IP). Next 16's image optimizer refuses to fetch an upstream
 // whose host resolves to a private/loopback IP (SSRF guard, → 400), so for a local API the avatars
@@ -228,7 +243,7 @@ const nextConfig = {
       '/avatars/:path*',
       '/friendships',
       '/friendships/:path*',
-    ].map((source) => ({ source, destination: `${safeApiUrl}${source}` }))
+    ].map((source) => ({ source, destination: `${apiGatewayInternalUrl}${source}` }))
 
     return [
       {
