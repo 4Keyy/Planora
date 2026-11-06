@@ -307,6 +307,10 @@ Success `200` (exact controller projection; `profilePictureUrl` from the interna
 
 Errors: `400` validation; `401` incorrect credentials/missing or invalid 2FA; `403` locked account; `409` optimistic-concurrency failures; `429` rate limiting. The failed-credentials handler throws `UnauthorizedAccessException`, which the shared middleware currently labels `error.code=AUTHORIZATION.FORBIDDEN` despite HTTP `401`; use the HTTP status and context, not that code alone.
 
+Login also returns `401` with `{ "error": "Session changed during sign-in.",
+"code": "LOGIN_SESSION_CHANGED" }` when its guarded commit observes a newer password
+or session generation. It does not publish a refresh cookie for that rejected login.
+
 ### `POST /auth/api/v1/auth/refresh`
 
 Public, CSRF, rate limit `auth`.
@@ -427,6 +431,11 @@ Canonical prefix: `/auth/api/v1/users`
 | `GET` | service root `/api/v1/Users` | admin | paged users; see gateway root-route caveat above |
 | `GET` | `/{userId}` | admin | user detail |
 
+Single-session revocation checks the observed token generation under the session lock.
+A concurrent refresh or an already inactive session returns `SESSION_INACTIVE`; this
+controller maps returned handler failures to HTTP `400` with a bare `Error`, including
+this domain conflict. It preserves the newer session rather than revoking its replacement.
+
 ### Avatar upload
 
 `POST /auth/api/v1/users/me/avatar` accepts a single `file` field as `multipart/form-data`.
@@ -454,7 +463,13 @@ Error codes:
 
 Success returns `UserDto` with `profilePictureUrl` pointing at the canonical (medium, 128px) WebP variant. Three variants are persisted for every upload — the URL scheme is `/avatars/{userId:N}/{contentHash}/{size}.webp` where `size ∈ {64, 128, 512}`. Clients build other variant URLs by swapping the size segment.
 
-The path is content-addressed: changing the avatar produces a new hash subdirectory, and the previous one is pruned. This makes `Cache-Control: public, max-age=31536000, immutable` safe for `/avatars/*` — the URL itself changes when the bytes change. Static-file serving is configured in `Services/AuthApi/Planora.Auth.Api/Program.cs` with `X-Content-Type-Options: nosniff` and `ServeUnknownFileTypes = false`.
+The path is content-addressed: changing the avatar produces a new hash subdirectory.
+The handler commits the profile reference before pruning previous variants; a cleanup
+failure does not remove the newly published avatar. This makes
+`Cache-Control: public, max-age=31536000, immutable` safe for `/avatars/*` — the URL itself
+changes when the bytes change. Static-file serving is configured in
+`Services/AuthApi/Planora.Auth.Api/Program.cs` with `X-Content-Type-Options: nosniff` and
+`ServeUnknownFileTypes = false`.
 
 `GET /me` and admin user detail responses include `isEmailVerified` and `emailVerifiedAt`. `isEmailVerified` is the direct boolean status; `emailVerifiedAt` is present when the verification timestamp is known.
 

@@ -353,9 +353,17 @@ door in `.../Infrastructure/Outbox`. Subscriptions are registered explicitly in 
 Auth and Messaging subscribe to nothing; they are publishers only.
 
 Handlers are registered by their **concrete** type, not by `IIntegrationEventHandler<T>`.
-`RabbitMqEventBus` resolves the handler captured at `SubscribeAsync<TEvent, THandler>` via
-`GetService(concreteType)`; an interface-only registration returns null, the bus logs, skips —
-and still ACKs the message, silently dropping every event of that type.
+`RabbitMqEventBus` resolves the handler captured at `SubscribeAsync<TEvent, THandler>` with
+required DI resolution. A missing handler fails delivery and follows retry/dead-letter handling;
+it is not acknowledged as a successful no-op.
+
+Each subscription supplies a stable ID such as `todo.user-deleted` or
+`collaboration.user-deleted`. Its durable quorum queue is `planora.<subscriptionId>.v1`,
+with an independently bound quorum `.dlq`. Distinct service subscribers receive independent
+copies instead of competing on an event-named queue. Quorum dead-letter transfer uses
+`at-least-once` and `reject-publish`; verifying broker support, migrating old queues/backlogs
+and reconciling historical effects remain deployment gates. See the
+[topology transition procedure](audits/planora-deep-audit/results/evidence/t05-topology-transition.md).
 
 Publishers via outbox:
 
@@ -384,7 +392,9 @@ Transaction boundaries differ by workflow:
 
 | Producer | Actual persistence boundary |
 |---|---|
-| Todo / Collaboration | `OutboxRepository.AddAsync` immediately calls `SaveChangesAsync`; tracked business changes and the first enqueued event can commit together, but later events/recipient fan-out commit separately. A whole handler is not automatically one transaction. |
+| Todo create, duplicate, subtask creation, update, delete, join and leave | Business changes and the complete lifecycle/notification/sync event set are tracked with `StageAsync` and persisted by one owner `SaveChangesAsync`. Subtask creation also touches its parent in that save. Other command paths require their own boundary review. |
+| Todo friendship removal | Targeted share/worker removal, a monotonic aggregate touch and thin sync events are staged in one owner save. Stale edits on selected aggregates conflict through `xmin`; cross-generation events and late joins on unselected legacy rows remain open boundaries. |
+| Collaboration add/update/delete comment | Comment mutation and complete branch-sync/notification fan-out are staged before one owner save. Cross-service profile/access calls do not make the later consumer inbox write atomic. |
 | Messaging send | Message is tracked before the outbox add; that add saves the message and its notification row together. |
 | Category deletion | `CategoryDbContext.SaveChangesAsync` commits deletion before dispatching the domain event; the event handler writes the outbox with a second save. A crash in between can lose the cleanup event. |
 | Auth account deletion | The user is marked deleted/deactivated before canonical `OutboxRepository.AddAsync` saves that tracked change and `UserDeletedIntegrationEvent` together. Redis stamp rotation and best-effort avatar cleanup follow the commit; neither can erase the queued event. Other Auth handlers retain their own publication boundaries. |
@@ -420,12 +430,15 @@ created row is measured from creation. Combined with the lack of an atomic claim
 the configured lease does not establish safe multi-instance recovery.
 
 The processor's `SELECT` of pending/failed rows is **claim-free**, which assumes **one active
-`OutboxProcessor` instance per service** — the default deployment. Running two instances of the same
+`OutboxProcessor` instance per service database**. Running two instances of the same
 service would have both drain the same `Pending` rows and double-publish; consumers without
 transactional deduplication can repeat side effects. To scale a service horizontally while keeping a single logical
 drainer, claim each batch atomically before processing — e.g. `SELECT … FOR UPDATE SKIP LOCKED` or a
 guarded `UPDATE … SET Status = Processing … RETURNING` — so every row is owned by exactly one worker.
 This is called out in `OutboxProcessor.ProcessOutboxMessagesAsync`.
+The [sanitized topology preflight](../tools/outbox/README.md) checks a proposed single-processor
+inventory and stop-before-start rollout. It does not discover live ownership or enforce
+exclusivity; current deployment settings must not be treated as proof of that precondition.
 
 ### Live UI sync (SignalR)
 
@@ -557,6 +570,12 @@ Every service and the Gateway publish three health-probe endpoints through a sin
 Liveness and readiness are deliberately distinct: an aggregate `/health` cannot distinguish "process dead — restart me" from "process alive but Postgres is slow — do not route to me yet". Fly.io's `[[http_service.checks]]` blocks point at the two split endpoints (`deploy/fly/*.fly.toml`).
 
 The shared RabbitMQ broker probe (`BuildingBlocks.Infrastructure.HealthChecks.RabbitMqHealthCheck`, registered by `AddBuildingBlocksInfrastructure` in Auth, Todo, Category, Messaging and Collaboration; Realtime currently has an empty health-check registration) is tagged `messaging` and reports **`Degraded`** rather than `Unhealthy` on an outage: outgoing events buffer durably in the outbox while the broker is down, so a broker blip must surface on the aggregate `/health` for dashboards without pulling the instance out of rotation via `/health/ready`. The probe reuses the application's own `IRabbitMqConnectionManager` (the connection the event bus already holds) instead of opening a throwaway connection.
+
+The database probe registered by shared infrastructure carries the `ready` tag and reports
+`Unhealthy` on failure. `AddDatabaseHealthCheck` has the same failure default. An unreachable
+required database therefore holds readiness at HTTP 503 while liveness remains process-only.
+Redis checks retain their service-specific/aggregate role; this registration does not prove
+that every consumer subscription, schema upgrade or deployment precondition is ready.
 
 ## Architecture Decisions
 

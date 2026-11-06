@@ -11,8 +11,10 @@ Passing unit tests does not establish production readiness or exhaustive securit
 - Todo has a reviewed historical migration chain and guarded adoption of compatible
   model-created schemas. Unknown or partial schemas are rejected. Validate both fresh and
   upgraded PostgreSQL databases for every schema release.
-- Auth, Category, Messaging and Collaboration use model creation when no migrations are
-  compiled. `EnsureCreatedAsync` does not upgrade an existing database.
+- Auth, Category, Messaging and Collaboration now require reviewed migration chains and
+  guarded schema equivalence/adoption. This local mechanism does not replace deployment
+  schema inventory, backup/restore proof and controlled rollout. `EnsureCreatedAsync` does
+  not upgrade an existing database.
 - Fly deployment still requires verified service addresses, listeners, secrets, persistent
   avatar storage and a production frontend target. See [rollout blockers](deployment.md#confirmed-rollout-blockers).
 - Redis contains authentication Data Protection keys as well as session/rate-limit state.
@@ -34,9 +36,15 @@ Passing unit tests does not establish production readiness or exhaustive securit
 ## Delivery and consistency
 
 - Inbox registration, business-write/outbox atomicity and consumer idempotence vary by
-  service. Replaying an event does not establish exactly-once effects.
+  service. Reviewed Todo mutations and Collaboration comment commands stage their complete
+  event sets with the owner save, but consumer effects and inbox recording still commit
+  separately. Replaying an event does not establish exactly-once effects.
 - Outbox retry scheduling and multi-instance recovery need verification at the query/claim
-  boundary. A state-machine unit test alone cannot prove those boundaries.
+  boundary. The processor requires one active drainer per service database; the sanitized
+  topology validator cannot enforce live exclusivity or make overlapping rollouts safe.
+- Stable subscriber IDs now isolate quorum queues/DLQs across services. Existing broker
+  topology and retained legacy backlogs still need the reviewed transition/reconciliation
+  procedure; changing queue names does not repair earlier missed effects.
 - Durable notification storage does not guarantee browser receipt or complete reconnect
   replay. See [delivery semantics](architecture.md#outbox-delivery-semantics).
 - Account/friendship removal and retention span independent service stores; verify related
@@ -46,6 +54,13 @@ Passing unit tests does not establish production readiness or exhaustive securit
 
 - PostgreSQL-specific suites create and remove test databases. Supply only a disposable
   PostgreSQL server through `PLANORA_TEST_POSTGRES`.
+- Live broker tests need a separately verified RabbitMQ fixture and explicit restart
+  orchestration. The default CI backend job supplies PostgreSQL only and skips these facts.
+- The deep audit remains open, with pending per-file review, integration and operational
+  gates. Local regression success and a verified local startup do not certify the release.
+- Secret-history scanning remains red pending provenance/usage/revocation decisions;
+  do not suppress historical matches merely to obtain a successful security check. See
+  [the security checkpoint](audits/planora-deep-audit/results/T12.md).
 - Browser suites require explicit frontend, gateway and test SMTP endpoints. Inspect skips
   and retries; discovery or a successful retry is not a clean first-pass result.
 - Frontend pages and the task editor have directory-specific coverage ratchets. Keep these

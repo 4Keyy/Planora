@@ -4,6 +4,8 @@ This document describes the implementation inspected on **2026-10-06** at commit
 `8b072a9f3da0e57e1aecfce0e814d780506b3078`. It separates implemented controls from
 their limits; it does not certify a deployed environment.
 The rate-limiting section was updated on **2026-10-28** against server commit `eae74a7`.
+Session/reset/recovery-code persistence and avatar publication below were reconciled on
+**2026-11-06** against `e96f97e2`; the remaining security gaps still apply.
 
 Use the [API contract](API.md), [authorization coverage map](security-idor-coverage.md),
 [secret operations](secrets-management.md), and [known limitations](known-limitations.md)
@@ -59,6 +61,23 @@ the configured lifetime (7 days by settings-class default), preserving `remember
 for cookie persistence. Non-remembered sessions and registration use session cookies.
 Logout and single-session revocation revoke refresh credentials; they do not directly
 invalidate already-issued access JWTs. See [the exact HTTP failure behavior](API.md#post-authapiv1authrefresh).
+
+Login, refresh rotation, password reset/change and account-wide session revocation share a
+per-user PostgreSQL transaction advisory lock. Refresh consumes the expected active token
+generation and inserts its successor in one transaction; only one competing rotation can win.
+Login rechecks the password hash that was verified and any reused device-session generation
+inside its commit, so a concurrent password change or session replacement can reject the login.
+Expired non-revoked device rows are retired before replacement to respect the partial unique index.
+Replay revocation takes its active-session snapshot after acquiring the same lock. A concurrent
+legitimate refresh can still trigger the deliberate account-wide replay response; serialization
+does not distinguish a racing client from a stolen token.
+
+Password change and revoke-all load current active tokens under that lock and persist their
+revocations before rotating the Redis stamp. Logout and single-session revoke use a conditional
+update matching token ID, owner, hash and active lifetime. A delayed request cannot overwrite or
+revoke a newer token generation; single-session revoke reports an inactive-session conflict when
+the expected generation no longer matches. Database commits and Redis stamp writes remain separate
+operations, subject to the stamp availability limits below.
 
 ### The landing page's sandbox session
 
@@ -258,6 +277,17 @@ Reset and change-password additionally run `PasswordValidator.IsStrongPassword` 
 
 Passwords are hashed with **PBKDF2** (`Rfc2898DeriveBytes`, HMAC-SHA512, 210,000 iterations, 16-byte random salt, 32-byte derived key) in `PasswordHasher`. Each hash is stored as a self-describing string carrying its algorithm version, iteration count and salt, so the iteration count can be raised over time without breaking existing hashes. Verification is constant-time (`CryptographicOperations.FixedTimeEquals`). On a successful login the handler calls `IPasswordHasher.NeedsRehash`; any hash produced with an older iteration count is transparently re-hashed with the current parameters. The same hasher protects 2FA recovery codes.
 
+Malformed versioned/legacy hashes fail verification: the parser requires exact decoded salt/key
+lengths, the supported format version and an iteration count no greater than 1,000,000. A hash
+upgrade at login is included in the guarded login commit rather than a stale whole-user update.
+
+Password-reset requests persist a fresh hashed token before attempting email delivery. Reset
+consumption locks the user, rechecks the expected token hash and expiry, then commits the new
+password, token clearing and current refresh-session revocations together. Concurrent uses of
+one reset link have one database winner. Clearing an expired token is conditional on its expected
+hash, so an older request cannot clear a newer link. Email and Redis stamp operations remain
+outside that PostgreSQL transaction.
+
 ## Two-Factor Authentication
 
 TOTP 2FA is exposed through `UsersController`:
@@ -283,7 +313,7 @@ Code:
 
 ### 2FA Recovery Codes
 
-When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with PBKDF2 (HMAC-SHA512, 210,000 iterations) before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. Successful pending confirmation generates the set once. Confirmation of an already-enabled
+When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with PBKDF2 (HMAC-SHA512, 210,000 iterations) before storage and can be used in place of a TOTP code at login. Consumption is an atomic conditional update of the matching unused, non-deleted code and its hash; one competing use succeeds. A consumed code stays spent if a later login step fails. Successful pending confirmation generates the set once. Confirmation of an already-enabled
 account returns `2FA_ALREADY_ENABLED`; these endpoints provide no separate regenerate operation.
 To generate a new set, disable 2FA with the password, begin enrolment and confirm again.
 The login validator accepts six decimal TOTP digits or an uppercase `XXXXX-XXXXX` recovery code.
@@ -543,7 +573,7 @@ Code:
 6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by Skia; original container metadata/trailing bytes are not copied. This does not prove that all malicious decoder inputs or information encoded in visible pixels are eliminated.
 7. **Variants** — three sizes are produced server-side per upload: `64×64`, `128×128`, `512×512`, each cropped center with Mitchell cubic sampling. Clients pick the closest fit; bandwidth is saved by avoiding full-resolution downloads for thumbnail rendering.
 8. **Storage** — `LocalAvatarStorage.PutAsync` writes variants to `{WebRoot}/avatars/{userId:N}/{contentHash}/{size}.webp`. The hash is the lowercase hex SHA-256 prefix (16 chars) of all variant bytes concatenated. Content-addressed paths make URL invalidation automatic when bytes change.
-9. **Old-avatar cleanup** — `LocalAvatarStorage` prunes every prior hash subdirectory for the user on successful `PutAsync`; only the latest revision persists. Account deletion (`DeleteUserCommandHandler`) attempts `DeleteAsync` even if the Redis security-stamp update fails; filesystem cleanup is best-effort, while a stamp failure still propagates. The deleted-account purge (`UserSoftDeletePurgePolicy`) retries avatar removal before deleting any Auth-owned dependent rows or the account. A failed avatar cleanup preserves those rows for the next pass and does not block other accounts. Until 2026-10 nothing called `DeleteAsync`, so a deleted person's photo stayed reachable at its `/avatars/…` URL; copies a browser or proxy already cached under the `immutable` header below can outlive the file.
+9. **Publication and cleanup** — avatar upload holds a filesystem mutation lock through file publication, the tracked user-profile save and pruning. Each variant is written to a temporary file in its target directory, then renamed, so an interrupted write does not truncate a published file. `PutAsync` preserves earlier revisions; the handler prunes them only after the database saves the new URL. Failed saves preserve the previously referenced files and can leave an unreferenced new revision. Pruning is best-effort, so older revisions may remain after cleanup failure. The lock coordinates processes sharing the same filesystem; it does not provide distributed ownership for separate container filesystems. Account deletion attempts `DeleteAsync` even if the Redis security-stamp update fails; cleanup is best-effort, while a stamp failure still propagates. Deleted-account purge retries avatar removal before deleting Auth-owned dependents or the account, preserving those rows on failure. Browser/proxy copies cached under the `immutable` header can outlive file deletion.
 10. **Path-traversal guard** — storage refuses to write or delete anything that resolves outside the uploads root.
 11. **Cache-Control** — `Services/AuthApi/Planora.Auth.Api/Program.cs` configures `UseStaticFiles` to emit `Cache-Control: public, max-age=31536000, immutable` and `X-Content-Type-Options: nosniff` for any URL under `/avatars/`. `ServeUnknownFileTypes` is `false` so only known content types ship.
 

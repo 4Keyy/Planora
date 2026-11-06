@@ -120,6 +120,22 @@ Remove-Item -Recurse -Force "$env:TEMP\planora-pg"
 
 CI's backend job runs them on every push against a `postgres:16-alpine` service container.
 
+The same disposable PostgreSQL fixture now also supports reviewed schema/adoption guards,
+staged outbox write sets, Auth session/reset/recovery-code concurrency, avatar/profile
+persistence, Todo mutation and friendship cleanup, and Collaboration comment fan-out suites.
+Their source lives under `Services/*/Infrastructure` and `Services/Infrastructure` in
+`tests/Planora.UnitTests`. Supply `PLANORA_TEST_POSTGRES` only after checking the actual server,
+port and storage ownership; these suites create and drop uniquely named databases.
+Provider success covers the injected transaction/concurrency cases, not process-crash,
+unknown-commit, live HTTP or every cross-service delivery boundary.
+
+`BuildingBlocks/Messaging/RabbitMqLiveTests.cs` and the related user-deletion broker suite
+add a separate opt-in gate: `PLANORA_TEST_RABBIT_FIXTURE` must point to an explicitly verified
+disposable broker fixture; combined tests also require PostgreSQL. Broker restart seed/verify
+facts require explicit `PLANORA_TEST_RABBIT_RESTART_PHASE` orchestration. Do not point them
+at the working Compose broker. The default CI backend job currently supplies PostgreSQL only,
+so these RabbitMQ facts are skipped there; inspect reported skips before claiming full coverage.
+
 ## Frontend Commands
 
 Scripts are defined in `frontend/package.json`.
@@ -838,6 +854,6 @@ These are documentation observations, not claims of missing tests after running 
 | Browser-rendered breadth | Existing UI specs cover sign-in/register/recovery/verification, profile rename and basic task-page entry. They do not cover every branch reply, autosave, ownership, viewport or failure state. |
 | Full multi-service integration breadth | The e2e suite covers auth/todos/sharing/hidden, but messaging/realtime and admin flows are not covered end-to-end. |
 | Production smoke tests | The repository has a production baseline, but no deployment environment smoke workflow. |
-| Relational persistence | Many backend repository/factory tests use EF InMemory; passing them does not verify PostgreSQL-specific SQL, constraints or transaction behavior. The retention policies are the exception: they run live on PostgreSQL (see above). |
+| Relational persistence | Many backend repository/factory tests use EF InMemory. Retention, reviewed schema guards and the newer scoped Auth/Todo/Collaboration/outbox suites run on disposable PostgreSQL; neither set proves every runtime transaction or crash/replay boundary. Broker facts have a separate opt-in fixture and are skipped by the default CI backend job. |
 | Excluded frontend source | Route pages and the task editor have explicit directory-specific ratchets in addition to the global gates; inspect their behavioural coverage independently. |
 | Session transitions | Friend/affinity/author-name regressions cover account changes, logout and late reads. Keep auth timer tests aligned with session transitions and verify long-lived reconnect recovery against real services. |

@@ -49,18 +49,23 @@ Code:
 ## Startup And Schema Initialization
 
 Auth, Todo, Category, Messaging and Collaboration initialize their database during startup.
-Realtime does so when `ConnectionStrings__RealtimeDatabase` is configured. The common path:
+Their guarded preparation paths follow this sequence; Realtime's conditional path is described
+in [Realtime Persistence](#realtime-persistence):
 
 1. wait for PostgreSQL with database creation support through `DependencyWaiter.WaitForPostgresWithDatabaseCreationAsync`;
-2. call `DatabaseStartup.EnsureReadyAsync`;
-3. if EF migrations exist in the service assembly, apply pending migrations with retry;
-4. if no EF migrations exist, create the schema from the current EF model through `EnsureCreatedAsync`;
-5. fail startup after retry exhaustion.
+2. call the service-owned database startup helper before accepting dependent work;
+3. validate the compiled migration chain, applied history and physical schema;
+4. adopt only an explicitly reviewed compatible unmanaged baseline, then apply pending migrations;
+5. fail startup for missing migration chains, incompatible schemas or exhausted transient retries.
 
-The repository ignores newly generated migrations. The owner explicitly authorized restoring
-Todo's eight historical migrations and adding its snapshot migration. The reviewed chain now
-initializes an empty Todo database. Realtime retains its initial migration; Auth, Category,
-Messaging and Collaboration have no tracked migrations.
+Reviewed migration chains are tracked for all six stores and explicitly admitted to Docker
+build contexts. Auth, Category and Messaging use `InitialReviewedBaseline` migrations;
+Collaboration has a pre-replies baseline followed by `AddReplyReferences`. Their helpers use
+`VersionedDatabaseStartup`: a session advisory lock serializes preparation, history must be a
+chronological prefix of the compiled chain, and mapped types, nullability, defaults, keys and
+indexes are checked before adoption and after migration. Auth's role seeds have stable IDs;
+compatible adoption preserves existing role IDs and user-role rows. Newly generated migrations
+remain ignored unless their exact paths are reviewed and admitted explicitly.
 
 Todo uses `TodoDatabaseStartup` before subscriptions and hosted backfill. It rejects unknown
 or gapped migration history and validates mapped columns, nullability, database defaults,
@@ -71,7 +76,10 @@ additive snapshot migration normally; existing task/share/worker rows are preser
 or conflicting schemas stop startup without adopting history. Legacy comments require an
 explicit Collaboration migration; nonempty comments are never dropped by startup.
 
-`EnsureCreatedAsync` creates an absent schema; it never upgrades an existing schema.
+Realtime retains its separately guarded startup path and initial migration; see
+[Realtime Persistence](#realtime-persistence). `DatabaseStartup.EnsureReadyAsync` remains a
+shared migration/current-model helper, but it is not a substitute for the reviewed service
+preparation paths. `EnsureCreatedAsync` creates an absent schema; it never upgrades an existing schema.
 Production schema evolution requires a reviewed, service-owned migration chain. Startup
 schema mutation is currently enabled in Production too; no environment gate disables it.
 
@@ -81,6 +89,8 @@ Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/VersionedDatabaseStartup.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/PostgreSqlSchemaCompatibility.cs`
 - `Services/*/Planora.*.Api/Program.cs`
 
 ## Migration Governance
@@ -99,8 +109,10 @@ treating this as a working deployment path; see [production.md](production.md).
 | Connection-string priority | The CLI reads `ConnectionStrings__<Name>` from env vars / `appsettings.json` first; `--connection-string` overrides everything. |
 | Failure semantics | The CLI returns `0` on success, `64` on bad args, `70` if any one service migration failed. |
 | Dispatcher-dependent contexts | Auth, Category and Realtime require `IDomainEventDispatcher`; the runner injects a no-op dispatcher for schema operations. |
-| Schema drift | Applied migration IDs absent from the compiled migration set cause a failure; the CLI does not silently migrate an unknown history. |
-| No migrations | The CLI reports no pending migrations and returns successfully; it does not invoke `EnsureCreatedAsync` to bootstrap these services. |
+| Schema drift | The CLI invokes the service-owned guarded preparation path; unknown/gapped history and incompatible physical schemas fail. |
+| Read-only history listing | `--list-pending` validates history provenance and lists pending IDs without creating databases, adopting baselines or applying schema changes. It does not certify physical schema equivalence. |
+| Missing migrations | A missing compiled service chain is an error; the CLI does not silently bootstrap it with `EnsureCreatedAsync`. |
+| Connection override | `--connection-string` is accepted for one selected service only and cannot be combined with cross-store backfill. |
 
 The committed CD workflow exists, while rollout readiness remains limited by its build and
 schema prerequisites. `INV-FLOW-4` in [INVARIANTS.md](INVARIANTS.md) records the migration
@@ -150,9 +162,10 @@ DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbConte
 
 ### Auth Schema Bootstrap
 
-Committed migrations are not stored in the repository. Auth schema is derived from `AuthDbContext` plus configuration classes under `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations`.
-
-Runtime startup applies user-created migrations if they exist; otherwise it creates the schema from the current model.
+`AuthDatabaseStartup` requires the tracked `20261103201759_InitialReviewedBaseline` chain.
+It initializes an empty database or adopts an equivalent model-created schema under the
+shared preparation lock. Unknown history, drift and pending model changes stop preparation.
+Role seeds use fixed IDs/timestamps; adoption does not replace existing role identities.
 
 PostgreSQL requires partial index predicates to be immutable. Auth refresh-token uniqueness therefore does not use `NOW()` in the database filter; expiry remains part of token lifecycle logic while the database enforces uniqueness for non-revoked user/device token rows.
 
@@ -265,9 +278,9 @@ The create handler supplies `#000000` when no color is provided; the EF `#007BFF
 therefore not the normal API default. Parent/archive fields exist in the model but the
 current CRUD request contracts do not expose category hierarchy or archival operations.
 
-Committed migrations are not stored in the repository. Category schema is derived from `CategoryDbContext` plus configuration classes under `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations`.
-
-Runtime startup applies user-created migrations if they exist; otherwise it creates the schema from the current model.
+`CategoryDatabaseStartup` requires the tracked `20261103201802_InitialReviewedBaseline`
+chain and uses the same guarded fresh/adoption/upgrade path as Auth. It does not use
+`EnsureCreatedAsync` to repair a partial existing schema.
 
 ## Messaging Database
 
@@ -295,9 +308,9 @@ DbContext: `Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/M
 | `IsArchived` | default false |
 | indexes | `SenderId`, `RecipientId`, `(RecipientId, ReadAt)`, `(SenderId, RecipientId, CreatedAt)`, `CreatedAt` |
 
-Committed migrations are not stored in the repository. Messaging schema is derived from `MessagingDbContext`, which configures `Message` inline.
-
-Runtime startup applies user-created migrations if they exist; otherwise it creates the schema from the current model.
+`MessagingDatabaseStartup` requires the tracked `20261103201805_InitialReviewedBaseline`
+chain and uses guarded schema preparation. `MessagingDbContext` remains the source of the
+current model, including its inline `Message` configuration.
 
 ## Collaboration Database
 
@@ -340,20 +353,21 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 
 ### Collaboration Schema Bootstrap
 
-No committed EF migration: like Category, the schema is created on first run via
-`DatabaseStartup.EnsureReadyAsync` → `EnsureCreatedAsync`. The database `planora_collaboration`
-is auto-created at startup by `DependencyWaiter.WaitForPostgresWithDatabaseCreationAsync`.
+`CollaborationDatabaseStartup` uses the tracked
+`20261104053345_InitialPreReplyBaseline` and `20261104053426_AddReplyReferences` chain.
+Preparation can adopt an equivalent unmanaged schema at either reviewed prefix, preserving
+comments, then apply any remaining migration. A partial reply schema or unknown/gapped history
+is rejected. The database `planora_collaboration` is created by the dependency waiter when absent.
 
-**Upgrading a pre-replies database:** `EnsureCreatedAsync` never alters an existing schema, so a
-`comments` table created before the reply feature lacks the `ReplyTo*` columns. Run the idempotent
-upgrade once (fresh installs never need it):
+The compatibility CLI flag below selects this guarded chain; it no longer performs a separate
+unverified `ALTER TABLE ... IF NOT EXISTS` patch. Review the target and backup before applying:
 
 ```powershell
 dotnet run --project tools/Planora.Migrator -- --upgrade-collaboration-replies
 ```
 
-It executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for the six reply columns and
-`CREATE INDEX IF NOT EXISTS` for `(TaskId, ReplyToId)` — safe to run twice.
+The migration adds the six reply columns and `(TaskId, ReplyToId)` index. Repeated preparation
+validates known history and schema instead of assuming that an existing column is compatible.
 
 ### Data Migration From Todo
 
@@ -386,8 +400,7 @@ Migration: `20260615211750_InitialRealtimeNotifications` is tracked and creates 
 A configured non-`Testing` host waits for PostgreSQL and creates the database before Redis/RabbitMQ
 subscriptions can consume notifications. Empty databases and databases with known EF history use
 `DatabaseStartup.EnsureReadyAsync`: migrations when compiled, otherwise the current-model fallback.
-Docker explicitly includes the three tracked Realtime migration files; other migration directories
-remain excluded until their chains are reviewed. Builds intentionally compiled without migrations
+Docker explicitly includes the reviewed migration files for all six stores. Realtime builds intentionally compiled without migrations
 retain the current-model fallback.
 `Planora.Migrator --service realtime` remains available for a deliberate migration rollout.
 
@@ -432,6 +445,14 @@ inbox DbSets, but only Collaboration registers `IInboxRepository` for the event 
 Category and Realtime do not use a bus inbox; Realtime notifications deduplicate on
 `SourceEventId`. Todo also consumes friendship removal. See [architecture.md](architecture.md)
 for the distinction between table availability, registration and actual consumption.
+
+`IOutboxRepository.StageAsync` tracks an event in the owner's scoped DbContext without saving.
+The caller must save the business mutation and every staged recipient/sync event together;
+legacy `AddAsync` still saves immediately. The reviewed Todo create/duplicate/subtask,
+update/delete and worker lifecycle handlers, Todo friendship cleanup, and Collaboration
+add/update/delete-comment handlers use staging with an owner save. This fixes those write
+sets without making consumer effects and inbox recording one atomic operation. See
+[producer boundaries](architecture.md#outbox-delivery-semantics) for paths that still differ.
 
 ## Safe Database Operations
 
@@ -496,5 +517,6 @@ lock + tripwire. Every policy below is run live on PostgreSQL by the `Retention/
 | `Messages` | Messaging | opt-in (user content): `CreatedAt` older than `MessageDays` (365) | `(CreatedAt)` |
 
 Dead-lettered / failed outbox/inbox rows are deliberately kept for investigation. The `(IsDeleted,
-DeletedAt)` scan indexes land via the EF model on the migration-less services (created by `EnsureCreated`)
-and via the reviewed Todo snapshot migration or Realtime startup DDL.
+DeletedAt)` scan indexes are represented in the reviewed service baselines and Todo snapshot
+migration, or Realtime startup preparation. An older existing schema must pass the applicable
+compatibility/upgrade path; a model declaration alone does not add an index to it.

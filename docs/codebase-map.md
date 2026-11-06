@@ -45,7 +45,8 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `.github/workflows` | CI/security/e2e/SBOM/migrations/perf/CD/OpenAPI automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml`, `cd.yml`, `openapi.yml`, `nuget-vuln-pr.yml` |
 | `scripts` | local PowerShell helpers (launcher + Phase-1 verification) | `HealthChecker.psm1`, `PidManager.psm1`, `PortChecker.psm1`, `Verify-Phase1-Prereqs.ps1`, `install-hooks.sh` |
 | `graphify-out` | optional generated knowledge graph (gitignored; absent at this audit) | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` when generated |
-| `tools/Planora.Migrator` | one-shot EF Core migration runner CLI | `Program.cs`, `CollaborationBackfill.cs`, `CollaborationRepliesUpgrade.cs`, `Dockerfile` |
+| `tools/Planora.Migrator` | one-shot guarded EF Core migration runner CLI | `Program.cs`, `CollaborationBackfill.cs`, `Dockerfile` |
+| `tools/outbox` | sanitized single-processor rollout preflight; live enforcement remains T14 | `validate-topology.mjs`, `validate-topology.test.mjs`, `README.md` |
 | `deploy/fly` | Fly.io app manifests + bootstrap scripts | nine `*.fly.toml`, `setup.ps1`, `set-secrets.ps1`, `.env.fly.example`, `README.md` |
 | `perf` | k6 load-test scenarios and baseline | `k6/lib/api.js`, `k6/scenarios/{login,todo-list}.js`, `README.md` |
 | `docs/INVARIANTS.md` | closed-form architectural invariants | `INV-OWN-*`, `INV-COMM-*`, `INV-AUTH-*`, `INV-AZ-*`, `INV-OBS-*`, `INV-FLOW-*` |
@@ -69,14 +70,16 @@ Important files:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` (`MapPlanoraHealthEndpoints`, `/health/live` + `/health/ready` + aggregate `/health`)
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — migration-or-EnsureCreated startup branch; Todo adds guarded history/schema validation through its service-owned startup helper (see database.md)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/VersionedDatabaseStartup.cs` — reviewed Auth/Category/Messaging/Collaboration history adoption and migration under preparation locks; `PostgreSqlSchemaCompatibility.cs` checks physical schema equivalence (see database.md)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — shared migration-or-EnsureCreated helper; Todo and Realtime retain their own guarded startup paths
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs` — rejects weak JWT secrets and missing gRPC keys before the host binds a port
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs` (`AddPlanoraTelemetry` — single OpenTelemetry surface for every service)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` (shared `Meter("Planora.BuildingBlocks")` exposing `planora.csrf.rejections`, `planora.grpc.unauthenticated`, `planora.outbox.*`)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/SecurityStampValidator.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs` / `ServiceKeyClientInterceptor.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs` — publisher confirms, per-handler optional inbox key, ACK/NACK/DLX handling
+- `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/IOutboxRepository.cs` — `StageAsync` tracks without saving; `AddAsync` retains immediate-save semantics
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs` — publisher confirms, stable per-subscriber quorum queues/DLQs, per-handler optional inbox key, ACK/NACK handling
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs` — generic L1/L2 cache primitive; concrete domain decorators are separate
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs` — on-by-default switches, the hourly cadence and policy windows
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
@@ -116,6 +119,8 @@ Key security files:
 Key persistence files:
 
 - `Persistence/AuthDbContext.cs`
+- `Persistence/AuthDatabaseStartup.cs` — reviewed baseline preparation
+- `Persistence/AuthSessionLock.cs` and `Persistence/AuthUnitOfWork.cs` — shared session-mutation serialization, credential rechecks and transactional commits
 - `Persistence/Configurations/UserConfiguration.cs`
 - `Persistence/Configurations/RefreshTokenConfiguration.cs`
 - `Persistence/Configurations/FriendshipConfiguration.cs`
