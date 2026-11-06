@@ -164,6 +164,8 @@ export type TodoComment = {
   isEdited: boolean
   isSystemComment?: boolean
   isGenesisComment?: boolean
+  /** The source of subtask activity; absent/null on legacy entries and regular comments. */
+  sourceSubtaskId?: string | null
   // ── Reply reference (present only on replies) ──
   // The quoted author is resolved live server-side; the preview is the live target text
   // for comment targets (snapshot fallback when deleted) and the title snapshot for subtasks.

@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ComponentProps } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { BranchFeed } from "@/components/todos/edit-todo-modal/branch-feed"
 import { useAuthStore } from "@/store/auth"
+import { useBranchRoom } from "@/lib/realtime/hooks"
 import { TodoPriority, TodoStatus, type Todo, type TodoComment } from "@/types/todo"
 
 // The branch is the task's conversation: messages, replies, subtasks and the author's note, each
@@ -97,15 +98,15 @@ const hoverUser = () => userEvent.setup({ skipHover: true })
  * edge, which clips it. The pointer slides it in by hovering that strip, keyboard focus by
  * reaching the button. The strip has no role or name of its own: found here by its position.
  */
-function deleteStripOf(title: string): HTMLElement {
-  let node: HTMLElement | null = screen.getByText(title)
+function deleteStripOf(title: string | HTMLElement): HTMLElement {
+  let node: HTMLElement | null = typeof title === "string" ? screen.getByText(title) : title
   while (node) {
     const strip = [...node.children].find((child): child is HTMLElement =>
       child instanceof HTMLElement && child.style.position === "absolute" && child.style.right === "0px" && child.style.width === "50px")
     if (strip) return strip
     node = node.parentElement
   }
-  throw new Error(`no delete strip around "${title}"`)
+  throw new Error(`no delete strip around "${typeof title === "string" ? title : title.textContent}"`)
 }
 
 /** Where the delete button sits: parked to the right of its clipping strip, or slid in. */
@@ -293,6 +294,151 @@ describe("BranchFeed", () => {
 
     expect(await screen.findByText("The subtask was deleted")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Complete subtask" })).toBeInTheDocument()
+  })
+
+  it("attributes completion to its source when an older open subtask has the same title", async () => {
+    const completed = {
+      ...message({ isSystemComment: true, content: "Bob completed a subtask: Same title" }),
+      sourceSubtaskId: "s-2",
+    }
+    serve([completed], [
+      subtask({ title: "Same title" }),
+      subtask({ id: "s-2", title: "Same title", status: TodoStatus.Done, createdAt: "2026-10-26T08:30:00Z" }),
+    ])
+    renderFeed()
+
+    expect(await screen.findByText("Bob")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Reopen subtask" })).toBeInTheDocument()
+    expect(screen.queryByText("Bob completed a subtask: Same title")).not.toBeInTheDocument()
+  })
+
+  it("keeps completion attribution after an identity-backed subtask is renamed", async () => {
+    const completed = {
+      ...message({ isSystemComment: true, content: "Bob completed a subtask: Original title" }),
+      sourceSubtaskId: "s-1",
+    }
+    serve([completed], [subtask({ title: "Renamed title", status: TodoStatus.Done })])
+    renderFeed()
+
+    expect(await screen.findByText("Bob")).toBeInTheDocument()
+    expect(screen.getByText("Renamed title")).toBeInTheDocument()
+    expect(screen.queryByText("Bob completed a subtask: Original title")).not.toBeInTheDocument()
+  })
+
+  it("retains another same-title subtask's completion through deletion and live polling", async () => {
+    const user = hoverUser()
+    const first = subtask({ title: "Same title", status: TodoStatus.Done })
+    const second = subtask({ id: "s-2", title: "Same title", status: TodoStatus.Done, createdAt: "2026-10-26T08:30:00Z" })
+    const firstActivity = {
+      ...message({ id: "complete-first", isSystemComment: true, content: "Alice completed a subtask: Same title" }),
+      sourceSubtaskId: first.id,
+    }
+    const secondActivity = {
+      ...message({ id: "complete-second", isSystemComment: true, content: "Bob completed a subtask: Same title" }),
+      sourceSubtaskId: second.id,
+    }
+    serve([firstActivity, secondActivity], [first, second])
+    api.deleteSubtask.mockImplementationOnce(async () => {
+      serve([secondActivity], [second])
+    })
+    renderFeed()
+    await screen.findByText("Bob")
+    const strip = deleteStripOf(screen.getAllByText("Same title")[0])
+    await user.hover(strip)
+    await user.click(within(strip).getByRole("button", { name: "Delete subtask" }))
+    await waitFor(() => expect(screen.getAllByText("Same title")).toHaveLength(1))
+
+    const onChange = vi.mocked(useBranchRoom).mock.calls.at(-1)![1]
+    await act(async () => {
+      onChange({ action: "SubtaskChanged", taskId: TODO_ID, entityId: first.id, actorId: "someone-else", timestamp: firstActivity.createdAt })
+    })
+
+    await waitFor(() => expect(api.fetchComments.mock.calls.length).toBeGreaterThanOrEqual(2))
+    expect(screen.getByText("Bob")).toBeInTheDocument()
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument()
+    expect(api.deleteSubtask).toHaveBeenCalledWith(first.id)
+  })
+
+  it.each([undefined, null])("keeps legacy activity without guessing a source from a unique title (%s)", async (sourceSubtaskId) => {
+    serve([message({ isSystemComment: true, content: "Legacy Actor completed a subtask: Book the venue", sourceSubtaskId })], [
+      subtask({ status: TodoStatus.Done }),
+    ])
+    renderFeed()
+
+    expect(await screen.findByText("Sub task completed")).toBeInTheDocument()
+    expect(screen.queryByText("Legacy Actor")).not.toBeInTheDocument()
+    expect(screen.queryByText("Legacy Actor completed a subtask: Book the venue")).not.toBeInTheDocument()
+  })
+
+  it("preserves ambiguous legacy activity through deletion and learns its source from polling", async () => {
+    const user = hoverUser()
+    const first = subtask({ title: "Same title", status: TodoStatus.Done })
+    const second = subtask({ id: "s-2", title: "Same title", status: TodoStatus.Done, createdAt: "2026-10-26T08:30:00Z" })
+    const legacy = message({ isSystemComment: true, content: "Bob completed a subtask: Same title", sourceSubtaskId: null })
+    serve([legacy], [first, second])
+    api.deleteSubtask.mockResolvedValue(undefined)
+    renderFeed()
+    await waitFor(() => expect(screen.getAllByText("Sub task completed")).toHaveLength(2))
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument()
+    const strip = deleteStripOf(screen.getAllByText("Same title")[0])
+    await user.hover(strip)
+    await user.click(within(strip).getByRole("button", { name: "Delete subtask" }))
+    await waitFor(() => expect(screen.getAllByText("Same title")).toHaveLength(1))
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument()
+    serve([{ ...legacy, sourceSubtaskId: second.id }], [second])
+
+    const onChange = vi.mocked(useBranchRoom).mock.calls.at(-1)![1]
+    await act(async () => {
+      onChange({ action: "SubtaskChanged", taskId: TODO_ID, entityId: second.id, actorId: "someone-else", timestamp: legacy.createdAt })
+    })
+
+    expect(await screen.findByText("Bob")).toBeInTheDocument()
+    expect(screen.queryByText("Sub task completed")).not.toBeInTheDocument()
+  })
+
+  it("never pairs another source's activity by a matching display title", async () => {
+    serve([message({ isSystemComment: true, content: "Other Actor completed a subtask: Book the venue", sourceSubtaskId: "deleted-source" })], [
+      subtask({ status: TodoStatus.Done }),
+    ])
+    renderFeed()
+
+    expect(await screen.findByText("Sub task completed")).toBeInTheDocument()
+    expect(screen.queryByText("Other Actor")).not.toBeInTheDocument()
+  })
+
+  it("uses the latest loaded completion for an exact source and ignores newer legacy text", async () => {
+    serve([
+      message({ id: "old", isSystemComment: true, content: "Alice completed a subtask: Original title", sourceSubtaskId: "s-1", createdAt: "2026-10-26T10:00:00.1Z" }),
+      message({ id: "new", isSystemComment: true, content: "Bob completed a subtask: Different title", sourceSubtaskId: "s-1", createdAt: "2026-10-26T10:00:00.11Z" }),
+      message({ id: "legacy", isSystemComment: true, content: "Legacy Actor completed a subtask: Renamed title", createdAt: "2026-10-26T11:00:00Z" }),
+    ], [subtask({ title: "Renamed title", status: TodoStatus.Done })])
+    renderFeed()
+
+    expect(await screen.findByText("Bob")).toBeInTheDocument()
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument()
+    expect(screen.queryByText("Legacy Actor")).not.toBeInTheDocument()
+  })
+
+  it("restores the selected source's attribution when deletion fails", async () => {
+    const user = hoverUser()
+    serve([
+      message({ id: "first", isSystemComment: true, content: "Alice completed a subtask: Previous title", sourceSubtaskId: "s-1" }),
+      message({ id: "second", isSystemComment: true, content: "Bob completed a subtask: Same title", sourceSubtaskId: "s-2" }),
+    ], [
+      subtask({ title: "Renamed title", status: TodoStatus.Done }),
+      subtask({ id: "s-2", title: "Same title", status: TodoStatus.Done, createdAt: "2026-10-26T08:30:00Z" }),
+    ])
+    api.deleteSubtask.mockRejectedValue(new Error("Synthetic delete refusal"))
+    renderFeed()
+    await screen.findByText("Alice")
+    const strip = deleteStripOf("Renamed title")
+    await user.hover(strip)
+    await user.click(within(strip).getByRole("button", { name: "Delete subtask" }))
+
+    expect(await screen.findByText("Synthetic delete refusal")).toBeInTheDocument()
+    expect(await screen.findByText("Alice")).toBeInTheDocument()
+    expect(screen.getByText("Bob")).toBeInTheDocument()
+    expect(screen.getByText("Renamed title")).toBeInTheDocument()
   })
 
   it("deletes a subtask, and brings it back with the reason when the server refuses", async () => {

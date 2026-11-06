@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "finding": "BE-006",
+  "unit": "Comment API and branch-feed identity boundary",
+  "result": "PASS_LOCAL_CLIENT_IDENTITY_SCOPE",
+  "date_local": "2026-11-06",
+  "source_head_before_client_red": "dd06caa9577633d6aca1c6718b633be583296ad8",
+  "source_state_before_client_red": "Previously verified backend identity/schema changes were committed in dd06caa9; HTTP DTO/projection and client title matching were unchanged before the client RED.",
+  "evidence_head": "6b938679ad7a5a5ec3f2cd08aa599dd05b8e8e6d",
+  "backend_evidence": "docs/audits/planora-deep-audit/results/evidence/t03-activity-identity-verification.json",
+  "environment": {
+    "frontend": "Installed repository dependencies; Vitest/jsdom; no Next generators or build in the live checkout",
+    "backend": "SDK 10.0.300; mocked repository/access/profile services; no database needed for query/DTO tests",
+    "artifacts": ".buildcheck/sync-20261106/be006-client",
+    "foreign_next_env_git_blob": "ce4e94a6b10f160ee021fe18939af160d2927dcf",
+    "foreign_next_env_matches_initial": true,
+    "tsconfig_tracked_diff": "EMPTY; git diff --exit-code -- frontend/tsconfig.json returned 0",
+    "working_runtime": "Preserved; no application restart, schema apply or live database operation"
+  },
+  "commands": [
+    {
+      "name": "frontend-red",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "test",
+        "--",
+        "src/test/components/branch-feed.test.tsx",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=../.buildcheck/sync-20261106/be006-client/red-vitest.json"
+      ],
+      "exit_code": 1,
+      "result": {
+        "total": 23,
+        "passed": 20,
+        "failed": 3,
+        "skipped": 0,
+        "todo": 0,
+        "start_unix_ms": 1793990234730,
+        "finish_unix_ms": 1793990256305.5032,
+        "success": false
+      },
+      "log": "red-frontend.log"
+    },
+    {
+      "name": "query-dto-red",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "C:\\Users\\fkeyy\\.dotnet\\dotnet.exe",
+      "args": [
+        "test",
+        "tests/Planora.UnitTests/Planora.UnitTests.csproj",
+        "--configuration",
+        "Release",
+        "--artifacts-path",
+        "F:\\Projects\\Planora\\.buildcheck\\sync-20261106\\be006-artifacts",
+        "--no-restore",
+        "--filter",
+        "FullyQualifiedName~CommentActivityIdentityQueryTests",
+        "--logger",
+        "trx;LogFileName=red-contract.trx",
+        "--results-directory",
+        "F:\\Projects\\Planora\\.buildcheck\\sync-20261106\\be006-client/results/red"
+      ],
+      "exit_code": 1,
+      "result": {
+        "total": 2,
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "start": "2026-11-06T21:37:44.5552982+03:00",
+        "finish": "2026-11-06T21:37:47.1209782+03:00"
+      },
+      "log": "red-contract.log"
+    },
+    {
+      "name": "frontend-first-green",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "test",
+        "--",
+        "src/test/components/branch-feed.test.tsx",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=../.buildcheck/sync-20261106/be006-client/green-vitest.json"
+      ],
+      "exit_code": 0,
+      "result": {
+        "total": 29,
+        "passed": 29,
+        "failed": 0,
+        "skipped": 0,
+        "todo": 0,
+        "start_unix_ms": 1793990458042,
+        "finish_unix_ms": 1793990478106.3484,
+        "success": true
+      },
+      "log": "green-frontend.log"
+    },
+    {
+      "name": "frontend-final-green",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "test",
+        "--",
+        "src/test/components/branch-feed.test.tsx",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=../.buildcheck/sync-20261106/be006-client/final-vitest.json"
+      ],
+      "exit_code": 0,
+      "result": {
+        "total": 29,
+        "passed": 29,
+        "failed": 0,
+        "skipped": 0,
+        "todo": 0,
+        "start_unix_ms": 1793990516292,
+        "finish_unix_ms": 1793990529454.8901,
+        "success": true
+      },
+      "log": "final-frontend.log",
+      "repeat_reason": "Final source uses parsed timestamps and the latest-completion edge case was strengthened with fractional ISO precision."
+    },
+    {
+      "name": "query-dto-and-command-handlers-green",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "C:\\Users\\fkeyy\\.dotnet\\dotnet.exe",
+      "args": [
+        "test",
+        "tests/Planora.UnitTests/Planora.UnitTests.csproj",
+        "--configuration",
+        "Release",
+        "--artifacts-path",
+        "F:\\Projects\\Planora\\.buildcheck\\sync-20261106\\be006-artifacts",
+        "--no-restore",
+        "--filter",
+        "FullyQualifiedName~CommentActivityIdentityQueryTests|FullyQualifiedName~CommentCommandHandlerTests",
+        "--logger",
+        "trx;LogFileName=green-contract.trx",
+        "--results-directory",
+        "F:\\Projects\\Planora\\.buildcheck\\sync-20261106\\be006-client/results/green"
+      ],
+      "exit_code": 0,
+      "result": {
+        "total": 18,
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "start": "2026-11-06T21:41:18.4334888+03:00",
+        "finish": "2026-11-06T21:41:21.3325238+03:00"
+      },
+      "log": "green-contract.log"
+    },
+    {
+      "name": "frontend-type-check",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "type-check"
+      ],
+      "exit_code": 0,
+      "log": "type-check.log"
+    },
+    {
+      "name": "frontend-lint",
+      "cwd": "F:\\Projects\\Planora",
+      "executable": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "lint"
+      ],
+      "exit_code": 0,
+      "log": "lint.log"
+    }
+  ],
+  "red_properties": [
+    "An older open subtask with the same title consumed the completed sibling metadata, leaving the done card without attribution.",
+    "Renamed identity-backed subtask could not find completion metadata by its new title.",
+    "Deleting one same-title subtask suppressed both completions and polling could not restore the surviving sibling attribution.",
+    "Comment-list query and serialized DTO lacked the persisted source identity."
+  ],
+  "final_properties": [
+    "Additive optional nullable CommentDto.SourceSubtaskId projects as sourceSubtaskId; absent old JSON remains deserializable; regular/genesis/legacy entries remain null.",
+    "Completion metadata and optimistic suppression use only exact source identity; title is display text.",
+    "The latest loaded identity-backed completion is selected using Date.parse; different fractional ISO precision is covered.",
+    "Legacy absent/null identity is preserved without attribution guessing, even when only one current title matches.",
+    "Deleting a sibling does not reassign ambiguous legacy attribution to the remaining same-title card.",
+    "Live merge learns source identity when content and updatedAt have not changed.",
+    "Delete rollback restores the selected identity-backed completion while leaving another source intact.",
+    "Existing component keyboard/pointer delete, shortcuts, composer and failure checks still pass; no layout/motion/copy changes."
+  ],
+  "test_scope": {
+    "existing_component_cases": 20,
+    "initial_red_component_cases": 3,
+    "added_policy_edge_cases_after_initial_red": 6,
+    "final_component_cases": 29,
+    "new_query_dto_cases": 2,
+    "existing_command_handler_cases": 16,
+    "final_backend_cases": 18,
+    "initial_red_vs_final_note": "Only the initial 3 UI and 2 query/DTO cases were executed red before the fix. Additional policy cases are not claimed as that original RED."
+  },
+  "api_doc_delta": "GET /collaboration/api/v1/comments/{taskId} comment items add optional nullable sourceSubtaskId; use for subtask activity association. Existing JSON readers/constructors remain compatible. Legacy completion displays the existing generic note with no inferred actor/time.",
+  "schema_delta": "NONE beyond the separately verified backend AddSubtaskActivityIdentity migration",
+  "demo_delta": "NONE; current sandbox does not materialize subtask lifecycle system comments",
+  "warning": "Existing Vite configLoader native/CommonJS advisory remains visible; no suppression or dependency changes",
+  "limitations": [
+    "jsdom and mocked live-change callbacks do not prove real SignalR, visual pixels or browser interaction across viewports.",
+    "No Next build or full coverage executed by this agent; parent integration gate owns the verified-source snapshot checks.",
+    "No production rollout, live HTTP stack or migration apply performed by this client unit.",
+    "Latest loaded stored completion is not a broker-ordering or replay guarantee. BE-022 late activity and deletion tombstone remain open.",
+    "Older server payloads without the optional field display the generic completion note; historical identity is not guessed."
+  ],
+  "source_sha256": {
+    "Services/CollaborationApi/Planora.Collaboration.Application/DTOs/CommentDto.cs": "a446b0a639e18972b8a542f4bbd30542c1d71367dac84bcd6a99333ca155edfc",
+    "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs": "e3b7b39b9901f6de6537121ff3c95df7eccd8b05b40f985d84e54e9605d4615a",
+    "frontend/src/types/todo.ts": "057437773a723156f4fb76dcda5bfe7adbb75d38735b5f62a4cc54dc641d3331",
+    "frontend/src/components/todos/edit-todo-modal/branch-feed.tsx": "d0140926d79fad24914c6d4d6f2f0591462220ccc361c977d73f3fc1d0159677",
+    "frontend/src/test/components/branch-feed.test.tsx": "ee5d429ef66d75343f0b0b2d16bba5d249ea7826a833daba22d4cb58374b4dfa",
+    "tests/Planora.UnitTests/Services/CollaborationApi/Queries/CommentActivityIdentityQueryTests.cs": "40722f974fd3cd34f909ae173efdd84a5ab17eb6a6092dc7c214f690ac744d76"
+  },
+  "artifact_sha256": {
+    "red-frontend.log": "1aab3738a68ae932a48337c84c8615254b07f72d2c769b6fbfae9a5023763151",
+    "red-vitest.json": "3590809889c6f1568bc7401ca9d73a77305d1e25fc40af615da018b0be990b48",
+    "red-contract.log": "589ae328de6c285eedf9d332895205b95be2bd234710f461009f39e6928d8b66",
+    "results/red/red-contract.trx": "e272ad93bc63ad405ffc9b907d16be099b808a9c27dc82626c9c2f5d06f1ce27",
+    "green-frontend.log": "43d57331b221b22d95db7ec51695b6b5dbf0c6926c9986c80f3fb4ec3810f8e1",
+    "green-vitest.json": "5519017c534fda9fb65795ff25672e6d9872d54346140685915a0f4220b2a9ac",
+    "final-frontend.log": "c8c5ecee114e74a13ee8ab7e41feb8983237cb3b652ab01ec07feaec9875abf7",
+    "final-vitest.json": "485fcb10c9c7986f7d1bd174c57aaa5935875ccea0e55b0be31db66e4a3ee3ce",
+    "green-contract.log": "b9395c67e15429dd971ca43aeb2e2e9fb2fcd2de30b84a1c80c666f2cfb50fff",
+    "results/green/green-contract.trx": "df5fafe5dd3ebcb504841bfcc6eda0652ea2bdd9f0893ecd2659f508c6dddf45",
+    "type-check.log": "610dcce1de905cbdbf30079da52db9ada4e7ac702c01ef92b56d3b4eb4895f37",
+    "lint.log": "3f3c76cce27900e96ee4541280d93800874f7c63e69f9003934d1a2b82f4bf3c"
+  }
+}

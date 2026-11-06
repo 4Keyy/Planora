@@ -35,6 +35,8 @@ namespace Planora.Collaboration.Application.DTOs
         // only backs deleted targets.
         string? ReplyToPreview = null,
         // True when the quoted target no longer exists — the UI renders a "deleted" quote.
-        bool ReplyToDeleted = false
+        bool ReplyToDeleted = false,
+        // Nullable on legacy activity and non-subtask entries; display text is not an identity.
+        Guid? SourceSubtaskId = null
     );
 }

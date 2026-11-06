@@ -292,18 +292,21 @@ function isSubtaskSystemComment(c: TodoComment): boolean {
 function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
   const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
 
-  const usedComplete = new Set<string>()
+  const completionBySource = new Map<string, TodoComment>()
+  for (const c of completionEvents) {
+    // A unique current title cannot prove which historical subtask a legacy row came from.
+    // Keep the generic completion note until an identity-backed activity is available.
+    if (c.sourceSubtaskId == null) continue
+    const previous = completionBySource.get(c.sourceSubtaskId)
+    if (!previous || Date.parse(previous.createdAt) < Date.parse(c.createdAt)) completionBySource.set(c.sourceSubtaskId, c)
+  }
   const metaById = new Map<string, SubtaskMeta>()
 
-  // Match in creation order for stable greedy pairing when titles repeat.
-  const subsByTime = [...subtasks].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
-  for (const s of subsByTime) {
-    const suffix = `: ${s.title}`
+  for (const s of subtasks) {
     const meta: SubtaskMeta = {}
 
-    const completed = completionEvents.find((c) => !usedComplete.has(c.id) && c.content.trimEnd().endsWith(suffix))
+    const completed = completionBySource.get(s.id)
     if (completed) {
-      usedComplete.add(completed.id)
       meta.completedBy = parseSubtaskActor(completed.content, "completed")
       meta.completedAt = completed.createdAt
     }
@@ -537,7 +540,8 @@ export function BranchFeed({
           if (suppressedCommentIds.current.has(c.id)) { if (byId.delete(c.id)) changed = true; continue }
           const existing = byId.get(c.id)
           if (!existing) { byId.set(c.id, c); changed = true }
-          else if (existing.content !== c.content || existing.updatedAt !== c.updatedAt) {
+          else if (existing.content !== c.content || existing.updatedAt !== c.updatedAt ||
+            (existing.sourceSubtaskId ?? null) !== (c.sourceSubtaskId ?? null)) {
             byId.set(c.id, c); changed = true
           }
         }
@@ -811,12 +815,10 @@ export function BranchFeed({
     setSubtaskBusy(s.id, true)
     const subtasksSnapshot = subtasks
 
-    // Deleting a subtask also clears the system events it left in the branch ("added a subtask: …",
-    // "completed a subtask: …"). Remove them optimistically and suppress their ids so polling can't
-    // re-add them before the server-side cascade (SubtaskDeletedIntegrationEvent) completes.
-    const suffix = `: ${s.title}`
+    // Suppress only this source's activity until the async cascade lands. Legacy rows have no
+    // trustworthy source identity and are preserved by both the client and the server.
     const related = comments.filter(
-      (c) => c.isSystemComment && /subtask/i.test(c.content) && c.content.trimEnd().endsWith(suffix),
+      (c) => c.isSystemComment && c.sourceSubtaskId === s.id,
     )
     const relatedIds = new Set(related.map((c) => c.id))
 

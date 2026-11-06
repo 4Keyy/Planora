@@ -1393,9 +1393,15 @@ is kept so frontend timeline components are unchanged):
   "replyToAuthorName": null,
   "replyToAuthorAvatarUrl": null,
   "replyToPreview": null,
-  "replyToDeleted": false
+  "replyToDeleted": false,
+  "sourceSubtaskId": null
 }
 ```
+
+`sourceSubtaskId` is an additive nullable UUID for identity-backed subtask activity.
+It is absent on older responses and null on legacy activity, ordinary comments and
+genesis entries. Clients associate completion attribution and deletion suppression
+with this ID; display text and current subtask titles do not establish identity.
 
 **Reply block** (`replyTo*` — all `null`/`false` on a plain comment): when the comment is a reply,
 `replyToType` is `"comment"` (a user comment or another reply) or `"subtask"`, `replyToId` is the

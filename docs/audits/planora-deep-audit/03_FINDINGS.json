@@ -321,9 +321,9 @@
     ],
     "limitations": "Точные новые поле/миграция — proposed design, сейчас их нет. Нужна isolated schema plan, а не destructive migration.",
     "verification": {
-      "status": "PASS_LOCAL_BACKEND_IDENTITY",
+      "status": "PASS_LOCAL_IDENTITY_SCOPE",
       "evidence": "results/evidence/t03-activity-identity-verification.json",
-      "note": "Provider RED 6F/2P; targeted GREEN60P; full Unit1535P with2 separately executed broker restart facts, Errors94P. Additive nullable source ID and exact parent/source cleanup preserve legacy activity. Frontend identity attribution/suppression handoff and BE022 late activity remain open; no live schema apply."
+      "note": "Backend RED6F/2P and targeted60P; client RED3F/20P plus DTO2F, GREEN UI29P/backend18P. Optional source identity passes through events, persistence, authorized HTTP projection and BranchFeed attribution/suppression, preserving legacy null rows without guessed actor/time. Client evidence: results/evidence/t03-activity-client-verification.json. Final broad Unit1537P/2 separately verified restart facts, Errors94P, isolated frontend2279P with lint/typecheck/coverage/build0. BE022 late activity, live HTTP/browser and rollout gates remain open."
     }
   },
   {

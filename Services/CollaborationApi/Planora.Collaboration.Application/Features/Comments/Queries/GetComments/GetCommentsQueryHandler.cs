@@ -176,7 +176,8 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
                     ReplyToAuthorName: replyToAuthorName,
                     ReplyToAuthorAvatarUrl: replyToAuthorAvatarUrl,
                     ReplyToPreview: replyToPreview,
-                    ReplyToDeleted: replyToDeleted));
+                    ReplyToDeleted: replyToDeleted,
+                    SourceSubtaskId: c.SourceSubtaskId));
             }
 
             return Result<PagedResult<CommentDto>>.Success(
