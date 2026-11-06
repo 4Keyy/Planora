@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "batch_id": "READ-047",
+  "reviewed_date_local": "2026-11-06",
+  "timezone": "Europe/Moscow",
+  "reviewer": "read047",
+  "source_head": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
+  "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
+  "status": "reviewed_source_only",
+  "scope_files": 1,
+  "source_lines_read": 1690,
+  "source_changes": false,
+  "files": [
+    {
+      "path": "Start-Planora-Local.ps1",
+      "status": "REVIEWED",
+      "ranges_read": [
+        "1-1690"
+      ],
+      "line_count": 1690,
+      "sha256": "71d93ccb90116f10f24fe996e1ced9048887747126b97ab412b1fe17a80def05",
+      "purpose_and_callers": "Windows local host-process launcher for full service stack over Docker infra; help/preflight/SDK resolution/env/LAN firewall/cleanup/host build/service/frontend/health/stop. README237-251 and getting-started72-138 provide invocation/docs. No dedicated launcher regression found in inspected tests/scripts search.",
+      "trust_state_errors_concurrency": "Own checkout source, shared PID namespace/runtime and fixed Compose infra. Local port calls pass RepoRoot; PID and global compiler-stop paths remain weak. Firewall validator does not inspect claimed protocol/scope. Parent process env is inherited. Health/build nonzero handling source-traced but no services executed.",
+      "test_evidence": "Windows PowerShell 5.1.26100.9711 Parser.ParseFile only,0errors/exit0; no modules imported or launcher execution.",
+      "conclusion": "One new concrete firewall-validation defect; source extensions of OPS-016, OPS-017 and OPS-009. T14 mocked regression before fixes; runtime remains NOT_VERIFIED.",
+      "finding_ids": [
+        "CONT047001"
+      ]
+    }
+  ],
+  "new_findings": [
+    {
+      "id": "CONT047001",
+      "severity": "P2",
+      "status": "STATIC_CONFIRMED_RUNTIME_NOT_VERIFIED",
+      "title": "LAN firewall verifier принимает правила с неверным protocol и remote scope",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "630-654,679-683,711-714,1601-1607,1621-1635"
+        }
+      ],
+      "trigger": "Уже существует enabled inbound allow правило с DisplayName Planora LAN (local dev) и LocalPort 3000/5132 (либо Any), но Protocol=UDP вместо TCP либо RemoteAddress=Any/иной scope вместо обещанного LocalSubnet. Launcher запущен с -Lan или -Prod.",
+      "impact": "Test-LanFirewallRule проверяет только имя, Enabled/Direction/Action и LocalPort. Protocol, remote address и остальные фильтры не читаются; Any port немедленно даёт true. Enable-LanFirewall тогда пропускает создание корректного TCP/LocalSubnet правила. Позднее вывод объявляет inbound TCP + LocalSubnet verified, хотя эти свойства не проверены. Слишком широкое правило остаётся широким; UDP-only либо не подходящее remote scope может дать ложную firewall-ready оценку. TCP self-probe с того же хоста не доказывает доступ внешнего LAN peer. Реальные правила/соединения не проверялись, фактическая внешняя доступность не утверждается.",
+      "repro": "T14: отдельный PowerShell harness со stub Get-NetFirewallRule/PortFilter/AddressFilter и подавленными elevation/firewall writes. Подать same-name UDP-only rule, TCP Any-remote rule, неподходящий profile/address/interface filter и затем корректное TCP/LocalSubnet правило. Неподходящие варианты не должны объявляться verified или обходить repair; подтвердить, что block/precedence и реальный peer reachability не подменяются локальным TCP probe. Рабочий firewall не менять.",
+      "fix": "T14 должен валидировать фактический TCP protocol, remote scope и применимые rule filters/profile до признания уже существующего правила корректным. Сохранять точное ограничение LocalSubnet при repair и не заявлять внешнюю достижимость из host-local probe; неподтверждённые свойства отражать явно."
+    }
+  ],
+  "observations": [
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "OPS-016",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "516-531,888-900,904-913,1389-1395"
+        },
+        {
+          "path": "scripts/PidManager.psm1",
+          "lines": "64-81,146-169,185-208",
+          "supplemental": true
+        }
+      ],
+      "note": "Local port-based cleanup передаёт RepoRoot, но первый Stop-AllServices и shutdown wrapper paths доверяют только числовым PID без start time/executable identity. Дополнительно timeout build-server shutdown вызывает машинный Get-CimInstance + kill всех подходящих VBCSCompiler/MSBuild/Razor servers, без ограничения checkout. Это расширение существующей проблемы provenance, не новый stable ID; чужие процессы не создавались/не останавливались."
+    },
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "OPS-017",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "1372-1410,1441-1445"
+        },
+        {
+          "path": "scripts/PidManager.psm1",
+          "lines": "185-208",
+          "supplemental": true
+        }
+      ],
+      "note": "Local -Stop не выполняет Compose down, поэтому Docker-specific trigger отсутствует. Но stop results намеренно discarded, Stop-Process errors подавлены; PID files очищаются, затем безусловный Shutdown complete/exit0. No post-stop confirmation. Сохранить как родственный residual существующего stop-outcome finding, не утверждать выполненный failed-stop runtime."
+    },
+    {
+      "status": "EXISTING_FINDING_EXTENSION",
+      "finding_id": "OPS-009",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "34-37"
+        },
+        {
+          "path": "Start-Planora-Docker.ps1",
+          "lines": "630-637",
+          "supplemental": true
+        }
+      ],
+      "note": "Local synopsis утверждает, что companion Docker launcher удаляет volumes. Фактический companion Stop-DockerStack вызывает down без --volumes; схема сохраняет volumes. Это stale documentation claim, не новый finding."
+    },
+    {
+      "status": "REFUTED_FOR_REVIEWED_CALLS",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "895-901,930-940,1380-1385,1398-1403"
+        },
+        {
+          "path": "scripts/PortChecker.psm1",
+          "lines": "238-248,288-295",
+          "supplemental": true
+        }
+      ],
+      "note": "Все четыре Local Get-PortOwner calls явно передают RepoRoot; Docker launcher name-only fallback нельзя переносить на эти calls. Helper всё ещё использует substring root/ancestor lookup; identity recheck/PID reuse остаются отдельным provenance residual, не сертификатом безопасности всех stop paths."
+    },
+    {
+      "status": "SOURCE_BOUNDARY",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "210-289,1073-1125,1191-1204,1472-1493"
+        }
+      ],
+      "note": "Env импортирован в process block, не secret CLI args; локальные DB/Redis keys и LAN public URLs задаются в parent перед child launch. Реальные env/credentials не читались. Quoting/expansion parity с Compose, inherited PUBLIC bundle contents и повторный запуск в одной оболочке не проверены."
+    },
+    {
+      "status": "OPERATIONAL_BOUNDARY",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "740-769,814-848,1130-1168,1506-1536"
+        }
+      ],
+      "note": "Launcher может скачивать/исполнять SDK installer, запускать Docker Desktop/менять context и поднимать фиксированные рабочие infra containers; -Clean удаляет artifacts текущего checkout. Поэтому он не disposable audit fixture. Ничего из перечисленного здесь не выполнялось."
+    },
+    {
+      "status": "REFUTED_FOR_REVIEWED_PATHS",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "1027-1067,1539-1550,1666-1678"
+        }
+      ],
+      "note": "Backend build nonzero приводит к отказу startup; health failures входят в Failures и делают ExitAfterHealthCheck nonzero. Подавленный build stdout ухудшает диагностику, но не доказывает игнорирование backend build failure. Exit code stop cleanup остаётся отдельно открытым."
+    },
+    {
+      "status": "STATIC_PARSER_PASS_RUNTIME_NOT_VERIFIED",
+      "evidence": [
+        {
+          "path": "Start-Planora-Local.ps1",
+          "lines": "1-1690"
+        }
+      ],
+      "note": "Windows PowerShell 5.1.26100.9711: Parser.ParseFile0errors/exit0. Target script не исполнялся, modules не импортировались. UTF8 без BOM содержит non-ASCII comments; parser check не доказывает правильность runtimeстрок/кодировок/child-shell quoting."
+    }
+  ],
+  "static_checks": [
+    {
+      "id": "read047-ps51-parse-only",
+      "executable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "arguments": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$parseTokens = $null\n$parseErrors = $null\n$parsePath = 'F:/Projects/Planora/Start-Planora-Local.ps1'\n$null = [System.Management.Automation.Language.Parser]::ParseFile($parsePath, [ref]$parseTokens, [ref]$parseErrors)\n[PSCustomObject]@{ PowerShellVersion=$PSVersionTable.PSVersion.ToString(); File='Start-Planora-Local.ps1'; ParserErrorCount=@($parseErrors).Count } | ConvertTo-Json -Compress\nforeach ($parseError in $parseErrors) { [PSCustomObject]@{ Line=$parseError.Extent.StartLineNumber; ErrorId=$parseError.ErrorId; Message=$parseError.Message } | ConvertTo-Json -Compress }\nif (@($parseErrors).Count -gt 0) { exit 1 }\n"
+      ],
+      "cwd": "F:/Projects/Planora",
+      "exit_code": 0,
+      "powershell_version": "5.1.26100.9711",
+      "parser_errors": 0,
+      "target_script_executed": false,
+      "modules_imported": false
+    }
+  ],
+  "runtime_verification": {
+    "executed": false,
+    "target_script_executed": false,
+    "docker_invoked": false,
+    "ports_probed": false,
+    "firewall_queried_or_modified": false,
+    "process_inventory_or_stop": false
+  },
+  "limits": [
+    "Manifest READ-047 содержит1file/1690lines. Supplemental module/docs/Docker ranges не добавлены к coverage.",
+    "Source matches 1c0d82fc6ea8768d234e9cab974549382f6057c6 by git diff; byte SHA256 captured, all ranges read1-1690.",
+    "Parser.ParseFile выполняет только разбор исходника. Ни launcher, ни его module imports/functions, SDK installation, Docker/context, builds/npm, firewall, port probes, process inventory/stop не выполнялись.",
+    "Active .env/OAuth/credentials не читались. Synthetic firewall scenarios описаны как будущий regression, не выданы за выполненные.",
+    "Only own read-047-review.json/.md edited. Source/registry/index/manifest/PROGRESS и чужие файлы сохранены. Root назначает stable finding ID и интегрирует coverage.",
+    "Runtime/failure/restart/concurrent launcher and actual LAN peer reachability gates остаются T14. Никакой production certification."
+  ],
+  "stable_finding_ids": {
+    "CONT047001": "OPS-018"
+  }
+}

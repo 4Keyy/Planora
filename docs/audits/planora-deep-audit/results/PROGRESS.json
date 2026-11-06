@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
+  "current_sha": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -228,7 +228,9 @@
     "Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/DeleteComment/DeleteCommentCommandHandler.cs",
     "tests/Planora.UnitTests/Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs",
     "tests/Planora.UnitTests/Services/CollaborationApi/Infrastructure/CommentMutationOutboxPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-comment-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-comment-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-047-review.json",
+    "docs/audits/planora-deep-audit/results/evidence/read-047-review.md"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -270,9 +272,11 @@
     "READ-045 completed all14manifest paths/1620source lines. BE-034 detached category-update tracking is static, expected provider effect NOT_VERIFIED. BE-008/010 extensions retained. Coverage619/1558(39.73%),64batches pending.",
     "UpdateTodo RED5F/1P (success matrix4DB), GREEN416P, broad1504P, ErrorHandling94P without skips. Seven provider tests include deferred reset preserving concurrent independent fields. All7Todo producers staged; Collaboration remains. Stage reset materialization cost and late-completion/full-row races remain gates.",
     "READ-046 full1path/852lines. OPS-016 process provenance and OPS-017 false stop success are source-confirmed; only PS5.1 parser0errors executed. No launcher/services/process operations. Coverage620/1558(39.79%),63batches pending.",
-    "Collaboration initialRED7F includes1test precision mismatch; corrected pre-fix RED6F/1P. GREEN74P/broad1511P; added known-failure fresh-context retry then75P/1512P; Errors94P, no skips. All10listed producers staged; profile dependency beforecommit. BE-002 stays local/partial for operational gates."
+    "Collaboration initialRED7F includes1test precision mismatch; corrected pre-fix RED6F/1P. GREEN74P/broad1511P; added known-failure fresh-context retry then75P/1512P; Errors94P, no skips. All10listed producers staged; profile dependency beforecommit. BE-002 stays local/partial for operational gates.",
+    "BE-005 design: additive tracked targeted cleanup + domain removes only revoked peer, parent xmin touch, complete realtime-only event set + oneSave. Legacy share API retained. No generation-aware or universal late-join claim.",
+    "READ-047 full1path/1690lines. OPS-018 protocol/remote-scope verifier source-confirmed; only PS5.1 parser0errors executed, no launcher/firewall/process/Docker operations. Existing OPS-009/016/017 extended, port RepoRoot omission refuted for Local calls. Coverage621/1558(39.86%),62batches pending."
   ],
-  "next_step": "T03 BE-005 provider RED: friendship revoke in both directions, subtasks and historical no-share workers; preserve unrelated participants, then atomic cleanup and staged sync.",
+  "next_step": "T03 BE-005: provider RED for targeted bidirectional shares/workers cleanup, staged thin sync and selected aggregate xmin; preserve unrelated users. Generation/late in-flight authorization remain separate gates.",
   "commands": [
     {
       "id": "readiness-red",
@@ -3202,14 +3206,31 @@
       "local_links": 1448,
       "broken_links": 0,
       "lint_issues": 0
+    },
+    {
+      "id": "read047-ps51-parse-only",
+      "executable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "arguments": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$parseTokens = $null\n$parseErrors = $null\n$parsePath = 'F:/Projects/Planora/Start-Planora-Local.ps1'\n$null = [System.Management.Automation.Language.Parser]::ParseFile($parsePath, [ref]$parseTokens, [ref]$parseErrors)\n[PSCustomObject]@{ PowerShellVersion=$PSVersionTable.PSVersion.ToString(); File='Start-Planora-Local.ps1'; ParserErrorCount=@($parseErrors).Count } | ConvertTo-Json -Compress\nforeach ($parseError in $parseErrors) { [PSCustomObject]@{ Line=$parseError.Extent.StartLineNumber; ErrorId=$parseError.ErrorId; Message=$parseError.Message } | ConvertTo-Json -Compress }\nif (@($parseErrors).Count -gt 0) { exit 1 }\n"
+      ],
+      "cwd": "F:/Projects/Planora",
+      "exit_code": 0,
+      "powershell_version": "5.1.26100.9711",
+      "parser_errors": 0,
+      "target_script_executed": false,
+      "modules_imported": false
     }
   ],
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 63,
+    "pending_batches": 62,
     "complete": false,
-    "current_read_or_reviewed": 620,
+    "current_read_or_reviewed": 621,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3227,7 +3248,8 @@
       "READ-043",
       "READ-044",
       "READ-045",
-      "READ-046"
+      "READ-046",
+      "READ-047"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
@@ -3302,7 +3324,9 @@
     "results/evidence/t03-update-verification.json",
     "results/evidence/read-046-review.json",
     "results/evidence/read-046-review.md",
-    "results/evidence/t03-comment-verification.json"
+    "results/evidence/t03-comment-verification.json",
+    "results/evidence/read-047-review.json",
+    "results/evidence/read-047-review.md"
   ],
   "local_commits": [
     {
@@ -3454,6 +3478,11 @@
       "task": "READ-046 Docker launcher source review",
       "sha": "a6d3f8f618678eca379d17e4f6d097fa639637b4",
       "pushed": false
+    },
+    {
+      "task": "Collaboration comment staged mutation/fanout verified",
+      "sha": "1c0d82fc6ea8768d234e9cab974549382f6057c6",
+      "pushed": false
     }
   ],
   "disposable_resources": [
@@ -3517,6 +3546,7 @@
     "BE-033",
     "BE-034",
     "OPS-016",
-    "OPS-017"
+    "OPS-017",
+    "OPS-018"
   ]
 }

@@ -1427,7 +1427,8 @@
     "dependencies": [],
     "limitations": "Доказан факт кода/конфигурации или scanner result. Production state/exploitability не проверялись.",
     "continuation_evidence": [
-      "results/evidence/read-046-review.json"
+      "results/evidence/read-046-review.json",
+      "results/evidence/read-047-review.json"
     ]
   },
   {
@@ -3309,7 +3310,10 @@
       "T14: в изолированном PowerShell harness подменить process/port inventory и Stop-Process, подать foreign dotnet/node на cleanup ports и reused PID. Требовать ноль stop calls для чужих/неподтверждённых владельцев, проверить отдельно start, -Stop, Ctrl+C и -ExitAfterHealthCheck. Собственные synthetic Planora descendants должны останавливаться; никакие рабочие сервисы теста не касаются."
     ],
     "dependencies": [],
-    "limitations": "Static review CONT046001; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json."
+    "limitations": "Static review CONT046001; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json.",
+    "continuation_evidence": [
+      "results/evidence/read-047-review.json"
+    ]
   },
   {
     "id": "OPS-017",
@@ -3333,6 +3337,33 @@
       "T14: в отдельном PowerShell harness подставить fake docker command с заранее заданными exit1/exit 0, перехватить stop helpers без процессов и проверить конечный код -Stop. Nonzero должен сохраняться с actionable error, exit 0 допустим только после успешной остановки. Не выполнять down рабочего стека."
     ],
     "dependencies": [],
-    "limitations": "Static review CONT046002; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json."
+    "limitations": "Static review CONT046002; only parser check executed. Runtime NOT_VERIFIED. See results/evidence/read-046-review.json.",
+    "continuation_evidence": [
+      "results/evidence/read-047-review.json"
+    ]
+  },
+  {
+    "id": "OPS-018",
+    "title": "Local launcher firewall verification omits claimed protocol and remote scope",
+    "confidence": "CONFIRMED",
+    "priority": "P2",
+    "severity": "medium",
+    "likelihood": "condition-dependent",
+    "package": "T14",
+    "evidence": [
+      {
+        "path": "Start-Planora-Local.ps1",
+        "lines": "630-654,679-683,711-714,1601-1607,1621-1635",
+        "observation": "CONT047001"
+      }
+    ],
+    "trigger": "Уже существует enabled inbound allow правило с DisplayName Planora LAN (local dev) и LocalPort 3000/5132 (либо Any), но Protocol=UDP вместо TCP либо RemoteAddress=Any/иной scope вместо обещанного LocalSubnet. Launcher запущен с -Lan или -Prod.",
+    "impact": "Test-LanFirewallRule проверяет только имя, Enabled/Direction/Action и LocalPort. Protocol, remote address и остальные фильтры не читаются; Any port немедленно даёт true. Enable-LanFirewall тогда пропускает создание корректного TCP/LocalSubnet правила. Позднее вывод объявляет inbound TCP + LocalSubnet verified, хотя эти свойства не проверены. Слишком широкое правило остаётся широким; UDP-only либо не подходящее remote scope может дать ложную firewall-ready оценку. TCP self-probe с того же хоста не доказывает доступ внешнего LAN peer. Реальные правила/соединения не проверялись, фактическая внешняя доступность не утверждается.",
+    "fix": "T14 должен валидировать фактический TCP protocol, remote scope и применимые rule filters/profile до признания уже существующего правила корректным. Сохранять точное ограничение LocalSubnet при repair и не заявлять внешнюю достижимость из host-local probe; неподтверждённые свойства отражать явно.",
+    "tests": [
+      "T14: отдельный PowerShell harness со stub Get-NetFirewallRule/PortFilter/AddressFilter и подавленными elevation/firewall writes. Подать same-name UDP-only rule, TCP Any-remote rule, неподходящий profile/address/interface filter и затем корректное TCP/LocalSubnet правило. Неподходящие варианты не должны объявляться verified или обходить repair; подтвердить, что block/precedence и реальный peer reachability не подменяются локальным TCP probe. Рабочий firewall не менять."
+    ],
+    "dependencies": [],
+    "limitations": "Static review CONT047001; parser-only check. Runtime/firewall state NOT_VERIFIED. See results/evidence/read-047-review.json."
   }
 ]

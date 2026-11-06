@@ -1131,3 +1131,14 @@ evidence without assigning duplicate IDs or claiming new runtime results.
 PowerShell 5.1 parser-only validation passed with zero syntax errors. The
 launcher and helpers were not executed; runtime remains NOT_VERIFIED.
 [READ-046](results/evidence/read-046-review.md)
+
+## READ-047 — Local launcher firewall verification
+
+OPS-018 / P2 / CONFIRMED, static. An existing named allow rule can pass the
+launcher check without verifying TCP or the promised LocalSubnet remote
+scope. Use mocked firewall objects before changing the validator; the
+working firewall was neither inspected nor modified. Existing OPS-009,
+OPS-016 and OPS-017 gained source evidence. Local port-owner calls do pass
+RepoRoot, so the Docker omission does not apply to those calls.
+PowerShell 5.1 parser-only validation passed with zero syntax errors.
+[READ-047](results/evidence/read-047-review.md)

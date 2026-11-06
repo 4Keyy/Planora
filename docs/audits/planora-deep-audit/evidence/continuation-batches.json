@@ -1093,8 +1093,10 @@
     "paths": [
       "Start-Planora-Local.ps1"
     ],
-    "status": "pending",
-    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes"
+    "status": "reviewed_source_only",
+    "protocol": "Purpose/callers/permissions/errors/concurrency/tests/docs; exact ranges; no automatic fixes",
+    "evidence": "results/evidence/read-047-review.json",
+    "notes": "Full1manifestfile/1690lines. PS5.1 parser0errors; no launcher/firewall/process/Docker execution. OPS-018 verifier plus existing provenance/stop boundaries remain T14."
   },
   {
     "batch_id": "READ-048",
