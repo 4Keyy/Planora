@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
@@ -205,8 +206,10 @@ public sealed class CommentCommandHandlerTests
         var system = Comment.CreateSystem(fixture.TaskId, "X created the task");
         fixture.Comments.Setup(x => x.GetByIdAsync(system.Id, It.IsAny<CancellationToken>())).ReturnsAsync(system);
 
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
+        var denied = await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.DeleteHandler().Handle(new DeleteCommentCommand(fixture.TaskId, system.Id), CancellationToken.None));
+        Assert.Equal("System event comments cannot be deleted", denied.Message);
+        fixture.Access.Verify(x => x.CheckCommentAccessAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -224,6 +227,7 @@ public sealed class CommentCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.True(comment.IsDeleted);
         fixture.Comments.Verify(x => x.Update(comment), Times.Once);
+        AssertDeletePayload(fixture, comment);
     }
 
     [Fact]
@@ -237,6 +241,119 @@ public sealed class CommentCommandHandlerTests
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.DeleteHandler().Handle(new DeleteCommentCommand(fixture.TaskId, comment.Id), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteComment_AuthorWithoutTaskAccess_ThrowsForbiddenWithoutMutation()
+    {
+        var fixture = new Fixture();
+        fixture.DenyAccess();
+        var comment = Comment.Create(fixture.TaskId, fixture.UserId, "Me", "formerly accessible");
+        fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
+
+        var denied = await Assert.ThrowsAsync<ForbiddenException>(() => fixture.DeleteHandler().Handle(
+            new DeleteCommentCommand(fixture.TaskId, comment.Id), CancellationToken.None));
+
+        Assert.Equal("You do not have access to this task", denied.Message);
+        Assert.False(comment.IsDeleted);
+        fixture.Comments.Verify(x => x.Update(It.IsAny<Comment>()), Times.Never);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Empty(fixture.OutboxMessages);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DeleteComment_OwnerIdentityWithoutTaskAccess_ThrowsForbidden()
+    {
+        var fixture = new Fixture();
+        fixture.Access.Setup(x => x.CheckCommentAccessAsync(fixture.TaskId, fixture.UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TaskAccessResult(true, false, fixture.UserId, Array.Empty<Guid>(), string.Empty, null));
+        var comment = Comment.Create(fixture.TaskId, Guid.NewGuid(), "Other", "known comment");
+        fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
+
+        var denied = await Assert.ThrowsAsync<ForbiddenException>(() => fixture.DeleteHandler().Handle(
+            new DeleteCommentCommand(fixture.TaskId, comment.Id), CancellationToken.None));
+
+        Assert.Equal("You do not have access to this task", denied.Message);
+        Assert.False(comment.IsDeleted);
+        fixture.Comments.Verify(x => x.Update(It.IsAny<Comment>()), Times.Never);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Empty(fixture.OutboxMessages);
+    }
+
+    [Theory]
+    [InlineData("comment")]
+    [InlineData("branch")]
+    [InlineData("task")]
+    [Trait("TestType", "Security")]
+    public async Task DeleteComment_MissingOrMismatchedResource_ThrowsNotFoundWithoutMutation(string missing)
+    {
+        var fixture = new Fixture();
+        var comment = Comment.Create(missing == "branch" ? Guid.NewGuid() : fixture.TaskId, fixture.UserId, "Me", "known comment");
+        if (missing != "comment")
+            fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
+        fixture.TaskDoesNotExist();
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() => fixture.DeleteHandler().Handle(
+            new DeleteCommentCommand(fixture.TaskId, comment.Id), CancellationToken.None));
+
+        Assert.False(comment.IsDeleted);
+        fixture.Comments.Verify(x => x.Update(It.IsAny<Comment>()), Times.Never);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Empty(fixture.OutboxMessages);
+        if (missing != "task")
+            fixture.Access.Verify(x => x.CheckCommentAccessAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DeleteComment_ByTaskOwner_DeletesAnotherAuthorsCommentWithSamePayload()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(fixture.UserId);
+        var comment = Comment.Create(fixture.TaskId, Guid.NewGuid(), "Other", "moderated comment");
+        fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
+
+        var result = await fixture.DeleteHandler().Handle(
+            new DeleteCommentCommand(fixture.TaskId, comment.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(comment.IsDeleted);
+        AssertDeletePayload(fixture, comment);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("TestType", "Security")]
+    public async Task DeleteComment_LegacyGenesis_RemainsOwnerOnly(bool isOwner)
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(isOwner ? fixture.UserId : Guid.NewGuid());
+        var genesis = Comment.CreateSystem(fixture.TaskId, "Legacy description");
+        // This legacy row shape can still be loaded, but current factories no longer create genesis comments.
+        typeof(Comment).GetProperty(nameof(Comment.IsGenesisComment))!.SetValue(genesis, true);
+        fixture.Comments.Setup(x => x.GetByIdAsync(genesis.Id, It.IsAny<CancellationToken>())).ReturnsAsync(genesis);
+
+        if (isOwner)
+        {
+            var result = await fixture.DeleteHandler().Handle(
+                new DeleteCommentCommand(fixture.TaskId, genesis.Id), CancellationToken.None);
+            Assert.True(result.IsSuccess);
+            Assert.True(genesis.IsDeleted);
+            AssertDeletePayload(fixture, genesis);
+        }
+        else
+        {
+            var denied = await Assert.ThrowsAsync<ForbiddenException>(() => fixture.DeleteHandler().Handle(
+                new DeleteCommentCommand(fixture.TaskId, genesis.Id), CancellationToken.None));
+            Assert.Equal("Only the task owner can delete the description", denied.Message);
+            Assert.False(genesis.IsDeleted);
+            Assert.Empty(fixture.OutboxMessages);
+            fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
     }
 
     // ─── UpdateComment ──────────────────────────────────────────────────────────
@@ -318,6 +435,19 @@ public sealed class CommentCommandHandlerTests
     }
 
     // ─── Fixture ────────────────────────────────────────────────────────────────
+
+    private static void AssertDeletePayload(Fixture fixture, Comment comment)
+    {
+        var message = Assert.Single(fixture.OutboxMessages);
+        Assert.Equal(typeof(RealtimeSyncIntegrationEvent).AssemblyQualifiedName, message.Type);
+        var sync = JsonSerializer.Deserialize<RealtimeSyncIntegrationEvent>(message.Content)!;
+        Assert.Equal(RealtimeSyncAction.CommentDeleted, sync.Action);
+        Assert.Equal(comment.Id, sync.EntityId);
+        Assert.Equal(fixture.UserId, sync.ActorId);
+        Assert.Equal(fixture.TaskId, sync.BranchTaskId);
+        Assert.Empty(sync.AudienceUserIds);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 
     private sealed class Fixture
     {

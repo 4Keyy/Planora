@@ -48,6 +48,8 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.DeleteCom
             var access = await _taskAccessService.CheckCommentAccessAsync(request.TaskId, userId, cancellationToken);
             if (!access.Exists)
                 throw new EntityNotFoundException("Task", request.TaskId);
+            if (!access.HasAccess)
+                throw new ForbiddenException("You do not have access to this task");
 
             var isAuthor = comment.AuthorId == userId;
             var isTaskOwner = access.OwnerId == userId;

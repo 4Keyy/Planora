@@ -103,7 +103,7 @@ synthesized from Todo's live description.
 | `GET /collaboration/api/v1/comments/{taskId}` | Todo `CheckTaskCommentAccess`: missing 404, no current access 403 | query source; command suite does not certify GET pagination |
 | `POST /collaboration/api/v1/comments/{taskId}` | current branch access; reply targets must be eligible and inside branch | `AddComment_WithoutAccess_ThrowsForbidden`, `AddComment_ReplyToCommentFromAnotherTask_ThrowsNotFound`, `AddComment_ReplyToSystemComment_IsRejected`, `AddComment_ReplyToSubtask_ValidatesViaTodoAndSnapshotsTitle` |
 | `PUT /collaboration/api/v1/comments/{taskId}/{commentId}` | branch match and current access; regular author edits own content | `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden`, `UpdateComment_WrongTask_ThrowsNotFound`; explicit regressions |
-| `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}` | matching branch, task exists, author/task-owner identity; system/genesis denied; **no `HasAccess` check** | `DeleteComment_ByStranger_ThrowsForbidden`, `DeleteComment_SystemComment_ThrowsForbidden`, `DeleteComment_ByAuthor_SoftDeletes`; **AZ-03**, revoked-author denial missing |
+| `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}` | matching branch, task exists, current `HasAccess`, then author/task-owner identity; system/genesis rules retained | CommentCommandHandlerTests; revoked author and stale owner identity denied before mutation/outbox; AZ-03 resolved |
 
 ## Category API
 
@@ -184,12 +184,10 @@ correctness or deployed transport encryption.
 
 ## Known Findings And Missing Regressions
 
-The frozen-audience change resolves AZ-01, AZ-02 and AZ-04 with central live-friend
-authorization and uncached list selection. The findings below remain open.
-
-| Finding | Trigger and impact | Missing regression / remediation direction |
-|---|---|---|
-| **AZ-03 (medium)** | former comment author deletes known regular comment after branch access removed: author/owner checked, `HasAccess` ignored | deletion denial matching existing `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden` |
+The frozen-audience change addresses AZ-01, AZ-02 and AZ-04 with central live-friend
+authorization and uncached list selection. AZ-03 now requires current branch access
+before author/owner deletion. Its regression first reproduced the unauthorized
+deletion, then passed alongside the existing handler and PostgreSQL outbox checks.
 
 AZ-05/AZ-06 are covered by current-audience/session checks and the
 [monitor regressions](../tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/RealtimeSessionMonitorTests.cs).
