@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "head": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
+  "date_local": "2026-11-06",
+  "audit_status": "paused_by_owner",
+  "reason": "Owner requested a working local Production-config instance now and deferred the remaining audit until a new instruction.",
+  "last_verified_unit": {
+    "commit": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
+    "finding": "BE-005",
+    "evidence": "results/evidence/t03-friendship-verification.json",
+    "unit_tests": 1522,
+    "error_handling_tests": 94,
+    "skipped": 0
+  },
+  "unfinished_be006": {
+    "application_schema_changed": false,
+    "migration_scaffolded": false,
+    "red_or_green_executed": false,
+    "source_sha256": {
+      "BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/TaskActivityIntegrationEvent.cs": "66dcd2fed97c5bf4217c0ec87cf4404e7b692e7bf10c7d699a6f1f0b3a90f5dd",
+      "Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs": "0c38131e562becd61fea49c68fd1b00aa4beaf1c26240f0afea63899b1b509fa",
+      "Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs": "06c7980ebebb7f84d440509de4111afda62d628137d032f7a4b9f489b8f08887",
+      "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/TaskActivityEventConsumer.cs": "391e3ae88360921ad5406449a8dd038768868e8a7d59c3a4d8025cb4e82dc5a3",
+      "Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/SubtaskDeletedEventConsumer.cs": "bd1e430da297948ed9f31bd74b6266e2dfb4626a2b5135b4d3e9eb055a16eeb1",
+      "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Repositories/CommentRepository.cs": "fc395b84931c0ee1a855e9aea8b3adcb8619f3552dbb6d116e4a669da00433b0",
+      "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/Configurations/CommentConfiguration.cs": "6fe4b3cb9210a53e87f9e8748ed6e1608966a3f4ec4bec1808824062222b9b36",
+      "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDatabaseStartup.cs": "e3cc2cec4dd3c6e86e78c249641d6179a65ee4a7b60cb87097b584e7ed126d38",
+      "Services/CollaborationApi/Planora.Collaboration.Infrastructure/Migrations/CollaborationDbContextModelSnapshot.cs": "7978e3f0edb2350f71723418dbe750238722eb0482bf364bebaf34602294e138",
+      "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs": "e52fd1a3c2737fa4a1e7910cad552e791b9e3e5d3c000d18338a5aaa8aaf0e5f",
+      "tests/Planora.UnitTests/Services/CollaborationApi/IntegrationEvents/IntegrationEventConsumerTests.cs": "632882ede3a590d168f8a3d6c7c030ffb6dce689290aaed1d0c7fc01c5675404",
+      "tests/Planora.UnitTests/Services/Infrastructure/LegacyCollaborationBaselineFactory.cs": "5d972969738bc59eb65376f3cf4348bc196f51a1738f49d00385bb7b55ef7dfc",
+      ".gitignore": "85d9b038231a3e388383a16abfe7e6012d97a7f095f529109ba91f615a8215ec",
+      ".dockerignore": "869602c4e33b0c7c86c3a6c593fc6642294bdb9e59dd1350158c7c968567ab42"
+    },
+    "parked_drafts": [
+      {
+        "path": ".buildcheck/deep-audit-t03/pending-be006/SubtaskActivityIdentityPostgresTests.cs",
+        "sha256": "08220c480028e1d89cb67c7d7baf0949e2e50530e6311e45173998188483f018",
+        "status": "Unfinished test draft; not compiled or executed. Removed from active test tree before local Production build."
+      }
+    ],
+    "design": "Optional SourceSubtaskId wire field, nullable Comment column plus parent/source index, exact identity deletion; preserve legacy null-identity activity and current CreateSubtask event behavior.",
+    "handoff_limits": "Strict old Collaboration startup rejects a later schema/history, so T14 rollout must coordinate reader/schema/writer versions. Freeze pre-reply and pre-source factory profiles. Nullable identity alone is not a delete-before-activity tombstone."
+  },
+  "local_runtime_request": {
+    "launcher": "Start-Planora-Local.ps1 -Prod -NoBrowser",
+    "controller": ".buildcheck/local-prod-20261106/start.ps1",
+    "runtime_metadata": ".buildcheck/local-prod-20261106/runtime.json",
+    "next_dist_dir": ".next-local-prod-20261106",
+    "retention_enabled": false,
+    "prestart_backups": ".buildcheck/local-prod-20261106/db-before-start",
+    "backup_note": "Six PostgreSQL custom archives copied locally; headers/count checked. No restore certification or Data Protection recovery claim.",
+    "frontend_preservation": "Original next-env.d.ts and tsconfig.json copied before build; restore only known generated deltas after build.",
+    "status": "running; 24 HTTP checks and browser sign-in render passed",
+    "verification": "results/evidence/local-prod-runtime-verification-20261106.json",
+    "reconciliation": "Separately owner-approved local four-DB plan applied after restored-copy rehearsal; original data preserved."
+  },
+  "resume": "On owner instruction, verify runtime/dirty state, restore the parked BE-006 test draft, inspect it fully and obtain provider RED before any contract/model edits. No fresh audit restart."
+}

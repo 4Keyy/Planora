@@ -1,0 +1,298 @@
+{
+  "source_head": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
+  "working_apply": "APPROVED_AND_COMPLETED",
+  "rehearsal_preservation": {
+    "auth": {
+      "existing_tables_unchanged": 10,
+      "new_empty_tables": [
+        "public.UserRecoveryCodes"
+      ]
+    },
+    "category": {
+      "existing_tables_unchanged": 2,
+      "new_empty_tables": []
+    },
+    "collaboration": {
+      "existing_tables_unchanged": 3,
+      "new_empty_tables": []
+    },
+    "messaging": {
+      "existing_tables_unchanged": 3,
+      "new_empty_tables": []
+    }
+  },
+  "outbox_vectors": [
+    {
+      "Exit": 3,
+      "Case": "unknown-integer",
+      "RollbackPreservedInteger": true
+    },
+    {
+      "Exit": 3,
+      "Case": "oversized-type",
+      "RollbackPreservedInteger": true
+    },
+    {
+      "Exit": 3,
+      "Case": "oversized-error",
+      "RollbackPreservedInteger": true
+    },
+    {
+      "Exit": 0,
+      "PreservedStates": 5,
+      "Case": "five-status-mapping"
+    },
+    {
+      "Case": "unknown-text",
+      "Exit": 3
+    },
+    {
+      "Case": "vector-schema-guard",
+      "Exit": 0
+    }
+  ],
+  "approved_sql_sha256": {
+    "auth.sql": "5d3ed8048626a6b740faa91a76e71acab14a718376d4e53ca4c7ab90538758dc",
+    "category.sql": "4e9f269a5eac26d8668e3fdbfb25cf4f86f6a4613d6b0e4b7b8d315d17360231",
+    "collaboration.sql": "322dd659d463c5a7508bba3f49bbcf9faa9592397b517dd7b4340bfb4b6fbf97",
+    "messaging.sql": "79c03f2a61937910a382c4d92de92b460d567309cb1c9c16895bb55d2fc1faf0"
+  },
+  "working_apply_authorization": "Owner explicitly approved the exact plan and completion of local -Prod in the current chat",
+  "working_data_preservation": {
+    "auth": {
+      "existing_tables_unchanged": 10,
+      "new_empty_tables": [
+        "public.UserRecoveryCodes"
+      ]
+    },
+    "category": {
+      "existing_tables_unchanged": 2,
+      "new_empty_tables": []
+    },
+    "collaboration": {
+      "existing_tables_unchanged": 3,
+      "new_empty_tables": []
+    },
+    "messaging": {
+      "existing_tables_unchanged": 3,
+      "new_empty_tables": []
+    }
+  },
+  "smoke": {
+    "status": "PASS",
+    "checks": 24,
+    "results": [
+      {
+        "name": "auth ready",
+        "url": "http://127.0.0.1:5030/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "auth aggregate",
+        "url": "http://127.0.0.1:5030/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "category ready",
+        "url": "http://127.0.0.1:5281/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "category aggregate",
+        "url": "http://127.0.0.1:5281/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "todo ready",
+        "url": "http://127.0.0.1:5100/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "todo aggregate",
+        "url": "http://127.0.0.1:5100/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "collaboration ready",
+        "url": "http://127.0.0.1:5060/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "collaboration aggregate",
+        "url": "http://127.0.0.1:5060/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "messaging ready",
+        "url": "http://127.0.0.1:5058/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "messaging aggregate",
+        "url": "http://127.0.0.1:5058/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "realtime ready",
+        "url": "http://127.0.0.1:5032/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "realtime aggregate",
+        "url": "http://127.0.0.1:5032/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "gateway ready",
+        "url": "http://127.0.0.1:5132/health/ready",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "gateway aggregate",
+        "url": "http://127.0.0.1:5132/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "health": "Healthy"
+      },
+      {
+        "name": "Production sign-in HTML",
+        "url": "http://localhost:3000/auth/login",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "expectedMarkup": true
+      },
+      {
+        "name": "Production JS asset",
+        "url": "http://localhost:3000/_next/static/chunks/0s2cptn1mmf6r.js",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      },
+      {
+        "name": "CSRF through Next and gateway",
+        "url": "http://localhost:3000/auth/api/v1/auth/csrf-token",
+        "status": 200,
+        "expected": 200,
+        "pass": true,
+        "tokenPresent": true,
+        "xsrfCookiePresent": true,
+        "sameSiteStrict": true
+      },
+      {
+        "name": "Anonymous refresh through Next",
+        "url": "http://localhost:3000/auth/api/v1/auth/refresh",
+        "status": 204,
+        "expected": 204,
+        "pass": true
+      },
+      {
+        "name": "Protected route /todos/api/v1/todos",
+        "url": "http://localhost:3000/todos/api/v1/todos",
+        "status": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "name": "Protected route /categories/api/v1/categories",
+        "url": "http://localhost:3000/categories/api/v1/categories",
+        "status": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "name": "Protected route /collaboration/api/v1/comments/00000000-0000-0000-0000-000000000001",
+        "url": "http://localhost:3000/collaboration/api/v1/comments/00000000-0000-0000-0000-000000000001",
+        "status": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "name": "Protected route /messaging/api/v1/messages",
+        "url": "http://localhost:3000/messaging/api/v1/messages",
+        "status": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "name": "Protected route /friendships",
+        "url": "http://localhost:3000/friendships",
+        "status": 401,
+        "expected": 401,
+        "pass": true
+      },
+      {
+        "name": "Realtime proxy health",
+        "url": "http://localhost:3000/realtime/health",
+        "status": 200,
+        "expected": 200,
+        "pass": true
+      }
+    ],
+    "log_sha256": "40c5e7a7ca6f833defa20968fa3383e471a1792210ad1d9e35f0b073506ad3ba",
+    "initial_helper_corrections": [
+      "plain-text aggregate Healthy response",
+      "Fetch forbidden service port5060; native HTTP used"
+    ]
+  },
+  "browser": {
+    "url": "http://localhost:3000/auth/login",
+    "landing_and_signin_rendered": true,
+    "console_warn_error_count": 0,
+    "account_login_or_user_crud_executed": false
+  },
+  "runtime": {
+    "Pid": 18572,
+    "StartedUtc": "2026-11-06T15:25:08.5466973Z",
+    "Script": "F:/Projects/Planora/.buildcheck/local-prod-20261106/start.ps1",
+    "Mode": "Start-Planora-Local.ps1 -Prod -NoBrowser",
+    "NextDistDir": ".next-local-prod-20261106",
+    "RetentionEnabled": false
+  },
+  "frontend_preservation": {
+    "next_env_git_hash": "ce4e94a6b10f160ee021fe18939af160d2927dcf",
+    "tsconfig_preserved": true
+  },
+  "documentation_checks": {
+    "command": "node tools/docs/check.mjs --include-untracked; node tools/docs/lint.mjs --include-untracked",
+    "exit_code": 0,
+    "documents": 129,
+    "local_links": 1463,
+    "broken_links": 0,
+    "lint_issues": 0
+  },
+  "scope_note": "API source unchanged during the local-runtime restoration. SQL was individually approved and applied; no remote operations or push."
+}

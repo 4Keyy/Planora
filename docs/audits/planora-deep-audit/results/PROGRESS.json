@@ -2,8 +2,8 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
-  "status": "in_progress",
+  "current_sha": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
+  "status": "paused",
   "current_task": "T03",
   "completed_tasks": [
     "T01 local contract (deployment closure remains T14)",
@@ -237,7 +237,10 @@
     "Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoRepository.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Handlers/FriendshipRemovedRegistrationTests.cs",
     "tests/Planora.UnitTests/Services/TodoApi/Infrastructure/FriendshipRevocationPostgresTests.cs",
-    "docs/audits/planora-deep-audit/results/evidence/t03-friendship-verification.json"
+    "docs/audits/planora-deep-audit/results/evidence/t03-friendship-verification.json",
+    "docs/audits/planora-deep-audit/results/evidence/t03-owner-pause-local-prod.json",
+    "docs/audits/planora-deep-audit/results/LOCAL_PROD_20261106.md",
+    "docs/audits/planora-deep-audit/results/evidence/local-prod-runtime-verification-20261106.json"
   ],
   "decisions": [
     "Local implementation and scoped commits authorized by user; no push, branch operations, production operations or credential rotation.",
@@ -282,9 +285,11 @@
     "Collaboration initialRED7F includes1test precision mismatch; corrected pre-fix RED6F/1P. GREEN74P/broad1511P; added known-failure fresh-context retry then75P/1512P; Errors94P, no skips. All10listed producers staged; profile dependency beforecommit. BE-002 stays local/partial for operational gates.",
     "BE-005 design: additive tracked targeted cleanup + domain removes only revoked peer, parent xmin touch, complete realtime-only event set + oneSave. Legacy share API retained. No generation-aware or universal late-join claim.",
     "READ-047 full1path/1690lines. OPS-018 protocol/remote-scope verifier source-confirmed; only PS5.1 parser0errors executed, no launcher/firewall/process/Docker operations. Existing OPS-009/016/017 extended, port RepoRoot omission refuted for Local calls. Coverage621/1558(39.86%),62batches pending.",
-    "BE-005 RED8F/0P. Original8provider facts GREEN424P/broad1520P/Errors94P; added legacy+soft-delete characterization facts then426P/1522P, all0skip. One atomic shares/workers/thin sync write set, explicit tracking and selected xmin. No generation or universal late legacy join claim. Registration full review promotes1baseline file: coverage622/1558(39.92%),62batches pending."
+    "BE-005 RED8F/0P. Original8provider facts GREEN424P/broad1520P/Errors94P; added legacy+soft-delete characterization facts then426P/1522P, all0skip. One atomic shares/workers/thin sync write set, explicit tracking and selected xmin. No generation or universal late legacy join claim. Registration full review promotes1baseline file: coverage622/1558(39.92%),62batches pending.",
+    "Owner explicitly paused the remaining audit for local Production-config use. BE-005 fc2929af verified/committed; BE-006 remains source/schema unchanged, no RED/GREEN, unfinished owned draft parked outside active tests. Runtime start uses a private Next dist dir, preserves frontend generated files and disables retention for this run; no push.",
+    "Owner separately approved exact four-DB reconciliation after restored-copy rehearsal and source review. Applied locally with identity/hash guards; 18 existing tables preserved. All7ready/aggregateHealthy, 24HTTPchecks and browser login render passed. Runtime left up; no account-login/CRUD claim. Audit remains paused by owner, BE-006 untouched."
   ],
-  "next_step": "T03 BE-006: freeze backward-compatible optional SourceSubtaskId contract (T01/T07), nullable Comment column/migration and reviewed startup compatibility (T08); provider RED duplicate-title/rename/legacy/out-of-order before source changes.",
+  "next_step": "Local -Prod is running and verified (24 HTTP checks + browser). Keep runtime alive for owner use. Resume the full audit only when asked; begin at parked BE-006 draft/provenance, not from scratch.",
   "commands": [
     {
       "id": "readiness-red",
@@ -3370,6 +3375,17 @@
           "sha256": "2b3aee0e189b5611e8dfa944f3e77980b2fa1d2d6df6d0bd19b9e72d6fce8c4b"
         }
       ]
+    },
+    {
+      "id": "local-prod-final",
+      "command": "Start-Planora-Local.ps1 -Prod -NoBrowser; approved SQL reconciliation; restart four APIs via launcher functions; native HTTP smoke; browser render",
+      "exit_code": 0,
+      "http_checks": 24,
+      "http_passed": 24,
+      "browser_console_warnings_errors": 0,
+      "documentation_links": 1463,
+      "documentation_broken_links": 0,
+      "evidence": "results/evidence/local-prod-runtime-verification-20261106.json"
     }
   ],
   "audit_coverage": {
@@ -3474,7 +3490,10 @@
     "results/evidence/t03-comment-verification.json",
     "results/evidence/read-047-review.json",
     "results/evidence/read-047-review.md",
-    "results/evidence/t03-friendship-verification.json"
+    "results/evidence/t03-friendship-verification.json",
+    "results/evidence/t03-owner-pause-local-prod.json",
+    "results/LOCAL_PROD_20261106.md",
+    "results/evidence/local-prod-runtime-verification-20261106.json"
   ],
   "local_commits": [
     {
@@ -3635,6 +3654,11 @@
     {
       "task": "READ-047 local launcher source review",
       "sha": "0e3dfa2b424276fad1d74927c23bec62899b5c1e",
+      "pushed": false
+    },
+    {
+      "task": "T03 BE-005 targeted worker cleanup and staged sync",
+      "sha": "fc2929af3b0b1fec45f4d0d00b4b92bf1197f036",
       "pushed": false
     }
   ],
