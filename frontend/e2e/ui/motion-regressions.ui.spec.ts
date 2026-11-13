@@ -194,7 +194,7 @@ async function bottomCollapse(page: Page, info: TestInfo, rememberTask: (taskId:
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
     return card.querySelector('h3')?.textContent ?? '';
   });
-  const task = fixtures.pagerTasks.find(task => task.title === title);
+  const task = fixtures.pagerTasks.slice(0, 6).find(task => task.title === title);
   expect(task, 'The bottom card belongs to the disposable pager fixture').toBeDefined();
   // Reconciliation may replace the marked DOM node during collapse; cleanup keeps the API id.
   rememberTask(task!.id);
@@ -241,7 +241,9 @@ async function keyboardReveal(page: Page, info: TestInfo) {
   });
   await page.waitForTimeout(300);
   const before = await card.getByRole('button', { name: 'Expand task card', exact: true }).boundingBox();
-  expect(before!.y + before!.height, 'Hidden toggle starts near the viewport bottom').toBeGreaterThan(mobile.height - 100);
+  const viewportBottom = page.viewportSize()!.height;
+  expect(before!.y + before!.height, 'Hidden toggle starts near the viewport bottom').toBeGreaterThan(viewportBottom - 100);
+  expect(before!.y + before!.height, 'Hidden toggle is visible before the key press').toBeLessThanOrEqual(viewportBottom);
   await screenshot(page, info, 'keyboard-before');
   await startFrames(page, { cardSelector: targetSelector });
   await markAction(page);
@@ -298,19 +300,29 @@ test('real services satisfy the motion regression matrix', async ({ browser }, i
   }
   await run('bottom-collapse-desktop', async () => {
     await refreshActor(fixtures.pager);
-    await onPage(browser, fixtures.pager, info, 'bottom', {}, async page => {
-      let taskId: string | undefined;
-      try { await bottomCollapse(page, info, id => { taskId = id; }); }
-      finally {
-        if (taskId) {
-          const response = await fixtures.pager.context.request.patch(API_BASE + '/todos/api/v1/todos/' + taskId + '/hidden', {
-            headers: { Authorization: 'Bearer ' + fixtures.pager.token, 'X-CSRF-Token': fixtures.pager.csrf },
-            data: { hidden: false }, timeout: 10_000,
-          });
-          expect.soft(response.ok(), 'Bottom fixture restore: HTTP ' + response.status()).toBeTruthy();
-        }
+    const changeHidden = async (taskId: string, hidden: boolean) => {
+      const response = await fixtures.pager.context.request.patch(API_BASE + '/todos/api/v1/todos/' + taskId + '/hidden', {
+        headers: { Authorization: 'Bearer ' + fixtures.pager.token, 'X-CSRF-Token': fixtures.pager.csrf },
+        data: { hidden }, timeout: 10_000,
+      });
+      expect(response.ok(), 'Bottom fixture preference: HTTP ' + response.status()).toBeTruthy();
+    };
+    // Use a distinct six-card first page for this scenario. Keep the overflow
+    // below it so the production refresh preserves the measured card.
+    const overflow = fixtures.pagerTasks.slice(6);
+    const hidden: string[] = [];
+    let taskId: string | undefined;
+    try {
+      for (const task of overflow) {
+        await changeHidden(task.id, true);
+        hidden.push(task.id);
       }
-    });
+      await onPage(browser, fixtures.pager, info, 'bottom', {}, page => bottomCollapse(page, info, id => { taskId = id; }));
+    } finally {
+      const ids = taskId ? [taskId, ...hidden] : hidden;
+      const restored = await Promise.allSettled(ids.map(id => changeHidden(id, false)));
+      expect.soft(restored.every(result => result.status === 'fulfilled'), 'All bottom-card preferences were restored').toBe(true);
+    }
   });
   await run('pagination-desktop', async () => {
     await refreshActor(fixtures.pager);
@@ -342,6 +354,8 @@ test('real services satisfy the motion regression matrix', async ({ browser }, i
   });
   await run('keyboard-near-bottom', async () => {
     await setHiddenFixture(fixtures, 'private');
-    await onPage(browser, fixtures.owner, info, 'keyboard', { surface: '/tasks', viewport: mobile }, page => keyboardReveal(page, info));
+    // On the taller mobile viewport this fixture starts too high to be scrolled
+    // down to the bottom edge. Use a short viewport for the focus-scroll case.
+    await onPage(browser, fixtures.owner, info, 'keyboard', { surface: '/tasks', viewport: { ...mobile, height: 600 } }, page => keyboardReveal(page, info));
   });
 });

@@ -263,7 +263,8 @@ export async function finishFrames(page: Page, { minMs = 1800, maxMs = 8000 }: {
       const last = state.frames.slice(-16);
       if (last.length < 16) continue;
       const stable = last.every(frame => Math.abs(frame.scrollY - last[0].scrollY) <= 0.01
-        && (frame.card === null || (Math.abs(frame.card.cssHeight - last[0].card!.cssHeight) <= 0.02 && frame.card.heightAnimations === 0))
+        && (frame.card === null ? last[0].card === null
+          : last[0].card !== null && Math.abs(frame.card.cssHeight - last[0].card.cssHeight) <= 0.02 && frame.card.heightAnimations === 0)
         && (frame.pagerTop === null || Math.abs(frame.pagerTop - last[0].pagerTop!) <= 0.02)
         && (frame.dialog === null || (Math.abs(frame.dialog.opacity - (last[0].dialog?.opacity ?? 0)) <= 0.00001
           && Math.abs(frame.dialog.scale - (last[0].dialog?.scale ?? 0)) <= 0.00001 && frame.dialog.transformAnimations === 0)));
