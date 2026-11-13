@@ -640,6 +640,9 @@ Backend containers use ASP.NET Core `10.0.15`, and Realtime uses
 the SignalR Redis group-removal denial-of-service issue described in
 [CVE-2026-114147](https://github.com/advisories/GHSA-wr8v-9x5q-ggcm). Rebuild
 running images and check `dotnet --list-runtimes` in each container after rollout.
+AutoMapper `15.1.4` addresses recursion-related process crashes described in
+[GHSA-gpwp-5797-mjff](https://github.com/LuckyPennySoftware/AutoMapper/security/advisories/GHSA-gpwp-5797-mjff)
+and [GHSA-6vhm-j9h7-f9gh](https://github.com/LuckyPennySoftware/AutoMapper/security/advisories/GHSA-6vhm-j9h7-f9gh).
 
 The [authorization coverage map](security-idor-coverage.md#known-findings-and-missing-regressions)
 records remaining access-control gaps. Comment deletion now requires current
