@@ -214,6 +214,31 @@ describe("useHeightTransition", () => {
     expect(animations).toHaveLength(0)
   })
 
+  it("caps the painted grid displacement and retargets from the last painted height", () => {
+    const frames: FrameRequestCallback[] = []
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const draw = (time: number) => frames.splice(0).forEach(callback => callback(time))
+    try {
+      const { rerender } = render(<Box revision={0} maxFrameDisplacement={40} />)
+      contentHeight = 700
+      rerender(<Box revision={1} maxFrameDisplacement={40} />)
+      const glide = animations[0]
+      draw(1000)
+      draw(1050)
+      const painted = 102 + 600 * Number(glide.currentTime) / Number(glide.options.duration)
+      expect(painted).toBeGreaterThan(102)
+      expect(painted - 102).toBeLessThanOrEqual(40)
+      contentHeight = 420
+      rerender(<Box revision={2} maxFrameDisplacement={40} />)
+      expect(parseFloat(String(heights(animations[1])[0]))).toBeCloseTo(painted, 5)
+    } finally {
+      raf.mockRestore()
+    }
+  })
+
   it("turns a running glide toward content that changed again, from where it is, at the speed it has", () => {
     const { rerender } = render(<Box revision={0} />)
     contentHeight = 40

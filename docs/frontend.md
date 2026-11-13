@@ -664,6 +664,10 @@ pushes the cards below it in step and is re-dealt around 180ms after it settles.
 During pending visibility or completion changes, the card suppresses its hover
 lift while still handling pointer exit. Leaving the card before the request
 finishes must not lift it when the response arrives.
+The Dashboard grid's `HeightGlide` limits the change in its painted height to
+40 CSS pixels per frame, so a large page-to-page difference cannot move the
+pager by a large step even when two response transitions overlap. It retargets
+from the height already shown and preserves the immediate reduced-motion path.
 The first (server) paint is a CSS grid; the cards are measured and placed in a
 layout effect before the first client paint. The entrance stagger applies to the
 first paint and to a new `deal` (a dashboard page), not to later insertions.

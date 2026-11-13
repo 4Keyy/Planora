@@ -147,6 +147,8 @@ export interface HeightTransitionOptions {
    * taller than the height it is still gliding from would otherwise draw over the pager.
    */
   clipBelow?: boolean
+  /** Maximum height change in one drawn frame, in CSS pixels. */
+  maxFrameDisplacement?: number
 }
 
 interface Flight {
@@ -155,6 +157,7 @@ interface Flight {
   to: number
   curve: SpringCurve
   release: () => void
+  rendered?: { height: number; speed: number }
 }
 
 /**
@@ -196,14 +199,14 @@ interface Flight {
  */
 export function useHeightTransition(
   ref: RefObject<HTMLElement | null>,
-  { content, spring, shape, disabled = false, keepInView = false, clipBelow = false }: HeightTransitionOptions,
+  { content, spring, shape, disabled = false, keepInView = false, clipBelow = false, maxFrameDisplacement }: HeightTransitionOptions,
 ): void {
   const measured = useRef<{ height: number; width: number } | null>(null)
   const flight = useRef<Flight | null>(null)
   const primedShape = useRef(shape)
   const glidedShape = useRef(shape)
-  const options = useRef({ spring, disabled, keepInView, clipBelow })
-  options.current = { spring, disabled, keepInView, clipBelow }
+  const options = useRef({ spring, disabled, keepInView, clipBelow, maxFrameDisplacement })
+  options.current = { spring, disabled, keepInView, clipBelow, maxFrameDisplacement }
 
   useEffect(() => trackScrollPosition(), [])
   useEffect(() => () => flight.current?.animation.cancel(), [])
@@ -212,6 +215,7 @@ export function useHeightTransition(
   const now = (): { height: number; speed: number } | null => {
     const f = flight.current
     if (!f) return null
+    if (f.rendered) return f.rendered
     const t = Math.min(f.curve.duration, Math.max(0, Number(f.animation.currentTime ?? 0))) / 1000
     return { height: f.from + (f.to - f.from) * f.curve.at(t), speed: (f.to - f.from) * f.curve.velocity(t) }
   }
@@ -224,7 +228,7 @@ export function useHeightTransition(
       previous?.animation.cancel()
       return
     }
-    const { spring: s, keepInView: keep, clipBelow: clip } = options.current
+    const { spring: s, keepInView: keep, clipBelow: clip, maxFrameDisplacement: maxPixels } = options.current
     // Only speed toward the new target is carried, and never more than the spring's own natural
     // frequency: past it a critically damped spring would overshoot, and a card does not bounce.
     const omega = Math.sqrt(s.stiffness / (s.mass ?? 1))
@@ -242,8 +246,11 @@ export function useHeightTransition(
         : undefined,
     })
     const frame = (height: number): Keyframe => (clip ? { height: `${height}px`, clipPath: CLIP_BELOW } : { height: `${height}px` })
-    const animation = element.animate([frame(from), frame(to)], { duration: curve.duration, easing: curve.easing })
-    const current: Flight = { animation, from, to, curve, release }
+    // The capped grid glide sets its height with the same spring at each draw.
+    // Two explicit heights avoid inverting the curve or relying on CSS easing support.
+    const manualHeight = maxPixels !== undefined && typeof requestAnimationFrame === "function"
+    const animation = element.animate([frame(from), frame(to)], { duration: curve.duration, easing: manualHeight ? "linear" : curve.easing })
+    const current: Flight = { animation, from, to, curve, release, rendered: manualHeight ? { height: from, speed } : undefined }
     flight.current = current
     previous?.animation.cancel()
     // A glide never skips. Height is laid out on the main thread, and the commit that starts a
@@ -256,16 +263,28 @@ export function useHeightTransition(
       animation.pause()
       let elapsed = 0
       let last = 0
+      let progress = 0
       const tick = (time: number) => {
         if (flight.current !== current) return
-        if (last) elapsed += Math.min(time - last, MAX_STEP_MS)
+        const stepMs = last ? Math.min(time - last, MAX_STEP_MS) : 0
+        elapsed = Math.min(curve.duration, elapsed + stepMs)
         last = time
-        if (elapsed >= curve.duration) {
+        const previousProgress = progress
+        progress = manualHeight
+          ? Math.min(curve.at(elapsed / 1000), progress + Math.max(0.5, maxPixels - 0.5) / Math.abs(distance))
+          : elapsed / curve.duration
+        if (manualHeight && stepMs > 0) {
+          current.rendered = {
+            height: from + distance * progress,
+            speed: (progress - previousProgress) * distance * 1000 / stepMs,
+          }
+        }
+        if (progress >= 1) {
           // At its height: the element goes back to `height: auto`, which is this height.
           animation.cancel()
           return
         }
-        animation.currentTime = elapsed
+        animation.currentTime = progress * curve.duration
         requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)

@@ -16,7 +16,7 @@ export function HeightGlide({ shape, children, ...rest }: HTMLAttributes<HTMLDiv
   const outer = useRef<HTMLDivElement>(null)
   const inner = useRef<HTMLDivElement>(null)
   const reduce = useReducedMotion()
-  useHeightTransition(outer, { content: inner, shape, spring: SPRING_LAYOUT, disabled: !!reduce, clipBelow: true })
+  useHeightTransition(outer, { content: inner, shape, spring: SPRING_LAYOUT, disabled: !!reduce, clipBelow: true, maxFrameDisplacement: 40 })
   return (
     <div {...rest} ref={outer}>
       <div ref={inner}>{children}</div>
