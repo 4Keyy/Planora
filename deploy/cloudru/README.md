@@ -20,8 +20,12 @@ to the private persistent directory. Generate the gateway configuration:
 ```sh
 python3 deploy/cloudru/prepare-routes.py Planora.ApiGateway/ocelot.Docker.json \
   /opt/planora/shared/gateway-routes.json https://planora.example.com
+chmod 0644 /opt/planora/shared/gateway-routes.json
 sudo sh deploy/cloudru/compose.sh config --quiet
 ```
+
+The generated routes contain no credentials. The nonroot gateway container must
+be able to read them. Keep `cloud.env` separate and readable only by its owner.
 
 Build serially on a 4 GiB server; leave swap available and measure memory/disk
 usage. Do not build on a live local Next.js output directory:

@@ -1,14 +1,16 @@
 # Production Deployment Baseline
 
-This is a release specification and acceptance checklist based on repository
-artifacts. It does not assert that the current checkout has been deployed or
-that its configured infrastructure accounts exist. The [known limitations](known-limitations.md)
-records concrete code, migration and workflow gaps that must be resolved first.
+This is the release specification for the committed deployment targets.
+The [Cloud.ru checkpoint](audits/planora-deep-audit/results/CLOUDRU_20261106.md)
+records what was verified on the temporary host. The
+[known limitations](known-limitations.md) records remaining code, migration and
+workflow gaps.
 
 <!-- contents:start -->
 ## Contents
 
 - [Committed target and missing pieces](#committed-target-and-missing-pieces)
+- [Temporary Cloud.ru deployment](#temporary-cloudru-deployment)
 - [Required runtime configuration](#required-runtime-configuration)
 - [Database rollout acceptance](#database-rollout-acceptance)
 - [Release verification](#release-verification)
@@ -18,17 +20,17 @@ records concrete code, migration and workflow gaps that must be resolved first.
 
 ## Committed target and missing pieces
 
-The selected backend platform is Fly.io. Nine manifests, app creation and
+The automated backend deployment target is Fly.io. Nine manifests, app creation and
 secret staging scripts, a migration CLI and `.github/workflows/cd.yml` are
 committed. The CD workflow requests blue/green service deployments after a
-migration step, then gateway deployment and health smoke. There is no committed
-production frontend target, Kubernetes/Helm or Terraform stack, complete
-database restore drill, or separate outbox-worker implementation.
+migration step, then gateway deployment and health smoke. A separate Compose
+target builds the production frontend for the temporary Cloud.ru VM. The repository
+does not have a Kubernetes/Helm or Terraform stack or a separate outbox worker.
 
 ```mermaid
 flowchart LR
     browser[Browser] --> frontend[Next.js hosting: unresolved]
-    browser --> gateway[HTTPS gateway]
+    browser --> gateway[External gateway]
     gateway --> auth[Auth]
     gateway --> category[Category]
     gateway --> todo[Todo]
@@ -51,6 +53,20 @@ flowchart LR
 The diagram shows logical API/data relationships; actual network exposure,
 TLS, listener protocols, private addressing, Redis and RabbitMQ dependencies
 must be validated from effective deployment configuration.
+
+## Temporary Cloud.ru deployment
+
+Use the [Cloud.ru runbook](../deploy/cloudru/README.md) for the Compose host.
+Caddy serves the public HTTPS origin, forwards API paths to the gateway and
+other routes to Next.js. The databases, Redis, RabbitMQ and application services
+use the private Docker network. The Fly CD workflow does not deploy this host.
+
+The initial migration restored six PostgreSQL databases, the Redis encryption
+key ring, RabbitMQ storage and uploads, with a verified recovery copy off the VM.
+The [migration checkpoint](audits/planora-deep-audit/results/CLOUDRU_20261106.md)
+records the source checks, tested release and open acceptance items. This is a
+single-server deployment. Plan backup retention and repeat the restore drill as
+new production data accumulates.
 
 ## Required runtime configuration
 
