@@ -48,7 +48,7 @@ RUN dotnet publish "Planora.Migrator.csproj" -c Release -o /app/publish --no-res
 
 # The CLI does not serve HTTP, but its generated runtimeconfig requires
 # Microsoft.AspNetCore.App through its infrastructure project references.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.15 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 

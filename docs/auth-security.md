@@ -635,6 +635,12 @@ The repository has a root [`SECURITY.md`](../SECURITY.md) policy. The documented
 
 ## Known Security Gaps / Clarifications
 
+Backend containers use ASP.NET Core `10.0.15`, and Realtime uses
+`Microsoft.AspNetCore.SignalR.StackExchangeRedis` `10.0.15`. Both updates address
+the SignalR Redis group-removal denial-of-service issue described in
+[CVE-2026-114147](https://github.com/advisories/GHSA-wr8v-9x5q-ggcm). Rebuild
+running images and check `dotnet --list-runtimes` in each container after rollout.
+
 The [authorization coverage map](security-idor-coverage.md#known-findings-and-missing-regressions)
 records remaining access-control gaps. Comment deletion now requires current
 branch access; live task events recheck the current audience and sockets recheck
