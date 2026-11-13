@@ -668,6 +668,9 @@ The Dashboard grid's `HeightGlide` limits the change in its painted height to
 40 CSS pixels per frame, so a large page-to-page difference cannot move the
 pager by a large step even when two response transitions overlap. It retargets
 from the height already shown and preserves the immediate reduced-motion path.
+During a card transition the scroll hold also limits focus and bottom correction
+to 20 CSS pixels per frame. Explicit paging and reduced-motion scrolling keep
+their existing behavior.
 The first (server) paint is a CSS grid; the cards are measured and placed in a
 layout effect before the first client paint. The entrance stagger applies to the
 first paint and to a new `deal` (a dashboard page), not to later insertions.

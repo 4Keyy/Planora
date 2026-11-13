@@ -148,6 +148,23 @@ describe("primeScrollHold", () => {
 })
 
 describe("holdScroll", () => {
+  it("keeps focus correction below 20px per drawn frame during a stall", () => {
+    const control = document.createElement("button")
+    content.appendChild(control)
+    control.getBoundingClientRect = () => ({ top: 1180 - scrollY, bottom: 1224 - scrollY }) as DOMRect
+    const release = holdScroll({ show: () => control })
+    for (let i = 0; i < 60; i++) {
+      const before = scrollY
+      runFrame(75)
+      expect(scrollY - before).toBeGreaterThanOrEqual(0)
+      expect(scrollY - before).toBeLessThanOrEqual(20)
+    }
+    expect(Math.abs(scrollY - 436)).toBeLessThanOrEqual(1)
+    release()
+    runFrame()
+    expect(isScrollHeld()).toBe(false)
+  })
+
   it("keeps the view still while the page stays long enough, then hands it back", () => {
     scrolledTo(600)
     const release = holdScroll()

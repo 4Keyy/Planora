@@ -42,6 +42,8 @@
 
 /** rad/s. Critically damped: settles about half a second after its target stops moving. */
 const FOLLOW_OMEGA = 13
+/** Bound focus and bottom correction to the verified scroll displacement budget. */
+const MAX_FOLLOW_STEP_PX = 20
 /** The reader's own input. Any of these hands the page back. */
 const USER_EVENTS = ["wheel", "touchstart", "keydown", "pointerdown"] as const
 /** Air between the floating bar, or the bottom of the screen, and what is kept in view. */
@@ -75,6 +77,7 @@ interface Session {
   /** `--bar-clearance` in px. Measured in the first frame: it is a `calc()` over `env()`. */
   clearance: number | null
   snapshot: { anchor: string; behavior: string; minHeight: string }
+  keepInView: boolean
 }
 
 const holds = new Set<Hold>()
@@ -190,6 +193,10 @@ function step(now: number): void {
   const offset = s.y - goal
   const accel = -FOLLOW_OMEGA * FOLLOW_OMEGA * offset - 2 * FOLLOW_OMEGA * s.v
   s.v += accel * dt
+  if (s.keepInView && dt > 0) {
+    const maxSpeed = (MAX_FOLLOW_STEP_PX - 0.5) / dt
+    s.v = Math.max(-maxSpeed, Math.min(maxSpeed, s.v))
+  }
   s.y += s.v * dt
   // Critically damped already lands without passing; this guards a goal that moved toward us.
   if ((s.y - goal) * offset < 0) {
@@ -226,7 +233,7 @@ export function primeScrollHold(): void {
   html.style.overflowAnchor = "none"
   html.style.scrollBehavior = "auto"
   body.style.minHeight = `${Math.ceil(y + window.innerHeight)}px`
-  session = { origin: y, y, v: 0, last: performance.now(), frame: 0, written: y, goal: y, clearance: null, snapshot }
+  session = { origin: y, y, v: 0, last: performance.now(), frame: 0, written: y, goal: y, clearance: null, snapshot, keepInView: false }
   for (const type of USER_EVENTS) window.addEventListener(type, end, { capture: true, passive: true })
   session.frame = requestAnimationFrame(step)
 }
@@ -239,6 +246,7 @@ export function holdScroll({ show, to }: ScrollHoldOptions = {}): () => void {
   if (typeof window === "undefined" || typeof requestAnimationFrame !== "function" || prefersReducedMotion()) return () => {}
   primeScrollHold()
   if (session && to !== undefined) session.origin = Math.max(0, to)
+  if (session && show) session.keepInView = true
   const hold: Hold = { show: show ?? null }
   holds.add(hold)
   return () => {
