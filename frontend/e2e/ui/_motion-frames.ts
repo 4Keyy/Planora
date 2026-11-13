@@ -356,10 +356,15 @@ export function assertHeight(evidence: FrameEvidence, { oneStep = false, keyboar
   }
   // Quantisation noise is bounded separately from the requested 1px position budget.
   expect.soft(Math.max(...frames.map(frame => Math.abs(frame.card!.documentTop - first.card!.documentTop))), 'The card keeps its document position').toBeLessThanOrEqual(1);
+  const landed = frames.findIndex((frame, index) => index > 0 && Math.abs(height(frame) - height(last)) <= 0.02 && frame.card!.heightAnimations === 0);
   if (requireFollowing) expect.soft(first.card!.nextTop, 'This reveal fixture has a real following card in the same column').not.toBeNull();
   if (first.card!.nextTop !== null) {
-    expect.soft(frames.every(frame => frame.card!.nextTop !== null), 'The same column retains a following card').toBe(true);
-    expect.soft(Math.max(...frames.map(frame => Math.abs(frame.card!.nextTop! - first.card!.nextTop! - (height(frame) - height(first))))), 'Following card moves by the height increment within 1px').toBeLessThanOrEqual(1);
+    // A settled grid intentionally re-deals its cards. The same neighbour must
+    // follow throughout the height change, including its final painted height.
+    const heightFrames = landed < 0 ? frames : frames.slice(0, landed + 1);
+    expect.soft(heightFrames.every(frame => frame.card!.nextTop !== null && frame.geometry?.nextNode === first.geometry?.nextNode), 'The same card follows until the height settles').toBe(true);
+    expect.soft(Math.max(...heightFrames.map(frame => frame.card!.nextTop === null ? Infinity :
+      Math.abs(frame.card!.nextTop - first.card!.nextTop! - (height(frame) - height(first))))), 'Following card moves by the height increment within 1px').toBeLessThanOrEqual(1);
   }
   const flights = frames.filter(frame => frame.card!.heightFlight !== null);
   if (!oneStep) {
@@ -370,7 +375,6 @@ export function assertHeight(evidence: FrameEvidence, { oneStep = false, keyboar
     }
     expect.soft(flights.every(frame => frame.anchor === 'none'), 'Scroll anchoring is disabled while the card changes height').toBe(true);
   }
-  const landed = frames.findIndex((frame, index) => index > 0 && Math.abs(height(frame) - height(last)) <= 0.02 && frame.card!.heightAnimations === 0);
   expect.soft(landed, 'The growth completes within the recording').toBeGreaterThan(0);
   if (landed >= 0) expect.soft(frames.slice(landed).every(frame => Math.abs(height(frame) - height(last)) <= 0.02), 'Height stays fixed after the glide ends').toBe(true);
 }

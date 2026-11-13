@@ -519,7 +519,8 @@ function TodoCardComponent({
         }
         onPointerLeave={clearRevealIntent}
         onPointerDown={awaitsRevealIntent ? announceRevealIntent : undefined}
-        whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? undefined : HOVER_LIFT}
+        // Keep the gesture mounted so pointerleave clears the lift even during a pending toggle.
+        whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? { y: 0 } : HOVER_LIFT}
         whileTap={isCompletionPending ? undefined : TAP_CARD}
         transition={{
           layout: layoutTransition,
