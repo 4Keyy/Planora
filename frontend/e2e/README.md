@@ -218,6 +218,13 @@ A separate geometry artifact admits only `real-hide-frames.json`,
 numeric measurements, booleans/nulls and fixed fixture labels. Adjacent request logs,
 content-bearing motion matrices and the full Playwright JSON report stay private.
 
+The motion regression matrix keeps both the RAF and ResizeObserver measurements
+in its numeric evidence. When Masonry updates layout after RAF, the observer
+updates the measurement for the same frame before paint. The pre-action baseline
+and the geometry tolerances are preserved. The full matrix runs by default.
+For a targeted reproduction on disposable services, set `E2E_MOTION_SCENARIO`
+to a scenario name from the spec and run that spec through `e2e/run-ci.cjs`.
+
 Each CI shard owns a `planora-e2e-ci` Compose project on its dedicated runner. Retention
 is disabled for these API/UI fixtures; PostgreSQL retention policies have separate backend
 integration suites. The HTTP test overlay disables the external compromised-password lookup

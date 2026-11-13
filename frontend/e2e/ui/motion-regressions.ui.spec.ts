@@ -1,10 +1,10 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { expect, test, type Browser, type Locator, type Page, type TestInfo } from '@playwright/test';
-import { FRONTEND_BASE, requireFrontendReachable } from './_helpers';
+import { API_BASE, FRONTEND_BASE, requireFrontendReachable } from './_helpers';
 import { GeometryRateBudget } from './_card-geometry';
-import { APIchecked, createMotionFixtures, disposeMotionFixtures, refreshActor, setHiddenFixture, type Actor, type MotionFixtures } from './_motion-fixtures';
-import { assertHeight, assertScroll, finishFrames, installMotionFrames, markAction, saveEvidence, startFrames, watchRequests } from './_motion-frames';
+import { createMotionFixtures, disposeMotionFixtures, refreshActor, setHiddenFixture, type Actor, type MotionFixtures } from './_motion-fixtures';
+import { assertHeight, assertScroll, finishFrames, installMotionFrames, markAction, saveEvidence, saveNumericFrames, startFrames, watchRequests } from './_motion-frames';
 import { checkModal, checkPagination } from './_motion-pagination-modal';
 
 // Production only: dev React and hidden scrollbars change the geometry being measured.
@@ -12,6 +12,14 @@ test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 const desktop = { width: 1440, height: 900 };
 const mobile = { width: 390, height: 844 };
 const targetSelector = '[data-motion-target]';
+const selectedScenario = process.env.E2E_MOTION_SCENARIO;
+const scenarioNames = [
+  ...['dashboard', 'tasks'].flatMap(surface => [1440, 390].flatMap(width =>
+    ['hover', 'touch'].map(input => `${surface}-${width}-${input}`))),
+  'shared-pending', 'viewer-pending', 'bottom-collapse-desktop', 'pagination-desktop',
+  'modal-normal', 'modal-reduced', 'height-reduced', 'pagination-reduced', 'keyboard-near-bottom',
+];
+if (selectedScenario && !scenarioNames.includes(selectedScenario)) throw new Error('Unknown E2E_MOTION_SCENARIO');
 let fixtures: MotionFixtures;
 let lastContextStart = 0;
 
@@ -87,6 +95,7 @@ async function reveal(page: Page, info: TestInfo, name: string, hover: boolean, 
     if (touch) await card.getByRole('button', { name: 'Expand task card', exact: true }).tap();
     else await card.getByRole('button', { name: 'Expand task card', exact: true }).evaluate(button => (button as HTMLButtonElement).click());
     const evidence = await finishFrames(page, { minMs: 2500 });
+    await saveNumericFrames(info, name, evidence);
     await saveEvidence(info, name, { ...evidence, requests: requests.events });
     await screenshot(page, info, name + '-settled');
     assertHeight(evidence, { oneStep: reduced, requireFollowing: true });
@@ -152,6 +161,7 @@ async function maskedReveal(page: Page, info: TestInfo, kind: 'shared' | 'viewer
     const readReleaseEpoch = Date.now();
     read.release();
     const evidence = await finishFrames(page, { minMs: 3000 });
+    await saveNumericFrames(info, kind + '-pending-reveal', evidence);
     await saveEvidence(info, kind + '-pending-reveal', { ...evidence, requests: requests.events, responses, writeReleaseEpoch, readReleaseEpoch });
     await screenshot(page, info, kind + '-revealed');
     assertHeight(evidence);
@@ -165,10 +175,10 @@ async function maskedReveal(page: Page, info: TestInfo, kind: 'shared' | 'viewer
   } finally { write.release(); read.release(); requests.stop(); }
 }
 
-async function bottomCollapse(page: Page, info: TestInfo) {
+async function bottomCollapse(page: Page, info: TestInfo, rememberTask: (taskId: string) => void) {
   const count = await page.locator('[data-task-card]').count();
   expect(count).toBe(6);
-  await page.evaluate(() => {
+  const title = await page.evaluate(() => {
     // A column is the placed cards that share a left edge (7532703); take the tallest one's last card.
     const byLeft = new Map<number, Element[]>();
     for (const placed of Array.from(document.querySelectorAll('[data-masonry-card]'))) {
@@ -181,9 +191,13 @@ async function bottomCollapse(page: Page, info: TestInfo) {
     const card = last.querySelector('[data-task-card]')!;
     if (!card.querySelector('button[aria-label="Collapse task card"]')) throw new Error('Tallest-column bottom fixture is unexpectedly hidden');
     card.setAttribute('data-motion-target', '');
-    card.setAttribute('data-motion-title', card.querySelector('h3')?.textContent ?? '');
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+    return card.querySelector('h3')?.textContent ?? '';
   });
+  const task = fixtures.pagerTasks.find(task => task.title === title);
+  expect(task, 'The bottom card belongs to the disposable pager fixture').toBeDefined();
+  // Reconciliation may replace the marked DOM node during collapse; cleanup keeps the API id.
+  rememberTask(task!.id);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   const initialY = await page.evaluate(() => window.scrollY);
@@ -194,6 +208,7 @@ async function bottomCollapse(page: Page, info: TestInfo) {
   // A click event at the visible bottom row avoids Playwright centring the tall card first.
   await page.locator(targetSelector).getByRole('button', { name: 'Collapse task card', exact: true }).evaluate(button => (button as HTMLButtonElement).click());
   const evidence = await finishFrames(page, { minMs: 3000 });
+  await saveNumericFrames(info, 'bottom-collapse', evidence);
   await saveEvidence(info, 'bottom-collapse', evidence);
   await screenshot(page, info, 'bottom-after');
   assertHeight(evidence);
@@ -232,6 +247,7 @@ async function keyboardReveal(page: Page, info: TestInfo) {
   await markAction(page);
   await page.keyboard.press('Enter');
   const evidence = await finishFrames(page, { minMs: 3000 });
+  await saveNumericFrames(info, 'keyboard-reveal', evidence);
   await saveEvidence(info, 'keyboard-reveal', evidence);
   await screenshot(page, info, 'keyboard-after');
   assertHeight(evidence, { keyboard: true }); // Known ~0.998 whileTap must not masquerade as height movement.
@@ -252,9 +268,10 @@ test.describe.configure({ retries: 0 });
 test('real services satisfy the motion regression matrix', async ({ browser }, info) => {
   // Seventeen scenarios on real services: on CI the matrix reached its last one at about 20 minutes
   // in one run and ran out before the eleventh in the next.
-  test.setTimeout(1_800_000);
+  test.setTimeout(selectedScenario ? 300_000 : 1_800_000);
   info.annotations.push({ type: 'cpu-throttle', description: '1' });
   const run = async (name: string, action: () => Promise<void>) => {
+    if (selectedScenario && selectedScenario !== name) return;
     await test.step(name, async () => {
       console.info('[motion] ' + name);
       try { await action(); }
@@ -282,11 +299,16 @@ test('real services satisfy the motion regression matrix', async ({ browser }, i
   await run('bottom-collapse-desktop', async () => {
     await refreshActor(fixtures.pager);
     await onPage(browser, fixtures.pager, info, 'bottom', {}, async page => {
-      try { await bottomCollapse(page, info); }
+      let taskId: string | undefined;
+      try { await bottomCollapse(page, info, id => { taskId = id; }); }
       finally {
-        const title = await page.locator(targetSelector).getAttribute('data-motion-title');
-        const task = fixtures.pagerTasks.find(task => task.title === title);
-        if (task) await APIchecked(fixtures.pager, 'patch', '/todos/api/v1/todos/' + task.id + '/hidden', { hidden: false });
+        if (taskId) {
+          const response = await fixtures.pager.context.request.patch(API_BASE + '/todos/api/v1/todos/' + taskId + '/hidden', {
+            headers: { Authorization: 'Bearer ' + fixtures.pager.token, 'X-CSRF-Token': fixtures.pager.csrf },
+            data: { hidden: false }, timeout: 10_000,
+          });
+          expect.soft(response.ok(), 'Bottom fixture restore: HTTP ' + response.status()).toBeTruthy();
+        }
       }
     });
   });
@@ -308,6 +330,7 @@ test('real services satisfy the motion regression matrix', async ({ browser }, i
       await markAction(page);
       await page.locator(targetSelector).getByRole('button', { name: 'Collapse task card', exact: true }).evaluate(button => (button as HTMLButtonElement).click());
       const evidence = await finishFrames(page);
+      await saveNumericFrames(info, 'reduced-collapse', evidence);
       await saveEvidence(info, 'reduced-collapse', evidence);
       assertHeight(evidence, { oneStep: true });
       expect.soft(evidence.bodyStyles.filter(style => /min-height\s*:/.test(style)), 'Reduced hiding never assigns body minHeight').toEqual([]);
