@@ -23,7 +23,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(active: boolea
   /**
    * A CALLBACK ref backed by state, not a `useRef`. Every modal in this product
    * mounts through `ModalPortal`, which renders null on its first pass and only
-   * creates the portal from its own effect. With a `useRef` the trap's effect ran
+   * creates the portal after its first commit. With a `useRef` the trap's effect ran
    * one tick too early, found `ref.current === null`, and returned — and because
    * `active` never changed afterwards, it never ran again. The result was that
    * every dialog in the product had a focus trap that did nothing: focus stayed

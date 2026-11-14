@@ -88,8 +88,8 @@ describe("useFocusTrap", () => {
   })
 
   it("engages through a portal, which is how every modal in this product mounts", async () => {
-    // ModalPortal renders null on its first pass and creates the portal from its
-    // own effect. With a plain useRef the trap ran one tick early, found null, and
+    // ModalPortal renders null on its first pass and attaches the portal after
+    // its first commit. With a plain useRef the trap ran too early, found null, and
     // never ran again — so every dialog shipped with a focus trap that did nothing.
     function WithPortal() {
       const ref = useFocusTrap<HTMLDivElement>(true)

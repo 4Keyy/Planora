@@ -615,8 +615,9 @@ outline transparent in `globals.css`; a component still never writes `outline-no
 
 `useFocusTrap` had a full test suite and every test passed. It also did nothing in
 production, because the tests mounted it directly while every real caller mounts it
-through `ModalPortal`, which renders `null` on its first pass. **Test the composition
-the product actually ships**, not the unit in isolation.
+through `ModalPortal`, which renders `null` on its first pass. The portal attaches
+during the browser's layout effect, before paint. The trap follows the actual
+node through its callback ref. **Test the composition the product actually ships**.
 
 ---
 
