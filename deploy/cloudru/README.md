@@ -86,17 +86,31 @@ Secure/HttpOnly/SameSite cookies and CSRF, CRUD, realtime, avatar access, SMTP
 connectivity, restart persistence and resource headroom. Keep source writers
 stopped during final cloud acceptance to avoid divergent databases.
 
-After acceptance, set in the private env file:
+After acceptance, save a copy of the private env file with its original
+permissions. Keep it outside the release checkout. Then set:
 
 ```dotenv
 PLANORA_CADDYFILE=./deploy/cloudru/Caddyfile
 ```
 
-Then recreate only the edge with `sudo sh deploy/cloudru/compose.sh up -d edge`.
+From the release directory recreate only the edge:
+
+```sh
+sudo sh deploy/cloudru/compose.sh up -d --no-build --no-deps --force-recreate edge
+```
+
 The edge/gateway addresses are fixed solely for explicit forwarded-header trust.
 Do not attach untrusted containers to this network. The gateway rebuilds trusted
 request headers for Auth, and browser-supplied forwarding headers cannot grant
-direct access to internal listeners. Recheck login and HTTPS after cutover.
+direct access to internal listeners. From outside the VM check that HTTP
+redirects to HTTPS, the certificate is trusted, and `/` and `/auth/login`
+return `200`. Confirm protected user and task reads return `401` when anonymous.
+`/health/ready` confirms the gateway is up; also check service readiness inside
+the stack.
+
+If the public smoke fails, restore the saved env file and run the same edge
+recreation command. Confirm HTTPS returns maintenance (`503`). Keep the data
+volumes and the running internal services in place during this rollback.
 
 Record the deployed commit/image IDs, data checkpoint and acceptance results.
 Keep a recovery copy outside this VM. Review the provider grant and billing:

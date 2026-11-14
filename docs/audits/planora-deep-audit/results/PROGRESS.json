@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "145eeea57e22aa5881318ec75dc62ee5509f146e",
+  "current_sha": "0cd90376f85a11b670bd0fe9e186d0ad16904a1a",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -288,9 +288,10 @@
     "BE-005 RED8F/0P. Original8provider facts GREEN424P/broad1520P/Errors94P; added legacy+soft-delete characterization facts then426P/1522P, all0skip. One atomic shares/workers/thin sync write set, explicit tracking and selected xmin. No generation or universal late legacy join claim. Registration full review promotes1baseline file: coverage622/1558(39.92%),62batches pending.",
     "Owner explicitly paused the remaining audit for local Production-config use. BE-005 fc2929af verified/committed; BE-006 remains source/schema unchanged, no RED/GREEN, unfinished owned draft parked outside active tests. Runtime start uses a private Next dist dir, preserves frontend generated files and disables retention for this run; no push.",
     "Owner separately approved exact four-DB reconciliation after restored-copy rehearsal and source review. Applied locally with identity/hash guards; 18 existing tables preserved. All7ready/aggregateHealthy, 24HTTPchecks and browser login render passed. Runtime left up; no account-login/CRUD claim. Audit remains paused by owner, BE-006 untouched.",
-    "2026-11-06 owner explicitly authorized pushing all commits, integrating the reviewed open PR, reducing branches to main with unique work preserved, and resuming the full audit. Historical no-push instructions do not apply to this authorized integration; production operations, credential rotation and working-DB apply were not performed."
+    "2026-11-06 owner explicitly authorized pushing all commits, integrating the reviewed open PR, reducing branches to main with unique work preserved, and resuming the full audit. Historical no-push instructions do not apply to this authorized integration; at that checkpoint no production operations or working-DB apply occurred.",
+    "2026-11-14 deployed 0cd90376 on Cloud.ru after restore verification. Six latest database dumps matched their live controls after a separate restore. CI 43596665482 and Security Scan 43596665446 passed. E2E 43596665386: 92 passed, one conditional skip, zero failures or retries. Patched live Redis outage closed both sockets, returned 503 and recovered. Public edge activated at 16:28 MSK; external TLS and route checks passed. Details: results/CLOUDRU_20261106.md."
   ],
-  "next_step": "Push reviewed query redaction and Rabbit cookie-owner startup fix with READ013 checkpoint. Observe fresh CI/Security/E2E, inspect numeric geometry artifacts if motion fails. T12 full history remains122 metadata matches at145eeea; BE036 response streams, BE037 mapped audit identity, DIST012 late activity and other audit gates remain open. Never use working DB/runtime.",
+  "next_step": "Continue T03 DIST-012: root task and Realtime replay/order tests on isolated PostgreSQL, then review an additive durable deletion guard. Never use working data for audit experiments. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open. Keep an off-VM recovery path for cloud writes.",
   "commands": [
     {
       "id": "readiness-red",
