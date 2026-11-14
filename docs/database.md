@@ -404,9 +404,11 @@ UI can query unread counts.
 |---|---|---|
 | `Notifications` | Persisted notification log | PK `Id`; required user UUID/title ≤200/message ≤2000/type ≤64/occurred time/source UUID; `TaskId` and `ActorId` are **non-null UUIDs**, `Guid.Empty` is the absence sentinel; required read flag default false/read time nullable; unique `SourceEventId`; user/read/task/time indexes; global soft-delete filter; no cross-service FKs. |
 | `NotificationDeliveries` | Delivery-state scaffold | PK `Id`; required notification/user UUIDs and string status ≤32; attempt count default 0; nullable delivery time/error ≤2000; unique `(NotificationId, UserId)`; **no notification FK**; no runtime writer. |
+| `NotificationDeletions` | Prevents late notification writes after task or recipient cleanup | PK `(Scope, ScopeId)`. Scope `1` is recipient, `2` is task. Contains only the scope and its UUID. |
 | `OutboxMessages` | Shared outbox schema, currently unused as a producer | PK `Id`; shared contract and active partial polling index. |
 
-Migration: `20260615211750_InitialRealtimeNotifications` is tracked and creates all three tables.
+`20260615211750_InitialRealtimeNotifications` creates the original three tables.
+`20261114180026_AddNotificationDeletionScopes` adds only the deletion guard table.
 A configured non-`Testing` host waits for PostgreSQL and creates the database before Redis/RabbitMQ
 subscriptions can consume notifications. Empty databases and databases with known EF history use
 `DatabaseStartup.EnsureReadyAsync`: migrations when compiled, otherwise the current-model fallback.
@@ -421,6 +423,19 @@ Missing tables/columns, incompatible definitions or unknown applied migration ID
 instead of recreating tables or adopting history. Transient PostgreSQL failures are retried with
 cancellation support. `Testing` hosts skip external startup; an unconfigured durable log remains
 optional. New generated migration files remain ignored until explicitly approved for tracking.
+
+Cleanup records a guard even when it finds no notifications. The guard, notification
+deletion and delivery deletion commit together. An insertion locks the recipient and then
+the task when present. Cleanup acquires the same lock for its scope. An insert that waits
+for cleanup sees the committed guard before writing. Rejected events never reach the push
+call. A push already accepted before cleanup can still be in flight. This protection starts
+with cleanup handled by the new build. It cannot infer deletions processed by older builds.
+
+Guards are kept indefinitely because there is no bounded replay horizon. A rollout must
+replace all Realtime consumers of these events together. An older build will reject newer
+migration history and cannot protect against late events. Keep the guards if a rollback is
+needed, and plan schema and consumer rollback together. Dropping the guard table discards
+the protection for deletions already processed by the new version.
 
 `NotificationDelivery` is a schema/domain scaffold: the current notification consumer and
 SignalR service do not create or update delivery records. There is no server-side replay on

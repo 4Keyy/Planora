@@ -163,7 +163,8 @@ namespace Planora.Realtime.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SourceEventId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Notifications_SourceEventId");
 
                     b.HasIndex("UserId");
 
@@ -236,6 +237,19 @@ namespace Planora.Realtime.Infrastructure.Migrations
                     b.HasIndex("UserId", "Status");
 
                     b.ToTable("NotificationDeliveries", (string)null);
+                });
+
+            modelBuilder.Entity("Planora.Realtime.Infrastructure.Persistence.NotificationDeletion", b =>
+                {
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ScopeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Scope", "ScopeId");
+
+                    b.ToTable("NotificationDeletions", (string)null);
                 });
 #pragma warning restore 612, 618
         }

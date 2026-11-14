@@ -6,6 +6,8 @@ namespace Planora.Realtime.Infrastructure.Persistence.Configurations;
 
 public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 {
+    internal const string SourceEventIndex = "IX_Notifications_SourceEventId";
+
     public void Configure(EntityTypeBuilder<Notification> builder)
     {
         builder.ToTable("Notifications");
@@ -54,7 +56,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         // Idempotency: if the same integration event is re-consumed (transient
         // RabbitMQ redelivery, replay, etc.), we want to land the row at most once.
-        builder.HasIndex(x => x.SourceEventId).IsUnique();
+        builder.HasIndex(x => x.SourceEventId).IsUnique().HasDatabaseName(SourceEventIndex);
 
         // List query: a user's notifications newest-first.
         builder.HasIndex(x => new { x.UserId, x.OccurredOnUtc });

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Npgsql;
@@ -13,6 +15,8 @@ namespace Planora.UnitTests.Services.RealtimeApi.Infrastructure;
 [Trait("TestType", "Integration")]
 public sealed class RealtimeDatabaseStartupTests
 {
+    private const string InitialMigration = "20260615211750_InitialRealtimeNotifications";
+
     [Fact]
     public async Task UnconfiguredLog_AndNonRelationalTestContext_RemainOptional()
     {
@@ -58,6 +62,42 @@ public sealed class RealtimeDatabaseStartupTests
         await Start(db);
         Assert.Equal(notification.Id, (await db.Notifications.SingleAsync()).Id);
         Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
+    }
+
+    [PostgresFact]
+    public async Task InitialManagedSchema_UpgradesWithoutChangingExistingNotifications()
+    {
+        await using var database = await TemporaryDatabase.CreateAsync();
+        await using var db = NewContext(database);
+        await db.GetService<IMigrator>().MigrateAsync(InitialMigration);
+        var notification = Arrived();
+        db.Notifications.Add(notification);
+        await db.SaveChangesAsync();
+
+        await Start(db);
+        await Start(db);
+
+        Assert.Equal(notification.Id, (await db.Notifications.SingleAsync()).Id);
+        Assert.True(await RelationExists(database, "NotificationDeletions"));
+        Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
+    }
+
+    [PostgresFact]
+    public async Task OldUnmanagedSchema_RequiresExplicitUpgradeAndKeepsExistingRows()
+    {
+        await using var database = await TemporaryDatabase.CreateAsync();
+        await using var db = NewContext(database);
+        await db.Database.EnsureCreatedAsync();
+        var notification = Arrived();
+        db.Notifications.Add(notification);
+        await db.SaveChangesAsync();
+        await db.Database.ExecuteSqlRawAsync("DROP TABLE \"NotificationDeletions\"");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Start(db));
+        Assert.Contains("NotificationDeletions", error.Message, StringComparison.Ordinal);
+        Assert.Equal(notification.Id, (await db.Notifications.SingleAsync()).Id);
+        Assert.False(await RelationExists(database, "__EFMigrationsHistory"));
+        Assert.False(await RelationExists(database, "NotificationDeletions"));
     }
 
     [PostgresFact]

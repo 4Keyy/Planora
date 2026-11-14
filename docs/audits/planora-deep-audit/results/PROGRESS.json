@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "66bcae8cbbace44a6f0e4c3aab6adc4c171aca33",
+  "current_sha": "7edfc6283c5cadf711aa7a42397788f27246dd40",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -290,9 +290,10 @@
     "Owner separately approved exact four-DB reconciliation after restored-copy rehearsal and source review. Applied locally with identity/hash guards; 18 existing tables preserved. All7ready/aggregateHealthy, 24HTTPchecks and browser login render passed. Runtime left up; no account-login/CRUD claim. Audit remains paused by owner, BE-006 untouched.",
     "2026-11-06 owner explicitly authorized pushing all commits, integrating the reviewed open PR, reducing branches to main with unique work preserved, and resuming the full audit. Historical no-push instructions do not apply to this authorized integration; at that checkpoint no production operations or working-DB apply occurred.",
     "2026-11-14 deployed 0cd90376 on Cloud.ru after restore verification. Six latest database dumps matched their live controls after a separate restore. CI 43596665482 and Security Scan 43596665446 passed. E2E 43596665386: 92 passed, one conditional skip, zero failures or retries. Patched live Redis outage closed both sockets, returned 503 and recovered. Public edge activated at 16:28 MSK; external TLS and route checks passed. Details: results/CLOUDRU_20261106.md.",
-    "CI 43600111425 and Security Scan 43600111435 passed at docs-only 66bcae8c. Reproduced DIST-012 on isolated PostgreSQL 16.11: late TaskCreated and TaskActivity create active rows after cleanup; after task or user cleanup Realtime replay and first late delivery persist unread rows and invoke the push boundary. No production data or live SignalR touched. Details and commands: results/T03.md."
+    "CI 43600111425 and Security Scan 43600111435 passed at docs-only 66bcae8c. Reproduced DIST-012 on isolated PostgreSQL 16.11: late TaskCreated and TaskActivity create active rows after cleanup; after task or user cleanup Realtime replay and first late delivery persist unread rows and invoke the push boundary. No production data or live SignalR touched. Details and commands: results/T03.md.",
+    "DIST-012 Realtime: 2 PostgreSQL regression tests RED on 7edfc628. With guards, 109 passed and none skipped, including actual PostgreSQL contention, rollback and initial-schema upgrade. Migration SQL adds only NotificationDeletions and a history row. Evidence under .buildcheck/dist012-case; scope and limits in results/T06.md."
   ],
-  "next_step": "Continue T03 DIST-012: add red tests for guarded writes and concurrent cleanup on isolated PostgreSQL; review durable marker scope, retention and schema rollout before implementation. Never use working data for audit experiments. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open. Keep an off-VM recovery path for cloud writes.",
+  "next_step": "Continue T03 DIST-012 in Collaboration: red tests for root and subtask cleanup ordering, legacy events without SourceSubtaskId and atomic rollback. Realtime migration remains pending operational rollout. Use isolated PostgreSQL for audit experiments. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open. Keep an off-VM recovery path for cloud writes.",
   "commands": [
     {
       "id": "readiness-red",

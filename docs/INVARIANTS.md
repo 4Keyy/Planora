@@ -200,10 +200,11 @@ notifications. Todo and Collaboration repositories filter explicitly; audit/pass
 and messaging tables do not all have global filters. `IgnoreQueryFilters()` must have a
 documented purpose where a filter is configured.
 
-**INV-DATA-5.** With `RealtimeDatabase` configured, valid `NotificationEvent` payloads are
-persisted before SignalR push and deduplicated by unique `SourceEventId`. The tracked initial
-Realtime migration creates notification/delivery/outbox tables. Without that connection
-string, the null store performs ephemeral push and no persistence/deduplication.
+**INV-DATA-5.** With `RealtimeDatabase` configured, accepted `NotificationEvent` payloads
+are persisted before SignalR push and deduplicated by unique `SourceEventId` while the row
+exists. Once task or recipient cleanup commits, the deletion guard prevents subsequent
+inserts and their push calls. Without that connection string, the null store performs
+ephemeral push and has no persistence, deduplication or deletion guards.
 
 - **Delivery gap:** `NotificationDelivery` has domain transitions/schema but no runtime writer.
   Hub reconnect does not replay stored events. A push failure after a successful insert leaves

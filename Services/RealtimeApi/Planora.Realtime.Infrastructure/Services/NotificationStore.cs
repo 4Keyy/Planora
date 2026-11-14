@@ -1,14 +1,16 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Domain.Entities;
 using Planora.Realtime.Infrastructure.Persistence;
+using Planora.Realtime.Infrastructure.Persistence.Configurations;
 
 namespace Planora.Realtime.Infrastructure.Services;
 
 /// <summary>
-/// Postgres-backed durable notification log. Idempotent on <see cref="Notification.SourceEventId"/>:
-/// a redelivered integration event (transient RabbitMQ redelivery, replay) lands a row at most once,
-/// enforced both by a pre-check and the unique index (race-safe).
+/// Postgres-backed notification log with source-event deduplication and deletion guards.
 /// </summary>
 public sealed class NotificationStore : INotificationStore
 {
@@ -23,72 +25,98 @@ public sealed class NotificationStore : INotificationStore
 
     public async Task<bool> TryAddAsync(Notification notification, CancellationToken cancellationToken = default)
     {
-        // Fast path: skip the insert when this source event already produced a row. IgnoreQueryFilters
-        // so a soft-deleted twin still counts as a duplicate (the unique index ignores the filter too).
-        var exists = await _db.Notifications
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .AnyAsync(x => x.SourceEventId == notification.SourceEventId, cancellationToken);
-        if (exists)
-            return false;
-
-        _db.Notifications.Add(notification);
         try
         {
-            await _db.SaveChangesAsync(cancellationToken);
-            return true;
+            return await _db.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
+                notification,
+                async (note, token) =>
+                {
+                    // Always lock recipient before task. Cleanup takes only the affected scope.
+                    await LockScopeAsync(NotificationDeletionScope.Recipient, note.UserId, token);
+                    if (note.TaskId != Guid.Empty)
+                        await LockScopeAsync(NotificationDeletionScope.Task, note.TaskId, token);
+
+                    // Query after acquiring the locks to see any cleanup that committed while waiting.
+                    if (await _db.NotificationDeletions.AnyAsync(d =>
+                            (d.Scope == NotificationDeletionScope.Recipient && d.ScopeId == note.UserId) ||
+                            (d.Scope == NotificationDeletionScope.Task && d.ScopeId == note.TaskId), token) ||
+                        await _db.Notifications.IgnoreQueryFilters().AnyAsync(n => n.SourceEventId == note.SourceEventId, token))
+                        return false;
+
+                    _db.Notifications.Add(note);
+                    try
+                    {
+                        await _db.SaveChangesAsync(token);
+                        return true;
+                    }
+                    finally
+                    {
+                        // Each retry must start without a tracked row from a rolled-back attempt.
+                        _db.Entry(note).State = EntityState.Detached;
+                    }
+                },
+                (note, token) => _db.Notifications.IgnoreQueryFilters().AnyAsync(n => n.Id == note.Id, token),
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
         }
-        catch (DbUpdateException ex)
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
         {
-            // A concurrent consumer won the race on the unique SourceEventId index. Treat as a
-            // duplicate (idempotent) rather than a failure, so the message is acked, not retried.
-            _db.Entry(notification).State = EntityState.Detached;
-            var duplicate = await _db.Notifications
-                .IgnoreQueryFilters()
-                .AsNoTracking()
-                .AnyAsync(x => x.SourceEventId == notification.SourceEventId, cancellationToken);
-            if (duplicate)
-            {
-                _logger.LogDebug(
-                    "Notification for source event {SourceEventId} already stored by a concurrent consumer",
-                    notification.SourceEventId);
-                return false;
-            }
-
-            _logger.LogError(ex, "Failed to persist notification for source event {SourceEventId}", notification.SourceEventId);
-            throw;
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: NotificationConfiguration.SourceEventIndex
+        })
+        {
+            _logger.LogDebug(
+                "Notification for source event {SourceEventId} already stored by a concurrent consumer",
+                notification.SourceEventId);
+            return false;
         }
     }
 
-    public async Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default)
+    public Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        DeleteAsync(NotificationDeletionScope.Task, taskId, cancellationToken);
+
+    public Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        DeleteAsync(NotificationDeletionScope.Recipient, userId, cancellationToken);
+
+    private async Task<int> DeleteAsync(NotificationDeletionScope scope, Guid id, CancellationToken cancellationToken)
     {
-        if (taskId == Guid.Empty)
-            return 0; // Guid.Empty means "not task-scoped" — never mass-delete non-scoped notifications.
+        if (id == Guid.Empty)
+            return 0; // Guid.Empty is the absence sentinel for task scope.
 
-        // Delivery rows have no FK/cascade to the notification, so remove them first by joining on the
-        // set of notification ids for this task, then remove the notifications themselves.
-        var noteIds = _db.Notifications.IgnoreQueryFilters().Where(n => n.TaskId == taskId).Select(n => n.Id);
-        await _db.NotificationDeliveries
-            .Where(d => noteIds.Contains(d.NotificationId))
-            .ExecuteDeleteAsync(cancellationToken);
+        return await _db.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, token);
+            await LockScopeAsync(scope, id, token);
+            await _db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "NotificationDeletions" ("Scope", "ScopeId")
+                VALUES ({(int)scope}, {id}) ON CONFLICT ("Scope", "ScopeId") DO NOTHING
+                """, token);
 
-        return await _db.Notifications.IgnoreQueryFilters()
-            .Where(n => n.TaskId == taskId)
-            .ExecuteDeleteAsync(cancellationToken);
+            var byTask = scope == NotificationDeletionScope.Task;
+            var notifications = _db.Notifications.IgnoreQueryFilters();
+            var affected = byTask
+                ? notifications.Where(n => n.TaskId == id)
+                : notifications.Where(n => n.UserId == id);
+            // The delivery table has no FK. Keep dependent cleanup in the same transaction.
+            var affectedIds = affected.Select(n => n.Id);
+            var deliveries = byTask
+                ? _db.NotificationDeliveries.Where(d => affectedIds.Contains(d.NotificationId))
+                : _db.NotificationDeliveries.Where(d => d.UserId == id);
+            await deliveries.ExecuteDeleteAsync(token);
+            var removed = await affected.ExecuteDeleteAsync(token);
+            await transaction.CommitAsync(token);
+            return removed;
+        }, cancellationToken);
     }
 
-    public async Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    private Task LockScopeAsync(NotificationDeletionScope scope, Guid id, CancellationToken cancellationToken)
     {
-        if (userId == Guid.Empty)
-            return 0;
-
-        await _db.NotificationDeliveries
-            .Where(d => d.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        return await _db.Notifications.IgnoreQueryFilters()
-            .Where(n => n.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+        // Distinct first keys keep task and recipient locks in disjoint namespaces.
+        // A hash collision within one scope only serializes two unrelated operations.
+        var lockNamespace = 742810640 + (int)scope;
+        return _db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_catalog.pg_advisory_xact_lock({lockNamespace}, pg_catalog.hashtext({id.ToString("N")}))",
+            cancellationToken);
     }
 }
 

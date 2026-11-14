@@ -224,6 +224,8 @@ tools/ui-audit/scan-*.json
 Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/*
 !/Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs
 !/Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs
+!/Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20261114180026_AddNotificationDeletionScopes.Designer.cs
+!/Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20261114180026_AddNotificationDeletionScopes.cs
 !/Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs
 !/Services/TodoApi/Planora.Todo.Infrastructure/Migrations/
 Services/TodoApi/Planora.Todo.Infrastructure/Migrations/*

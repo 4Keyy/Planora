@@ -20,6 +20,7 @@ public sealed class RealtimeDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    internal DbSet<NotificationDeletion> NotificationDeletions => Set<NotificationDeletion>();
 
     public RealtimeDbContext(
         DbContextOptions<RealtimeDbContext> options,
@@ -33,6 +34,9 @@ public sealed class RealtimeDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        modelBuilder.Entity<NotificationDeletion>()
+            .ToTable("NotificationDeletions")
+            .HasKey(deletion => new { deletion.Scope, deletion.ScopeId });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

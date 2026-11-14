@@ -3,34 +3,29 @@ using Planora.Realtime.Domain.Entities;
 namespace Planora.Realtime.Application.Interfaces;
 
 /// <summary>
-/// Write side of the durable notification log. Persisting before fan-out lets a restarted pod
-/// re-deliver to clients that reconnect, and backs the read-model the UI queries. Implementations
-/// are idempotent on <see cref="Notification.SourceEventId"/> so a redelivered integration event
-/// lands a row at most once.
+/// Write side of the notification log. The durable implementation persists before fan-out and
+/// deduplicates on <see cref="Notification.SourceEventId"/> while the row exists.
 /// </summary>
 public interface INotificationStore
 {
     /// <summary>
-    /// Persists <paramref name="notification"/> unless a row with the same
-    /// <see cref="Notification.SourceEventId"/> already exists.
+    /// Persists <paramref name="notification"/> unless the source event already has a row
+    /// or the task or recipient was deleted.
     /// </summary>
     /// <returns>
-    /// <c>true</c> when newly stored — the caller should deliver it; <c>false</c> when it was a
-    /// duplicate (already handled) — the caller must NOT re-deliver.
+    /// <c>true</c> when accepted for delivery. <c>false</c> means the caller must skip delivery.
     /// </returns>
     Task<bool> TryAddAsync(Notification notification, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Hard-deletes every notification (and its delivery rows) scoped to a task that has been deleted
-    /// upstream, so the notification log does not keep orphaned rows pointing at a task that no longer
-    /// exists. Idempotent — a redelivered TaskDeleted event simply finds nothing left. Returns the
-    /// number of notification rows removed.
+    /// Marks the task deleted and hard-deletes its notifications and delivery rows atomically.
+    /// Idempotent. Returns the number of notification rows removed by the completed attempt.
     /// </summary>
     Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Hard-deletes every notification (and its delivery rows) belonging to a user that has been
-    /// deleted upstream. Idempotent. Returns the number of notification rows removed.
+    /// Marks the recipient deleted and hard-deletes their notifications and delivery rows atomically.
+    /// Idempotent. Returns the number of notification rows removed by the completed attempt.
     /// </summary>
     Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 }

@@ -8,8 +8,8 @@ namespace Planora.Realtime.Application.Handlers;
 /// Consumes a <see cref="NotificationEvent"/> from the bus, persists it to the durable notification
 /// log (idempotent on the event id), and pushes the full persisted shape over SignalR. Persisting
 /// before fan-out means an offline recipient still has the notification waiting when they reconnect,
-/// and it backs the read-model the UI queries for unread counts. A duplicate redelivery is stored
-/// at most once and pushed at most once.
+/// and it backs the read-model the UI queries for unread counts. The durable store suppresses
+/// duplicates that still have a row and rejects events for deleted tasks and recipients.
 /// </summary>
 public sealed class NotificationEventHandler : IIntegrationEventHandler<NotificationEvent>
 {
@@ -54,12 +54,10 @@ public sealed class NotificationEventHandler : IIntegrationEventHandler<Notifica
             @event.TaskId,
             @event.ActorId);
 
-        // Idempotent persist: a redelivery of the same event is stored — and therefore pushed —
-        // at most once, so a reconnecting client never sees the same toast twice.
         var isNew = await _store.TryAddAsync(notification, cancellationToken);
         if (!isNew)
         {
-            _logger.LogDebug("NotificationEvent {EventId} already handled — skipping push", @event.Id);
+            _logger.LogDebug("NotificationEvent {EventId} rejected by the notification store, skipping push", @event.Id);
             return;
         }
 
