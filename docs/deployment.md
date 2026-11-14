@@ -94,14 +94,14 @@ an existing database to work around this. See [Database](database.md).
 
 | Service | Startup behavior |
 |---|---|
-| Auth, Category, Messaging, Collaboration | `DatabaseStartup.EnsureReadyAsync`: migrations if present in the assembly, otherwise `EnsureCreatedAsync` |
-| Todo | Same helper; tracked migrations select `MigrateAsync`, but the initial migration is missing |
-| Realtime | Optional DB registration; no startup schema initialization; migration must be applied separately |
+| Auth, Category, Messaging, Collaboration | Service-owned startup guards verify the schema and migration history before preparing their databases. |
+| Todo | `TodoDatabaseStartup` validates the tracked migration chain and can adopt a compatible legacy baseline before applying pending migrations. |
+| Realtime | `RealtimeDatabaseStartup` prepares the database when configured. It applies known migrations to managed databases and verifies compatible unmanaged schemas. |
 
-The helper does not disable migrations in Production. The existence of a
-pre-deploy migrator step in CD therefore does not imply startup migration is
-disabled. `EnsureCreatedAsync` does not maintain an EF migration history or
-upgrade an already existing schema.
+Production startup can apply pending migrations. Plan deployments and rollback
+around the startup behavior for each service. See the
+[Realtime rollout details](database.md#realtime-persistence) and the other
+service-owned paths in [Database](database.md#startup-and-schema-initialization).
 
 The migrator selects six names: `auth`, `category`, `todo`, `messaging`,
 `realtime`, `collaboration`. It reads ASP.NET connection-string configuration;
