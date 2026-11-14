@@ -4,7 +4,7 @@ import { persistJsonEvidence, createGeometryFixtures, geometryCard, hideRevealFi
 import { retryRateLimited } from '../_rate-limit';
 import { watchRequests } from './_motion-frames';
 
-type Frame = { time: number; height: number; nextTop: number | null; pagerTop: number | null; controlsPager: boolean; animations: number; pending: boolean };
+type Frame = { time: number; height: number; nextTop: number | null; pagerTop: number | null; controlsPager: boolean; animations: number; pending: boolean; samePlacement: boolean };
 let fixtures: GeometryFixtures;
 test.describe('real-service card height and layout motion', () => {
   test.beforeAll(async ({ browser }) => {
@@ -37,25 +37,36 @@ test.describe('real-service card height and layout motion', () => {
       const own = columns().find(column => column.includes(placed))!;
       const following = own.map(child => child.querySelector('[data-task-card]'));
       const next = following[following.indexOf(element) + 1];
+      const ownPosition = placed.getBoundingClientRect().top + window.scrollY;
       const pager = document.querySelector('nav[aria-label="Pagination"]');
       const frames: Frame[] = [];
       const start = performance.now();
-      const read = (time: number) => {
+      const read = (time: number, replace = false) => {
         const all = columns();
-        const ownHeight = columnHeight(all.find(column => column.includes(placed)) ?? [placed]);
-        frames.push({
+        const currentColumn = all.find(column => column.includes(placed)) ?? [placed];
+        const ownHeight = columnHeight(currentColumn);
+        const nextPlaced = currentColumn[currentColumn.indexOf(placed) + 1];
+        const frame = {
           time: time - start, height: element.getBoundingClientRect().height,
           nextTop: next ? next.getBoundingClientRect().top + window.scrollY : null,
           pagerTop: pager ? pager.getBoundingClientRect().top + window.scrollY : null,
           controlsPager: all.every(column => columnHeight(column) <= ownHeight + 1),
           animations: element.getAnimations().length,
           pending: element.querySelector('button[aria-busy="true"]') !== null,
-        });
+          samePlacement: element.isConnected && Math.abs(placed.getBoundingClientRect().top + window.scrollY - ownPosition) <= 1
+            && (nextPlaced?.querySelector('[data-task-card]') ?? null) === (next ?? null),
+        };
+        if (replace && frames.length > 1) frames[frames.length - 1] = frame;
+        else if (!replace) frames.push(frame);
       };
       read(start);
       const toggle = element.querySelector<HTMLButtonElement>('button[aria-label="' + label + '"]');
       if (!toggle) throw new Error('Expected ' + label + '; real controls: ' + Array.from(element.querySelectorAll('button')).map(button => button.getAttribute('aria-label')).join(', '));
-      toggle.click();
+      // The application registers its ResizeObserver before this probe. Its
+      // same-frame restack follows RAF and precedes this observation.
+      const observer = new ResizeObserver(() => read(start + frames.at(-1)!.time, true));
+      observer.observe(placed);
+      observer.observe(grid);
       const sample = (time: number) => {
         read(time);
         const tail = frames.slice(-12);
@@ -65,21 +76,32 @@ test.describe('real-service card height and layout motion', () => {
         // Masked reveals wait for both real responses; the height clock counts drawn frames.
         // Retain the original geometric guards and bound recording of a stuck request/glide.
         if ((time - start < 1800 || !landed) && time - start < 8000) requestAnimationFrame(sample);
-        else resolve(frames);
+        else {
+          observer.disconnect();
+          resolve(frames);
+        }
       };
       requestAnimationFrame(sample);
+      toggle.click();
     }), toggle);
   }
-  function assertFrames(frames: Frame[]) {
+  function assertFrames(frames: Frame[], requireFollowing = false) {
     const path = frames.at(-1)!.height - frames[0].height;
     expect(Math.abs(path)).toBeGreaterThan(20);
     expect(frames.some(frame => Math.abs(frame.height - frames[0].height) > 1 && Math.abs(frame.height - frames.at(-1)!.height) > 1), 'at least one measured intermediate height excludes an instantaneous snap').toBe(true);
+    let followingSteps = 0;
     for (let i = 1; i < frames.length; i++) {
       const previous = frames[i - 1], frame = frames[i], delta = frame.height - previous.height;
       expect(Math.sign(path) * delta, 'height remains monotone').toBeGreaterThanOrEqual(-1);
       if (frame.time - previous.time <= 20) expect(Math.abs(delta), '60Hz per-frame displacement').toBeLessThanOrEqual(Math.abs(path) * 0.25 + 1);
-      if (frame.nextTop !== null && previous.nextTop !== null) expect(Math.abs(frame.nextTop - previous.nextTop - delta), 'following card tracks actual height').toBeLessThanOrEqual(1);
-      if (frame.controlsPager && previous.controlsPager && frame.pagerTop !== null && previous.pagerTop !== null) expect(Math.abs(frame.pagerTop - previous.pagerTop - delta), 'pager tracks highest column').toBeLessThanOrEqual(1);
+      if (previous.samePlacement && frame.samePlacement && frame.nextTop !== null && previous.nextTop !== null) {
+        if (Math.abs(delta) > 1) followingSteps++;
+        expect(Math.abs(frame.nextTop - previous.nextTop - delta), 'following card tracks actual height').toBeLessThanOrEqual(1);
+      }
+      if (previous.samePlacement && frame.samePlacement && frame.controlsPager && previous.controlsPager && frame.pagerTop !== null && previous.pagerTop !== null) expect(Math.abs(frame.pagerTop - previous.pagerTop - delta), 'pager tracks highest column').toBeLessThanOrEqual(1);
+    }
+    if (requireFollowing && frames[0].nextTop !== null) {
+      expect(followingSteps, 'Reveal measures the following card while height actually changes').toBeGreaterThan(0);
     }
     expect(frames.at(-1)!.animations).toBe(0);
     const tail = frames.slice(-12);
@@ -115,7 +137,7 @@ test.describe('real-service card height and layout motion', () => {
           await persistJsonEvidence(info, 'real-height-frames', { body: JSON.stringify({ surface, key, hide, show }), contentType: 'application/json' });
           expect(hide.every(frame => frame.nextTop !== null), 'one column provides a real following card').toBe(true);
           assertFrames(hide);
-          assertFrames(show);
+          assertFrames(show, true);
           expect(Math.abs(show.at(-1)!.height - natural)).toBeLessThanOrEqual(1);
           expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');
         } finally {

@@ -224,6 +224,9 @@ updates the measurement for the same frame before paint. The pre-action baseline
 and the geometry tolerances are preserved. The full matrix runs by default.
 It tracks the same following card through the final height frame. Masonry may
 move that neighbour to a different column after the documented settle period.
+The separate live height spec also samples the restack before paint. It checks
+the follower while the measured card and neighbour keep their placement, since
+the list may reorder a card when it is hidden.
 For a targeted reproduction on disposable services, set `E2E_MOTION_SCENARIO`
 to a scenario name from the spec and run that spec through `e2e/run-ci.cjs`.
 
