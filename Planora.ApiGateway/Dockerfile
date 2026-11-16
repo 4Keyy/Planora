@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.15 AS base
 WORKDIR /app
 EXPOSE 80
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 COPY ["Directory.Packages.props", "."]
