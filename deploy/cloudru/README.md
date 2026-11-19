@@ -63,7 +63,8 @@ For restored RabbitMQ, `RABBITMQ_HOSTNAME` must match the source node identity;
 use a compatible broker version, rotate the application credential after restore
 and remove unused administrative access only after checking the restored users.
 Redis uses `noeviction`, because losing its key ring would break existing 2FA.
-Automatic retention remains disabled for this migration.
+Automatic retention defaults to disabled during migration. See
+[Completed task cleanup](#completed-task-cleanup) for activation after restore acceptance.
 
 Set `/opt/planora/shared/uploads` ownership to the actual Auth image UID/GID
 (`docker run --rm --entrypoint id planora-cloud-auth-api`); do not assume UID1000.
@@ -116,3 +117,43 @@ Record the deployed commit/image IDs, data checkpoint and acceptance results.
 Keep a recovery copy outside this VM. Review the provider grant and billing:
 stopping containers does not remove VM, disk or public-IP charges. This setup
 does not enforce a monetary cap or automatic resource deletion.
+
+## Completed task cleanup
+
+Activate this after verifying a fresh, restorable off-VM checkpoint for Todo,
+Collaboration and Realtime. Keep the matching release and private configuration
+available for recovery. Update `/opt/planora/shared/cloud.env` with:
+
+```dotenv
+PLANORA_TODO_RETENTION_ENABLED=true
+PLANORA_TODO_RETENTION_DRY_RUN=true
+```
+
+From the target release, validate the configuration and recreate only TodoApi:
+
+```sh
+sudo sh deploy/cloudru/compose.sh config --quiet
+sudo sh deploy/cloudru/compose.sh up -d --no-build --no-deps --force-recreate todo-api
+sudo sh deploy/cloudru/compose.sh logs --since 10m todo-api | grep -F 'Retention['
+```
+
+After the startup delay (60 seconds by default), check the `scanned`, `deleted`,
+`dryRun` and `tripped` fields for `completed-todo-delete`,
+`completed-todo-viewer-hide` and `completed-todo-viewer-release`. Review the
+candidate counts and any errors before setting `PLANORA_TODO_RETENTION_DRY_RUN=false`.
+Repeat the same validation and recreation, then verify TodoApi readiness, the
+three policy results and delivery of the deletion events to Collaboration and
+Realtime. Check that expired items disappear from an authorized archive read and
+that a recent completion remains visible. The default window is 30 days and the
+scheduled sweep runs hourly.
+
+This switch runs only the Todo policies for completed work. Expired owner
+completions are soft deleted with their branch and send the normal deletion
+event. Expired personal completions leave only that viewer's archive. Physical
+purging of soft-deleted rows, processed messaging records and retention jobs in
+the other APIs remain disabled on Cloud.ru.
+
+To stop future passes, set `PLANORA_TODO_RETENTION_ENABLED=false` and recreate
+TodoApi with the same command. Stopping the job preserves already committed
+cleanup. Use the recovery checkpoint and review writes since that checkpoint if
+data recovery is necessary.

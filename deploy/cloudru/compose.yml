@@ -76,6 +76,12 @@ services:
     mem_limit: 512m
     environment:
       <<: *api-environment
+      Retention__Enabled: "${PLANORA_TODO_RETENTION_ENABLED:-false}"
+      Retention__RunOnStartup: "${PLANORA_TODO_RETENTION_ENABLED:-false}"
+      Retention__DryRun: "${PLANORA_TODO_RETENTION_DRY_RUN:-true}"
+      Retention__PurgeCompletedTasks: "true"
+      Retention__PurgeSoftDeleted: "false"
+      Retention__PurgeOutboxInbox: "false"
       Kestrel__Endpoints__Rest__Url: "http://+:80"
       Kestrel__Endpoints__Grpc__Url: "http://+:81"
       ConnectionStrings__TodoDatabase: "Host=postgres;Port=5432;Database=planora_todo;Username=planora_todo;Password=${TODO_DB_PASSWORD:?required};Maximum Pool Size=10;Connection Idle Lifetime=60;"
