@@ -7,6 +7,7 @@ namespace Planora.Collaboration.Infrastructure.Persistence
         public CollaborationDbContext(DbContextOptions<CollaborationDbContext> options) : base(options) { }
 
         public DbSet<Comment> Comments => Set<Comment>();
+        internal DbSet<BranchDeletion> BranchDeletions => Set<BranchDeletion>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
         public DbSet<Planora.BuildingBlocks.Infrastructure.Inbox.InboxMessage> InboxMessages
             => Set<Planora.BuildingBlocks.Infrastructure.Inbox.InboxMessage>();
@@ -18,6 +19,12 @@ namespace Planora.Collaboration.Infrastructure.Persistence
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(CollaborationDbContext).Assembly);
 
             modelBuilder.HasDefaultSchema("collaboration");
+
+            modelBuilder.Entity<BranchDeletion>(entity =>
+            {
+                entity.ToTable("branch_deletions");
+                entity.HasKey(row => new { row.TaskId, row.SubtaskId });
+            });
 
             // Optimistic concurrency for the Comment aggregate via PostgreSQL's xmin system
             // column — no extra column or migration. Guarded so the InMemory test provider

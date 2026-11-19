@@ -37,8 +37,8 @@ public sealed class CommentCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("Hello team", result.Value!.Content);
         Assert.True(result.Value.IsOwn);
-        fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Once);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Timeline.Verify(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(),
+            It.IsAny<Func<CancellationToken, Task>>()), Times.Once);
         // Two participant notifications (owner + 1 other, author excluded) plus the live-sync
         // branch event that pushes the new message to anyone viewing the branch = 3 outbox writes.
         fixture.Outbox.Verify(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
@@ -54,7 +54,8 @@ public sealed class CommentCommandHandlerTests
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.AddHandler().Handle(new AddCommentCommand(fixture.TaskId, "x"), CancellationToken.None));
 
-        fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+        fixture.Timeline.Verify(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(),
+            It.IsAny<Func<CancellationToken, Task>>()), Times.Never);
     }
 
     [Fact]
@@ -66,6 +67,21 @@ public sealed class CommentCommandHandlerTests
 
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             fixture.AddHandler().Handle(new AddCommentCommand(fixture.TaskId, "x"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AddComment_WhenTimelineWasDeletedAfterAccessCheck_ThrowsNotFoundWithoutOutboxWrites()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(owner: Guid.NewGuid());
+        fixture.Timeline.Setup(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(),
+                It.IsAny<Func<CancellationToken, Task>>()))
+            .ReturnsAsync(TimelineAppendResult.TaskDeleted);
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            fixture.AddHandler().Handle(new AddCommentCommand(fixture.TaskId, "Late comment"), CancellationToken.None));
+
+        Assert.Empty(fixture.OutboxMessages);
     }
 
     // ─── AddComment: replies ────────────────────────────────────────────────────
@@ -140,7 +156,8 @@ public sealed class CommentCommandHandlerTests
             fixture.AddHandler().Handle(
                 new AddCommentCommand(fixture.TaskId, "x", "comment", foreign.Id), CancellationToken.None));
 
-        fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+        fixture.Timeline.Verify(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(),
+            It.IsAny<Func<CancellationToken, Task>>()), Times.Never);
     }
 
     [Fact]
@@ -454,6 +471,7 @@ public sealed class CommentCommandHandlerTests
         public Guid TaskId { get; } = Guid.NewGuid();
         public Guid UserId { get; } = Guid.NewGuid();
         public Mock<ICommentRepository> Comments { get; } = new();
+        public Mock<IBranchTimeline> Timeline { get; } = new();
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
         public Mock<ITaskAccessService> Access { get; } = new();
@@ -469,8 +487,13 @@ public sealed class CommentCommandHandlerTests
             CurrentUser.SetupGet(x => x.Email).Returns("tester@planora.dev");
             CurrentUser.SetupGet(x => x.ProfilePictureUrl).Returns((string?)null);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-            Comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Comment c, CancellationToken _) => c);
+            Timeline.Setup(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<Func<CancellationToken, Task>>()))
+                .Returns(async (Comment _, CancellationToken token, Func<CancellationToken, Task> stage) =>
+                {
+                    await stage(token);
+                    return TimelineAppendResult.Added;
+                });
             Outbox.Setup(x => x.StageAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
                 .Callback<OutboxMessage, CancellationToken>((m, _) => OutboxMessages.Add(m))
                 .Returns(Task.CompletedTask);
@@ -492,7 +515,7 @@ public sealed class CommentCommandHandlerTests
                 .ReturnsAsync(new TaskAccessResult(false, false, Guid.Empty, Array.Empty<Guid>(), string.Empty, null));
 
         public AddCommentCommandHandler AddHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object, Users.Object);
+            new(Comments.Object, Timeline.Object, CurrentUser.Object, Access.Object, Outbox.Object, Users.Object);
 
         public DeleteCommentCommandHandler DeleteHandler() =>
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object);

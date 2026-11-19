@@ -60,8 +60,8 @@ in [Realtime Persistence](#realtime-persistence):
 
 Reviewed migration chains are tracked for all six stores and explicitly admitted to Docker
 build contexts. Auth, Category and Messaging use `InitialReviewedBaseline` migrations;
-Collaboration has a pre-replies baseline followed by `AddReplyReferences` and
-`AddSubtaskActivityIdentity`. Their helpers use
+Collaboration has a pre-replies baseline followed by `AddReplyReferences`,
+`AddSubtaskActivityIdentity` and `AddBranchDeletionMarkers`. Their helpers use
 `VersionedDatabaseStartup`: a session advisory lock serializes preparation, history must be a
 chronological prefix of the compiled chain, and mapped types, nullability, defaults, keys and
 indexes are checked before adoption and after migration. Auth's role seeds have stable IDs;
@@ -356,10 +356,12 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 
 `CollaborationDatabaseStartup` uses the tracked
 `20261104053345_InitialPreReplyBaseline`, `20261104053426_AddReplyReferences` and
-`20261106182312_AddSubtaskActivityIdentity` chain.
-Preparation can adopt an equivalent unmanaged schema at any of these reviewed prefixes,
-preserving comments, then apply remaining migrations. A partial reply/identity schema or unknown/gapped history
-is rejected. The database `planora_collaboration` is created by the dependency waiter when absent.
+`20261106182312_AddSubtaskActivityIdentity`, and
+`20261119213424_AddBranchDeletionMarkers` chain.
+Preparation can adopt an equivalent unmanaged schema up to the reviewed subtask identity
+migration, preserving comments, then apply the remaining migrations. A partial
+reply or identity schema or unknown or gapped history is rejected. The dependency waiter
+creates `planora_collaboration` when absent.
 
 The compatibility CLI flag below selects this guarded chain; it no longer performs a separate
 unverified `ALTER TABLE ... IF NOT EXISTS` patch. Review the target and backup before applying:
@@ -375,8 +377,18 @@ branch. Existing null-identity activity is preserved without a title-based backf
 The identity migration does not rewrite existing comment rows. Repeated preparation
 validates known history and schema instead of assuming that an existing column is compatible.
 
+The deletion migration adds `collaboration.branch_deletions` without rewriting comments.
+Collaboration serializes timeline appends and cleanup of the same branch on a PostgreSQL
+transaction lock. A task deletion records a branch marker and soft deletes its timeline.
+A subtask deletion records its marker, removes identity-backed system activity and flags
+quotes of that subtask in the same transaction. Appends check both applicable scopes
+before writing a comment and its notifications. Activity without a subtask ID can still
+be placed in a live branch, and a deleted branch blocks it. Markers persist beyond
+comment retention. The migration starts with an empty marker table and does not infer
+deletions that were handled before it ran.
+
 Coordinate schema, reader and writer rollout: older guarded binaries reject the new migration
-history. Do not automatically apply `Down`, which discards the new identity metadata. The
+history. Automatic `Down` would discard identity metadata or deletion markers. The
 isolated upgrade checks do not establish production lock duration or backup/restore readiness.
 
 ### Data Migration From Todo

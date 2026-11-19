@@ -160,9 +160,15 @@ public sealed class SubtaskActivityIdentityPostgresTests
                 await context.Database.ExecuteSqlRawAsync("""
                     ALTER TABLE collaboration.comments ADD CONSTRAINT reject_activity_delete CHECK (NOT "IsDeleted")
                     """, timeout.Token);
-            var unitOfWork = new ControlledUnitOfWork(new CollaborationUnitOfWork(context),
-                cancelBeforeSave ? requestCancellation.Cancel : null);
-            var consumer = new SubtaskDeletedEventConsumer(new CommentRepository(context), unitOfWork,
+            var unitOfWork = new ControlledUnitOfWork(new CollaborationUnitOfWork(context), () =>
+            {
+                Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == created).Entity.IsDeleted);
+                Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == completed).Entity.IsDeleted);
+                Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == reply.Id).Entity.ReplyToDeleted);
+                if (cancelBeforeSave)
+                    requestCancellation.Cancel();
+            });
+            var consumer = new SubtaskDeletedEventConsumer(new BranchTimeline(context, new CommentRepository(context), unitOfWork),
                 NullLogger<SubtaskDeletedEventConsumer>.Instance);
             Task Invoke() => consumer.HandleAsync(new SubtaskDeletedIntegrationEvent(parent, subtask, actor, "Atomic title"),
                 cancelBeforeSave ? requestCancellation.Token : timeout.Token);
@@ -176,11 +182,12 @@ public sealed class SubtaskActivityIdentityPostgresTests
                 await Assert.ThrowsAsync<DbUpdateException>(Invoke);
 
             Assert.Equal(1, unitOfWork.SaveAttempts);
-            // Verify both members were staged before the real save failed, not an unrelated early exception.
-            Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == created).Entity.IsDeleted);
-            Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == completed).Entity.IsDeleted);
-            Assert.True(context.ChangeTracker.Entries<Comment>().Single(entry => entry.Entity.Id == reply.Id).Entity.ReplyToDeleted);
+            Assert.Empty(context.ChangeTracker.Entries<Comment>());
             Assert.Equal(before, JsonSerializer.Serialize(await ReadAsync(database, timeout.Token)));
+            Assert.False(await context.Database.SqlQuery<bool>($"""
+                SELECT EXISTS (SELECT 1 FROM collaboration.branch_deletions
+                    WHERE "TaskId" = {parent} AND "SubtaskId" = {subtask}) AS "Value"
+                """).SingleAsync(timeout.Token));
         }
     }
 
@@ -206,7 +213,7 @@ public sealed class SubtaskActivityIdentityPostgresTests
     }
 
     [PostgresFact]
-    public async Task DeleteBeforeActivity_CharacterizesNoTombstoneAndPreservesOtherSubtaskWithSameTitle()
+    public async Task DeleteBeforeActivity_BlocksTheDeletedIdentityAndPreservesOtherSubtasksAndLegacyEvents()
     {
         await using var database = await ReadyDatabaseAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -214,14 +221,19 @@ public sealed class SubtaskActivityIdentityPostgresTests
         var alreadyPresent = await ActivityAsync(database, parent, second, TaskActivityType.SubtaskCreated, "Out of order", timeout.Token);
 
         await DeleteAsync(database, parent, first, actor, "Out of order", timeout.Token);
-        var deliveredLater = await ActivityAsync(database, parent, first, TaskActivityType.SubtaskCreated, "Out of order", timeout.Token);
+        var deliveredLater = await DeliverActivityAsync(database, parent, first, TaskActivityType.SubtaskCreated, "Out of order", timeout.Token);
+        var otherLater = await ActivityAsync(database, parent, second, TaskActivityType.SubtaskCompleted, "Out of order", timeout.Token);
+        var legacyLater = await ActivityAsync(database, parent, null, TaskActivityType.SubtaskCompleted, "Out of order", timeout.Token);
 
+        Assert.Null(deliveredLater);
         var rows = await ReadAsync(database, timeout.Token);
-        Assert.Equal(2, rows.Count);
+        Assert.Equal(3, rows.Count);
         AssertAlive(rows, alreadyPresent);
-        // This local identity fix stores no deletion tombstone: late activity remains visible.
-        AssertAlive(rows, deliveredLater);
-        AssertSource(rows, alreadyPresent, second); AssertSource(rows, deliveredLater, first);
+        AssertAlive(rows, otherLater);
+        AssertAlive(rows, legacyLater);
+        AssertSource(rows, alreadyPresent, second);
+        AssertSource(rows, otherLater, second);
+        AssertSource(rows, legacyLater, null);
     }
 
     private static async Task<TemporaryDatabase> ReadyDatabaseAsync()
@@ -242,6 +254,11 @@ public sealed class SubtaskActivityIdentityPostgresTests
     }
 
     private static async Task<Guid> ActivityAsync(TemporaryDatabase database, Guid parentTaskId, Guid? sourceSubtaskId,
+        string activityType, string title, CancellationToken token) =>
+        await DeliverActivityAsync(database, parentTaskId, sourceSubtaskId, activityType, title, token)
+            ?? throw new InvalidOperationException("Expected activity to be stored");
+
+    private static async Task<Guid?> DeliverActivityAsync(TemporaryDatabase database, Guid parentTaskId, Guid? sourceSubtaskId,
         string activityType, string title, CancellationToken token)
     {
         var payload = new Dictionary<string, object?>
@@ -253,17 +270,19 @@ public sealed class SubtaskActivityIdentityPostgresTests
             payload["SourceSubtaskId"] = sourceSubtaskId.Value;
         var activity = JsonSerializer.Deserialize<TaskActivityIntegrationEvent>(JsonSerializer.Serialize(payload))!;
         await using var context = new CollaborationDbContext(database.Options<CollaborationDbContext>());
-        var consumer = new TaskActivityEventConsumer(new CommentRepository(context), new CollaborationUnitOfWork(context),
+        var timeline = new BranchTimeline(context, new CommentRepository(context), new CollaborationUnitOfWork(context));
+        var consumer = new TaskActivityEventConsumer(timeline,
             NullLogger<TaskActivityEventConsumer>.Instance);
         await consumer.HandleAsync(activity, token);
         // A fresh context isolates this insertion even when two activities have identical rendered text.
-        return Assert.Single(context.ChangeTracker.Entries<Comment>()).Entity.Id;
+        return context.ChangeTracker.Entries<Comment>().SingleOrDefault()?.Entity.Id;
     }
 
     private static async Task DeleteAsync(TemporaryDatabase database, Guid parent, Guid subtask, Guid actor, string title, CancellationToken token)
     {
         await using var context = new CollaborationDbContext(database.Options<CollaborationDbContext>());
-        var consumer = new SubtaskDeletedEventConsumer(new CommentRepository(context), new CollaborationUnitOfWork(context),
+        var timeline = new BranchTimeline(context, new CommentRepository(context), new CollaborationUnitOfWork(context));
+        var consumer = new SubtaskDeletedEventConsumer(timeline,
             NullLogger<SubtaskDeletedEventConsumer>.Instance);
         await consumer.HandleAsync(new SubtaskDeletedIntegrationEvent(parent, subtask, actor, title), token);
     }

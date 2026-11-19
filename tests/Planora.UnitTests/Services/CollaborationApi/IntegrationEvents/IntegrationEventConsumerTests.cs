@@ -1,6 +1,7 @@
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.Collaboration.Application.Features.IntegrationEvents;
+using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Domain.Entities;
 using Planora.Collaboration.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -26,14 +27,13 @@ public sealed class IntegrationEventConsumerTests
         // a single source of truth in Todo and is synthesised on read. So task creation only ever
         // materialises the "created the task" system comment, regardless of the description.
         var taskId = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
-        var uow = new Mock<IUnitOfWork>();
+        var timeline = new Mock<IBranchTimeline>();
         var added = new List<Comment>();
-        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-            .Callback<Comment, CancellationToken>((c, _) => added.Add(c))
-            .ReturnsAsync((Comment c, CancellationToken _) => c);
+        timeline.Setup(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(), null))
+            .Callback((Comment comment, CancellationToken _, Func<CancellationToken, Task>? _) => added.Add(comment))
+            .ReturnsAsync(TimelineAppendResult.Added);
 
-        var consumer = new TaskCreatedEventConsumer(comments.Object, uow.Object,
+        var consumer = new TaskCreatedEventConsumer(timeline.Object,
             Mock.Of<ILogger<TaskCreatedEventConsumer>>());
 
         await consumer.HandleAsync(
@@ -42,7 +42,6 @@ public sealed class IntegrationEventConsumerTests
         Assert.Single(added);
         Assert.True(added[0].IsSystemComment && !added[0].IsGenesisComment);
         Assert.Contains("created the task", added[0].Content);
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ─── TaskActivity ───────────────────────────────────────────────────────────
@@ -55,13 +54,13 @@ public sealed class IntegrationEventConsumerTests
     public async Task TaskActivity_WritesExpectedSystemComment(string activity, string expectedFragment)
     {
         var taskId = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
+        var timeline = new Mock<IBranchTimeline>();
         Comment? captured = null;
-        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-            .Callback<Comment, CancellationToken>((c, _) => captured = c)
-            .ReturnsAsync((Comment c, CancellationToken _) => c);
+        timeline.Setup(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(), null))
+            .Callback((Comment comment, CancellationToken _, Func<CancellationToken, Task>? _) => captured = comment)
+            .ReturnsAsync(TimelineAppendResult.Added);
 
-        var consumer = new TaskActivityEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
+        var consumer = new TaskActivityEventConsumer(timeline.Object,
             Mock.Of<ILogger<TaskActivityEventConsumer>>());
 
         await consumer.HandleAsync(
@@ -82,13 +81,13 @@ public sealed class IntegrationEventConsumerTests
     {
         var parentId = Guid.NewGuid();
         var sourceSubtaskId = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
+        var timeline = new Mock<IBranchTimeline>();
         Comment? captured = null;
-        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-            .Callback<Comment, CancellationToken>((c, _) => captured = c)
-            .ReturnsAsync((Comment c, CancellationToken _) => c);
+        timeline.Setup(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(), null))
+            .Callback((Comment comment, CancellationToken _, Func<CancellationToken, Task>? _) => captured = comment)
+            .ReturnsAsync(TimelineAppendResult.Added);
 
-        var consumer = new TaskActivityEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
+        var consumer = new TaskActivityEventConsumer(timeline.Object,
             Mock.Of<ILogger<TaskActivityEventConsumer>>());
 
         await consumer.HandleAsync(
@@ -107,14 +106,14 @@ public sealed class IntegrationEventConsumerTests
     [Trait("TestType", "Resilience")]
     public async Task TaskActivity_UnknownType_IsSkippedSilently()
     {
-        var comments = new Mock<ICommentRepository>();
-        var consumer = new TaskActivityEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
+        var timeline = new Mock<IBranchTimeline>();
+        var consumer = new TaskActivityEventConsumer(timeline.Object,
             Mock.Of<ILogger<TaskActivityEventConsumer>>());
 
         await consumer.HandleAsync(
             new TaskActivityIntegrationEvent(Guid.NewGuid(), Guid.NewGuid(), "X", "BogusType"), CancellationToken.None);
 
-        comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+        timeline.Verify(x => x.AppendAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>(), null), Times.Never);
     }
 
     // ─── TaskDeleted ────────────────────────────────────────────────────────────
@@ -125,16 +124,14 @@ public sealed class IntegrationEventConsumerTests
     {
         var taskId = Guid.NewGuid();
         var actor = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
-        var uow = new Mock<IUnitOfWork>();
+        var timeline = new Mock<IBranchTimeline>();
 
-        var consumer = new TaskDeletedEventConsumer(comments.Object, uow.Object,
+        var consumer = new TaskDeletedEventConsumer(timeline.Object,
             Mock.Of<ILogger<TaskDeletedEventConsumer>>());
 
         await consumer.HandleAsync(new TaskDeletedIntegrationEvent(taskId, actor), CancellationToken.None);
 
-        comments.Verify(x => x.SoftDeleteByTaskIdAsync(taskId, actor, It.IsAny<CancellationToken>()), Times.Once);
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        timeline.Verify(x => x.DeleteTaskAsync(taskId, actor, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ─── SubtaskDeleted ─────────────────────────────────────────────────────────
@@ -146,10 +143,9 @@ public sealed class IntegrationEventConsumerTests
         var parentId = Guid.NewGuid();
         var subtaskId = Guid.NewGuid();
         var actor = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
-        var uow = new Mock<IUnitOfWork>();
+        var timeline = new Mock<IBranchTimeline>();
 
-        var consumer = new SubtaskDeletedEventConsumer(comments.Object, uow.Object,
+        var consumer = new SubtaskDeletedEventConsumer(timeline.Object,
             Mock.Of<ILogger<SubtaskDeletedEventConsumer>>());
 
         await consumer.HandleAsync(
@@ -157,11 +153,10 @@ public sealed class IntegrationEventConsumerTests
             CancellationToken.None);
 
         // Identity scopes deletion even when two subtasks have the same display title.
-        comments.Verify(x => x.SoftDeleteSubtaskActivityAsync(
+        timeline.Verify(x => x.DeleteSubtaskAsync(
             parentId, subtaskId, actor, It.IsAny<CancellationToken>()), Times.Once);
-        comments.Verify(x => x.SoftDeleteByTaskIdAsync(
+        timeline.Verify(x => x.DeleteTaskAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ─── UserDeleted ────────────────────────────────────────────────────────────

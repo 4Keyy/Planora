@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "8901021aa25c8c7af7c7fc84da090e309d93ceb2",
+  "current_sha": "0f470e7156e214418c830e45d0e4acf78552363f",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -294,10 +294,25 @@
     "DIST-012 Realtime: 2 PostgreSQL regression tests RED on 7edfc628. With guards, 109 passed and none skipped, including actual PostgreSQL contention, rollback and initial-schema upgrade. Migration SQL adds only NotificationDeletions and a history row. Evidence under .buildcheck/dist012-case; scope and limits in results/T06.md.",
     "81667d0a pushed to main. CI 43624802796 and Migration Scripts 43624913094 passed. The Cloud.ru restore rehearsal applied the same SQL twice and matched all three previous Realtime tables. Collaboration AddComment also crosses the deletion boundary after its remote access check. A later disposable PostgreSQL test confirmed one active comment and two outbox rows after cleanup.",
     "Cloud.ru 2026-11-14 21:38 MSK: six current local dumps archived, 137 product rows reconciled with cloud state, fresh frozen cloud dump set copied off-VM and hash verified. Realtime 81667d0a deployed with its additive migration after a second pre-upgrade dump. Health and public HTTPS passed. CI and Security passed on docs-only 64d09c9e; E2E 43624802756 had five successful jobs and one running at promotion.",
-    "2026-11-19: GitHub confirms six successful E2E jobs for 43624802756. Cloud.ru retention disabled by the migration overlay; fix 8901021 reached GitHub main after the Compose RED/GREEN check. Cloud access and local Git index writes were denied. Live activation remains open. Five additional baseline files reviewed."
+    "2026-11-19: GitHub confirms six successful E2E jobs for 43624802756. Cloud.ru retention disabled by the migration overlay; fix 8901021 reached GitHub main after the Compose RED/GREEN check. Cloud access and local Git index writes were denied. Live activation remains open. Five additional baseline files reviewed.",
+    "2026-11-20: T03 Collaboration now records transaction-scoped task and subtask deletion markers. Scoped Release builds, 59 in-process Collaboration test cases and the EF snapshot/SQL checks passed. Current PostgreSQL and rollout gates remain open because local sockets and Cloud.ru SSH are denied."
   ],
-  "next_step": "For T14, verify a current Cloud.ru recovery checkpoint, run the TodoApi dry-run and check counts before live activation. Continue T03 DIST-012 in Collaboration using the saved red AddComment test on isolated PostgreSQL. Cover root and subtask ordering, legacy SourceSubtaskId and atomic rollback. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open.",
+  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open.",
   "commands": [
+    {
+      "id": "collaboration-dist012-20261120",
+      "cwd": "Planora",
+      "command": [
+        "dotnet build tests/Planora.UnitTests/Planora.UnitTests.csproj --configuration Release --no-restore --nologo -m:1 -nr:false",
+        "dotnet exec --runtimeconfig Planora.UnitTests.runtimeconfig.json with isolated in-process Collaboration test harness",
+        "dotnet ef migrations has-pending-model-changes --context CollaborationDbContext",
+        "dotnet ef migrations script 20261106182312_AddSubtaskActivityIdentity 20261119213424_AddBranchDeletionMarkers --idempotent"
+      ],
+      "exit_code": 0,
+      "in_process_passed": 59,
+      "postgres_status": "blocked by local socket permissions",
+      "evidence": "results/T03.md"
+    },
     {
       "id": "cloudru-retention-20261119",
       "cwd": "Planora",

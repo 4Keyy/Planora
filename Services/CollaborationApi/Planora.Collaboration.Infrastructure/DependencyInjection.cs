@@ -37,6 +37,7 @@ namespace Planora.Collaboration.Infrastructure
             services.AddScoped<ICommentRepository, CommentRepository>();
             services.AddScoped<IRepository<Comment>, CommentRepository>();
             services.AddScoped<IOutboxRepository, OutboxRepository>();
+            services.AddScoped<IBranchTimeline, BranchTimeline>();
             // Inbox for consumer idempotency (dedup of replayed integration events).
             services.AddScoped<Planora.BuildingBlocks.Infrastructure.Inbox.IInboxRepository, InboxRepository>();
 

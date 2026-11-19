@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
-using Planora.Collaboration.Domain.Repositories;
+using Planora.Collaboration.Application.Services;
 
 namespace Planora.Collaboration.Application.Features.IntegrationEvents
 {
@@ -8,35 +8,25 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
     /// Removes a deleted subtask's announcement comments from the PARENT task's branch. A subtask
     /// has no branch of its own, so deleting it must not wipe the parent timeline — only the
     /// identity-backed system comments it produced. Legacy entries with no source identity survive.
-    /// Naturally idempotent: a redelivered event finds no remaining matching comments.
+    /// Records the subtask's deletion so late activity cannot recreate its entries.
     /// </summary>
     public sealed class SubtaskDeletedEventConsumer : IIntegrationEventHandler<SubtaskDeletedIntegrationEvent>
     {
-        private readonly ICommentRepository _commentRepository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IBranchTimeline _timeline;
         private readonly ILogger<SubtaskDeletedEventConsumer> _logger;
 
         public SubtaskDeletedEventConsumer(
-            ICommentRepository commentRepository,
-            IUnitOfWork unitOfWork,
+            IBranchTimeline timeline,
             ILogger<SubtaskDeletedEventConsumer> logger)
         {
-            _commentRepository = commentRepository;
-            _unitOfWork = unitOfWork;
+            _timeline = timeline;
             _logger = logger;
         }
 
         public async Task HandleAsync(SubtaskDeletedIntegrationEvent @event, CancellationToken cancellationToken)
         {
-            await _commentRepository.SoftDeleteSubtaskActivityAsync(
+            await _timeline.DeleteSubtaskAsync(
                 @event.ParentTaskId, @event.SubtaskId, @event.ActorId, cancellationToken);
-
-            // Replies that quoted the deleted subtask survive — only their quote flips to the
-            // "deleted target" state (snapshot preview is kept for context).
-            await _commentRepository.MarkSubtaskReplyTargetsDeletedAsync(
-                @event.ParentTaskId, @event.SubtaskId, cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
                 "Soft-deleted subtask {SubtaskId} announcement comments and flagged its reply quotes in parent branch {ParentTaskId} (actor {ActorId})",

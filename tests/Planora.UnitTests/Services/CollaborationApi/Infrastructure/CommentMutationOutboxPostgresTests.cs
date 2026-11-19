@@ -212,7 +212,8 @@ public sealed class CommentMutationOutboxPostgresTests
         {
             case Mode.AddReply:
             {
-                var handler = new AddCommentCommandHandler(repository, unitOfWork, currentUser.Object, access.Object, outbox, users);
+                var timeline = new BranchTimeline(context, repository, unitOfWork);
+                var handler = new AddCommentCommandHandler(repository, timeline, currentUser.Object, access.Object, outbox, users);
                 var result = await handler.Handle(new AddCommentCommand(seed.TaskId, "New reply text", "comment", seed.Quote.Id), token);
                 Assert.True(result.IsSuccess);
                 return result.Value!;

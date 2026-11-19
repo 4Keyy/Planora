@@ -254,6 +254,19 @@ namespace Planora.Collaboration.Infrastructure.Migrations
 
                     b.ToTable("comments", "collaboration");
                 });
+
+            modelBuilder.Entity("Planora.Collaboration.Infrastructure.Persistence.BranchDeletion", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SubtaskId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TaskId", "SubtaskId");
+
+                    b.ToTable("branch_deletions", "collaboration");
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -17,7 +17,7 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
     public sealed class AddCommentCommandHandler : IRequestHandler<AddCommentCommand, Result<CommentDto>>
     {
         private readonly ICommentRepository _commentRepository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IBranchTimeline _timeline;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ITaskAccessService _taskAccessService;
         private readonly IOutboxRepository _outboxRepository;
@@ -25,14 +25,14 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
 
         public AddCommentCommandHandler(
             ICommentRepository commentRepository,
-            IUnitOfWork unitOfWork,
+            IBranchTimeline timeline,
             ICurrentUserContext currentUserContext,
             ITaskAccessService taskAccessService,
             IOutboxRepository outboxRepository,
             IUserService userService)
         {
             _commentRepository = commentRepository;
-            _unitOfWork = unitOfWork;
+            _timeline = timeline;
             _currentUserContext = currentUserContext;
             _taskAccessService = taskAccessService;
             _outboxRepository = outboxRepository;
@@ -69,24 +69,18 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                     request.TaskId, userId, authorName, request.Content,
                     target.Type, target.Id, target.AuthorId, target.AuthorName, target.Preview);
 
-            await _commentRepository.AddAsync(comment, cancellationToken);
-
-            // Live: push the new message into the task's branch room so everyone with the branch
-            // open sees it appear instantly (both directions). The client refetches the comment
-            // slice through the authorized endpoint, so the signal carries no comment content.
-            await _outboxRepository.StageIntegrationEventAsync(
-                new RealtimeSyncIntegrationEvent(
-                    RealtimeSyncAction.CommentAdded, comment.Id, userId, branchTaskId: request.TaskId),
-                cancellationToken);
-
-            // Fan out notifications to every other task participant. Written to the outbox so
-            // delivery shares one commit with the comment write (INV-COMM-3). RealtimeApi
-            // consumes NotificationEvent and pushes it over SignalR. The quoted author gets a
-            // dedicated "replied to you" instead of the generic line.
-            await PublishNotificationsAsync(
-                userId, authorName, request.TaskId, access.ParticipantIds, target, cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var append = await _timeline.AppendAsync(comment, cancellationToken, async token =>
+            {
+                // The branch signal carries only IDs. Clients refetch through the authorized endpoint.
+                await _outboxRepository.StageIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.CommentAdded, comment.Id, userId, branchTaskId: request.TaskId), token);
+                await StageNotificationsAsync(userId, authorName, request.TaskId, access.ParticipantIds, target, token);
+            });
+            if (append == TimelineAppendResult.TaskDeleted)
+                throw new EntityNotFoundException("Task", request.TaskId);
+            if (append == TimelineAppendResult.SubtaskDeleted)
+                throw new EntityNotFoundException("Subtask", comment.ReplyToId!.Value);
 
             // Avatar URL comes from the live caller context — this is the author themselves,
             // so their JWT claim is the freshest source available on the write path.
@@ -199,7 +193,7 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
             return profiles.TryGetValue(userId, out var profile) ? profile : null;
         }
 
-        private async Task PublishNotificationsAsync(
+        private async Task StageNotificationsAsync(
             Guid authorId,
             string authorName,
             Guid taskId,

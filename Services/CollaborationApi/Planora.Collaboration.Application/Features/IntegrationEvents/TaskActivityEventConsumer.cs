@@ -1,7 +1,7 @@
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.Collaboration.Domain.Entities;
-using Planora.Collaboration.Domain.Repositories;
+using Planora.Collaboration.Application.Services;
 
 namespace Planora.Collaboration.Application.Features.IntegrationEvents
 {
@@ -12,17 +12,14 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
     /// </summary>
     public sealed class TaskActivityEventConsumer : IIntegrationEventHandler<TaskActivityIntegrationEvent>
     {
-        private readonly ICommentRepository _commentRepository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IBranchTimeline _timeline;
         private readonly ILogger<TaskActivityEventConsumer> _logger;
 
         public TaskActivityEventConsumer(
-            ICommentRepository commentRepository,
-            IUnitOfWork unitOfWork,
+            IBranchTimeline timeline,
             ILogger<TaskActivityEventConsumer> logger)
         {
-            _commentRepository = commentRepository;
-            _unitOfWork = unitOfWork;
+            _timeline = timeline;
             _logger = logger;
         }
 
@@ -57,8 +54,8 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
                 ? @event.SourceSubtaskId
                 : null;
             var systemComment = Comment.CreateSystem(@event.TaskId, text, sourceSubtaskId);
-            await _commentRepository.AddAsync(systemComment, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (await _timeline.AppendAsync(systemComment, cancellationToken) != TimelineAppendResult.Added)
+                return;
 
             _logger.LogInformation(
                 "Appended '{ActivityType}' system comment for task {TaskId} by actor {ActorId}",
