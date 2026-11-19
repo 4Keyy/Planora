@@ -1,10 +1,10 @@
 path,status,pass,lines,note,bytes,sha256
 .config/dotnet-tools.json,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,335,1c78fea1cf75547edd027e55a641577ac67117dd643d16ed67fac8b21ae8512f
 .dockerignore,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,3501,a09c02262619740fc58dbac22e75c8ff857e30f6e7abaa2c1e6c1e167d530a9c
-.editorconfig,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,1891,70f50715b4adb189d50b626bee14cb32f0e28a0b961822ef8236fd45f2f85280
+.editorconfig,REVIEWED,READ-001,1-51,2026-11-19 full source review; evidence in results/evidence/read-001-004-007-048-049-review.md,1891,70f50715b4adb189d50b626bee14cb32f0e28a0b961822ef8236fd45f2f85280
 .env.example,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,13233,f443b9528953744ce40c692ffd9c0e0629a562c8df22f24b7fd799f4fe76cbd9
 .env.production.example,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,3964,5873235e7820868634246e1a1a2b4e6b7e6f4cfdeddbe9d831a7304468377102
-.gitattributes,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,420,84581a8a4058361a7c826d8ea2d816a50b2184ceb393eec5b55ec2a157bf600b
+.gitattributes,REVIEWED,READ-004,1-21,2026-11-19 full source review; evidence in results/evidence/read-001-004-007-048-049-review.md,420,84581a8a4058361a7c826d8ea2d816a50b2184ceb393eec5b55ec2a157bf600b
 .githooks/pre-commit,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,2442,541b1f8ad21a3af0b8e7e101879ec370bb06892ae31057c1c60273a88bc450a0
 .github/CODEOWNERS,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,2947,f7daaf64c2868e5d2ae4e10f9a65003349dc86e5ec586b444bece60da818b480
 .github/ISSUE_TEMPLATE/bug_report.yml,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,2343,6bc1a9d4f97677a0ab6a34afc462dd3cb8e4d2845bf5c7004a260b622a8a4368
@@ -30,7 +30,7 @@ path,status,pass,lines,note,bytes,sha256
 .gitignore,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,5707,311040cca08f74056fc678d2fa0a4c738929c9f2585792f53b5cfc9688281a0f
 .gitleaks.toml,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,3786,3fdc61d235798fa7a9b15456b93e4ce4ec8696714f20eb1ff457d9730137c009
 .gitleaksignore,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,982,09e248efb8ee5623ab5799d195d771bc1316f58149ca5cef4738e15830958003
-.lychee.toml,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,235,d528b024c85ad304cb1def3cbe9d37ada4a5ad59a69df374a63f5be47dceef76
+.lychee.toml,REVIEWED,READ-007,1-13,2026-11-19 full source review; evidence in results/evidence/read-001-004-007-048-049-review.md,235,d528b024c85ad304cb1def3cbe9d37ada4a5ad59a69df374a63f5be47dceef76
 .markdownlint-cli2.jsonc,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,552,4a523a06f53627fbbd8340a19dbb6239e55df0f2f867b9d9d14082d0d369694a
 .spectral.yaml,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,1386,11ef361419734aa1d0b17ff712d4b1e85882a865ce99eded2c4ceee592ded156
 ARCHITECTURE.md,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,4603,9e7a1114ca0177ded9b0d9b7a2b4d3aa4c673e761bf60b5f398574fde3853c29
@@ -802,8 +802,8 @@ Services/TodoApi/Planora.Todo.Infrastructure/Services/FriendshipGrpcService.cs,R
 Services/TodoApi/Planora.Todo.Infrastructure/Services/UserProfileGrpcService.cs,REVIEWED,continuation-READ-045-source-review,1-67,Full semantic source review at b7cb659d95750b97577cf23168ea984051e187de; results/evidence/read-045-review.json. Runtime gates recorded separately.,2701,f830f1e537f993ed43b3121a2640b006647340e126ba1bdef2e446708cf0520d
 Start-Planora-Docker.ps1,REVIEWED,continuation-READ-046-source-review,1-852,"Full semantic source review at 97f10f4c1beddfa3f9ebd376a68b8eab6e92cda7; results/evidence/read-046-review.json. Parser-only PS5.1 check, no launcher runtime.",34581,2944ea01f0e5a52d14a08a396e7ca135cd84bfee9b11450ec848ddb940d2d04f
 Start-Planora-Local.ps1,REVIEWED,continuation-READ-047-source-review,1-1690,"Full semantic source review at 1c0d82fc6ea8768d234e9cab974549382f6057c6; results/evidence/read-047-review.json. Parser-only PS5.1 check, no launcher runtime.",80701,71d93ccb90116f10f24fe996e1ced9048887747126b97ab412b1fe17a80def05
-TESTING.md,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,3735,ba2da6850f519e739d8f4d642306fd09856c130f7f3ef15024b89ce2f51f6d94
-coverage.runsettings,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,667,7f7a11343e71ec1b94420faedb426eac9c70044afba7babfd964f80210e7d7d4
+TESTING.md,REVIEWED,READ-048,1-107,2026-11-19 full source review; evidence in results/evidence/read-001-004-007-048-049-review.md,3735,ba2da6850f519e739d8f4d642306fd09856c130f7f3ef15024b89ce2f51f6d94
+coverage.runsettings,REVIEWED,READ-049,1-16,2026-11-19 full source review; evidence in results/evidence/read-001-004-007-048-049-review.md,667,7f7a11343e71ec1b94420faedb426eac9c70044afba7babfd964f80210e7d7d4
 deploy/fly/.env.fly.example,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,4588,26417f4a480a8ab02778a5e0b7389e4302b6b626865ec5d685c2818c6a4a6ff2
 deploy/fly/README.md,NEEDS_DEEP_REVIEW,inventory-only,,Enumerated and statically indexed; no semantic review claimed,7651,fe42e3eaa4eb10abeea72cb8d9ac475bf087d1ee5bb7ed09c8cb67ea07cb66a5
 deploy/fly/auth.fly.toml,REVIEWED,root-static-and-history,full,Full content read and compared to related config/code/tests; runtime scope separately recorded,1777,514667babadf6c17641445f3dc145d15b578dd6ce342ddd1091a89bbb13a23c5

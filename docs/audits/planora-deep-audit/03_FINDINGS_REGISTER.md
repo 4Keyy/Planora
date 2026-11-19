@@ -1164,3 +1164,12 @@ gates remain explicit; this is not a global revocation-race certification.
 [Full review](results/evidence/read-013-review.md) records25 fully read sources,
 the two partitions, hypotheses and runtime boundaries. Dormant decorator/legacy
 fallback candidates remain observations pending activation proof.
+
+## 2026-11-19 continuation
+
+| ID | Priority | Status / scope |
+| --- | --- | --- |
+| CONT001001 | P3 | Confirmed source drift. Git checks out LF while the editor requests CRLF for PowerShell and .NET. See [source review](results/evidence/read-001-004-007-048-049-review.md). |
+
+The Cloud.ru completed-task cleanup configuration fix and its outstanding
+production checks are recorded in [T14](results/T14.md).
