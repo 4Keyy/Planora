@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Npgsql;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Outbox;
+using Planora.Category.Infrastructure.Persistence;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Infrastructure.Persistence;
 using Planora.UnitTests.BuildingBlocks.Retention.Postgres;
+using CategoryEntity = Planora.Category.Domain.Entities.Category;
 
 namespace Planora.UnitTests.Services.Infrastructure;
 
@@ -20,6 +24,35 @@ public sealed class OutboxStagingPostgresTests
 
     [PostgresFact]
     public Task TodoRepository_RejectedOutboxInsertRollsBackOwnerMutation() => VerifyFailedSave(canonical: false);
+
+    [PostgresFact]
+    public async Task CategoryDeletion_RejectedOutboxInsertRollsBackAndRetryCommitsBoth()
+    {
+        await using var database = await TemporaryDatabase.CreateAsync();
+        var options = database.Options<CategoryDbContext>();
+        var dispatcher = Mock.Of<IDomainEventDispatcher>();
+        await using var owner = new CategoryDbContext(options, dispatcher);
+        await owner.Database.EnsureCreatedAsync();
+        var category = CategoryEntity.Create(Guid.NewGuid(), "Category to delete", null, "#000000", null, 0);
+        owner.Categories.Add(category);
+        await owner.SaveChangesAsync();
+
+        await using var observer = new CategoryDbContext(options, dispatcher);
+        await observer.Database.ExecuteSqlRawAsync(
+            """ALTER TABLE "OutboxMessages" ADD CONSTRAINT reject_test_outbox CHECK (false)""");
+
+        category.Delete(category.UserId);
+        var failure = await Assert.ThrowsAsync<DbUpdateException>(() => owner.SaveChangesAsync());
+        Assert.Equal(PostgresErrorCodes.CheckViolation, Assert.IsType<PostgresException>(failure.InnerException).SqlState);
+        Assert.False(await observer.Categories.IgnoreQueryFilters().Select(row => row.IsDeleted).SingleAsync());
+        Assert.False(await observer.OutboxMessages.AnyAsync());
+
+        await observer.Database.ExecuteSqlRawAsync("""ALTER TABLE "OutboxMessages" DROP CONSTRAINT reject_test_outbox""");
+        await owner.SaveChangesAsync();
+
+        Assert.True(await observer.Categories.IgnoreQueryFilters().Select(row => row.IsDeleted).SingleAsync());
+        Assert.Equal(1, await observer.OutboxMessages.CountAsync());
+    }
 
     private static async Task VerifyOwnerSave(bool canonical)
     {

@@ -1,16 +1,11 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
-using Planora.BuildingBlocks.Application.Outbox;
-using Planora.Category.Application.Features.Categories.Events;
-using Planora.Category.Domain.Events;
 using Planora.Category.Domain.Repositories;
 using Planora.Todo.Application.Features.Todos.Events;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 using Moq;
-using CategoryEntity = Planora.Category.Domain.Entities.Category;
 using CategoryUserDeletedEventConsumer = Planora.Category.Application.Features.IntegrationEvents.UserDeletedEventConsumer;
 using TodoUserDeletedEventConsumer = Planora.Todo.Application.Features.IntegrationEvents.UserDeletedEventConsumer;
 
@@ -18,51 +13,6 @@ namespace Planora.UnitTests.Services.IntegrationEvents;
 
 public sealed class IntegrationEventHandlerTests
 {
-    [Fact]
-    [Trait("TestType", "Integration")]
-    [Trait("TestType", "Regression")]
-    public async Task CategoryDeletedDomainEventHandler_ShouldWriteOutboxMessage()
-    {
-        var outbox = new Mock<IOutboxRepository>();
-        OutboxMessage? captured = null;
-        outbox
-            .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
-            .Callback<OutboxMessage, CancellationToken>((message, _) => captured = message)
-            .Returns(Task.CompletedTask);
-        var handler = new CategoryDeletedDomainEventHandler(
-            outbox.Object,
-            Mock.Of<ILogger<CategoryDeletedDomainEventHandler>>());
-        var categoryId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-
-        await handler.HandleAsync(
-            new CategoryDeletedDomainEvent(categoryId, userId),
-            CancellationToken.None);
-
-        Assert.NotNull(captured);
-        Assert.Contains(nameof(CategoryDeletedIntegrationEvent), captured!.Type);
-        Assert.Contains(categoryId.ToString(), captured.Content);
-        Assert.Contains(userId.ToString(), captured.Content);
-    }
-
-    [Fact]
-    [Trait("TestType", "Resilience")]
-    [Trait("TestType", "Regression")]
-    public async Task CategoryDeletedDomainEventHandler_ShouldRethrowOutboxFailures()
-    {
-        var outbox = new Mock<IOutboxRepository>();
-        outbox
-            .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("outbox unavailable"));
-        var handler = new CategoryDeletedDomainEventHandler(
-            outbox.Object,
-            Mock.Of<ILogger<CategoryDeletedDomainEventHandler>>());
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
-            new CategoryDeletedDomainEvent(Guid.NewGuid(), Guid.NewGuid()),
-            CancellationToken.None));
-    }
-
     [Fact]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]
