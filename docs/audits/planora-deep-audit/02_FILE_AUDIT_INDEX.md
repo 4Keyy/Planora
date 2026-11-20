@@ -22,9 +22,10 @@
 [READ-047](results/evidence/read-047-review.md),
 [READ-001/004/007/048/049](results/evidence/read-001-004-007-048-049-review.md),
 [READ-005/008/009](results/evidence/read-005-008-009-review.md),
-[READ-010](results/evidence/read-010-review.md).
-Суммарно прочитано или проверено 680 из исходных 1558 файлов (43,65%).
-Осталось 52 пачки. Runtime-проверки учитываются отдельно.
+[READ-010](results/evidence/read-010-review.md),
+[READ-015](results/evidence/read-015-review.md).
+Суммарно прочитано или проверено 683 из исходных 1558 файлов (43,84%).
+Осталась 51 пачка. Runtime-проверки учитываются отдельно.
 Исходная таблица ниже сохраняет исторический baseline, а не текущий прогресс.
 
 [CSV — каждый tracked файл](02_FILE_AUDIT_INDEX.csv), [исходная инвентаризация](evidence/inventory.json), [пачки продолжения](evidence/continuation-batches.json).

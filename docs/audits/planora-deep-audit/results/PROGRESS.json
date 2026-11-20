@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "da6256d3d39dd134e463365249e234bf891ccb04",
+  "current_sha": "8027df849008703c7c01027521e45e6e3b5618fd",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -297,9 +297,10 @@
     "2026-11-19: GitHub confirms six successful E2E jobs for 43624802756. Cloud.ru retention disabled by the migration overlay; fix 8901021 reached GitHub main after the Compose RED/GREEN check. Cloud access and local Git index writes were denied. Live activation remains open. Five additional baseline files reviewed.",
     "2026-11-20: T03 Collaboration now records transaction-scoped task and subtask deletion markers. Scoped Release builds, 59 in-process Collaboration test cases and the EF snapshot/SQL checks passed. Current PostgreSQL and rollout gates remain open because local sockets and Cloud.ru SSH are denied.",
     "2026-11-20: Three source-review batches cover the Git hook, OpenAPI Spectral rules and root architecture overview. The OpenAPI path filter now includes ruleset-only changes. READ-010 adds 25 application-layer files and records BE-038 in the MediatR failure logging path.",
-    "2026-11-20: BE-036 and BE-037 logging fix verified locally. Baseline 9 passed and 4 failed. After correction, all 13 HTTP logging and 59 Collaboration cases passed in process. Release solution build passed with 12 existing deprecation warnings."
+    "2026-11-20: BE-036 and BE-037 logging fix verified locally. Baseline 9 passed and 4 failed. After correction, all 13 HTTP logging and 59 Collaboration cases passed in process. Release solution build passed with 12 existing deprecation warnings.",
+    "2026-11-20: READ-015 reviewed three shared infrastructure files. BE-038 and BE-039 reproduced on synthetic data and fixed. Release build, 41 targeted application and logging cases, 59 Collaboration cases and four Cloud.ru config tests passed locally."
   ],
-  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. Address BE-038 with a payload-omission regression. T12 full-history Gitleaks triage and the outstanding audit batches remain open.",
+  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. T12 full-history Gitleaks triage and the outstanding audit batches remain open.",
   "commands": [
     {
       "id": "http-logging-be036-be037-20261120",
@@ -3464,9 +3465,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 52,
+    "pending_batches": 51,
     "complete": false,
-    "current_read_or_reviewed": 680,
+    "current_read_or_reviewed": 683,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3495,11 +3496,13 @@
       "READ-005",
       "READ-008",
       "READ-009",
-      "READ-010"
+      "READ-010",
+      "READ-015"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
   "evidence": [
+    "results/evidence/read-015-review.md",
     "results/evidence/read-010-review.md",
     "results/evidence/read-005-008-009-review.md",
     "results/T14.md",
@@ -3589,6 +3592,12 @@
     "results/evidence/repository-sync-gitleaks-metadata.json"
   ],
   "local_commits": [
+    {
+      "task": "fix(logging): keep request content out of error and analytics logs",
+      "sha": "8027df849008703c7c01027521e45e6e3b5618fd",
+      "pushed": true,
+      "local_ref_updated": false
+    },
     {
       "task": "fix(deploy): allow Todo retention on Cloud.ru",
       "sha": "8901021aa25c8c7af7c7fc84da090e309d93ceb2",
@@ -3894,6 +3903,7 @@
     "BE-036",
     "BE-037",
     "CONT001001",
-    "BE-038"
+    "BE-038",
+    "BE-039"
   ]
 }

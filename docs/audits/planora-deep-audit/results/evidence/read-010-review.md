@@ -23,3 +23,12 @@ comment or message text. The issue is independent of HTTP query redaction and
 the response-stream fix. Existing handler-error tests check exception and
 log level, with no assertion that the payload is absent from Error logs.
 Production log contents were outside this review.
+
+## BE-038 follow-up
+
+The strengthened handler-error test failed on a synthetic task title in an
+Error record. The fix removes the serialized request from this record. The
+same exception and correlation ID remain available, and the Debug event
+still carries the redacted request. All 41 targeted application and logging
+cases passed after the BE-038 and BE-039 changes. See the
+[verification commands](read-015-review.md#verification).
