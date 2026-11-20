@@ -74,7 +74,6 @@ public sealed class HttpLoggingQueryRedactionTests
     private static async Task<List<string>> InvokeAsync(DefaultHttpContext context)
     {
         var logger = new PathLogger();
-        // Keep ownership of the original stream; response-stream lifecycle is a separate audit gate.
         using var originalBody = context.Response.Body;
         var middleware = new HttpLoggingMiddleware(_ => Task.CompletedTask, logger);
         await middleware.InvokeAsync(context);

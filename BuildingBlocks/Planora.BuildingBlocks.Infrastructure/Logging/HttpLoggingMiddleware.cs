@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Text;
 
 namespace Planora.BuildingBlocks.Infrastructure.Logging;
@@ -39,10 +40,10 @@ public sealed class HttpLoggingMiddleware
         // Store correlation ID for enrichers
         context.Items["CorrelationId"] = correlationId;
 
-        // Skip body buffering for gRPC requests (they use streaming)
+        LogRequest(context, correlationId);
+
         if (context.Request.ContentType?.Contains("application/grpc") == true)
         {
-            LogRequest(context, correlationId);
             await _next(context);
             stopwatch.Stop();
             _logger.LogInformation(
@@ -50,14 +51,6 @@ public sealed class HttpLoggingMiddleware
                 LogSanitizer.Clean(context.Request.Method), LogSanitizer.Clean(context.Request.Path.ToString()), context.Response.StatusCode, stopwatch.ElapsedMilliseconds, correlationId);
             return;
         }
-
-        // Log incoming request
-        LogRequest(context, correlationId);
-
-        // Capture response details
-        var originalBodyStream = context.Response.Body;
-        using var responseBody = new MemoryStream();
-        context.Response.Body = responseBody;
 
         Exception? thrownException = null;
 
@@ -73,20 +66,14 @@ public sealed class HttpLoggingMiddleware
         finally
         {
             stopwatch.Stop();
-
-            // Log response
-            await LogResponseAsync(context, correlationId, stopwatch.ElapsedMilliseconds, thrownException);
-
-            // Copy response back to original stream
-            responseBody.Seek(0, SeekOrigin.Begin);
-            await responseBody.CopyToAsync(originalBodyStream);
+            LogResponse(context, correlationId, stopwatch.ElapsedMilliseconds, thrownException);
         }
     }
 
     private void LogRequest(HttpContext context, string correlationId)
     {
         var request = context.Request;
-        var userId = context.User?.FindFirst("sub")?.Value ?? "Anonymous";
+        var userId = GetUserId(context);
 
         // SECURITY (cs/log-forging): every value below is attacker-controllable, so strip
         // CR/LF and control chars before they reach the log sink.
@@ -102,7 +89,7 @@ public sealed class HttpLoggingMiddleware
             method, sanitizedPath, contentType, contentLength, userId, clientIp, userAgent, correlationId);
     }
 
-    private Task LogResponseAsync(
+    private void LogResponse(
         HttpContext context,
         string correlationId,
         long elapsedMs,
@@ -110,8 +97,9 @@ public sealed class HttpLoggingMiddleware
     {
         var response = context.Response;
         var statusCode = response.StatusCode;
-        var contentLength = response.Body.Length;
-        var userId = context.User?.FindFirst("sub")?.Value ?? "Anonymous";
+        // The HTTP server keeps ownership of the response body, including streamed responses.
+        var contentLength = response.ContentLength;
+        var userId = GetUserId(context);
 
         var level = DetermineLogLevel(statusCode, elapsedMs, exception);
 
@@ -133,8 +121,12 @@ public sealed class HttpLoggingMiddleware
                 method, sanitizedPath, elapsedMs, correlationId);
         }
 
-        return Task.CompletedTask;
     }
+
+    private static string GetUserId(HttpContext context) =>
+        LogSanitizer.Clean(context.User.FindFirst("sub")?.Value
+            ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? "Anonymous");
 
     private static LogLevel DetermineLogLevel(int statusCode, long elapsedMs, Exception? exception)
     {

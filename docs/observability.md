@@ -34,6 +34,11 @@ and no behaviour change. Configuration is read at process startup; activating an
 | Metrics | Same extension wires ASP.NET Core / HttpClient / Runtime instrumentation plus the `PlanoraMetrics` wildcard meter (`Planora.BuildingBlocks`). | None. | Same secret as traces — OTLP carries both. |
 | Logs | Serilog with correlation / span / operation / service-name enrichers writes to console + per-day rolling files. | Local disk + console. | Set Loki configuration on hosts using the shared Serilog setup; verify actual startup wiring before expecting Auth/gateway export. |
 
+The shared HTTP logger leaves response streaming to the server. Its
+`ResponseSize` field is the declared `Content-Length`, or null when the
+response does not declare a length. Request and response records resolve
+`UserId` from the raw JWT subject or the mapped name identifier when available.
+
 ## End-to-end Trace Path
 
 ```text
