@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "8027df849008703c7c01027521e45e6e3b5618fd",
+  "current_sha": "70f44cd9a7423afabf15023578b004dac97bbb28",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -15,10 +15,10 @@
     "T12",
     "T02",
     "T03",
+    "T04",
     "T14"
   ],
   "pending_tasks": [
-    "T04",
     "T06",
     "T07",
     "T10",
@@ -298,9 +298,10 @@
     "2026-11-20: T03 Collaboration now records transaction-scoped task and subtask deletion markers. Scoped Release builds, 59 in-process Collaboration test cases and the EF snapshot/SQL checks passed. Current PostgreSQL and rollout gates remain open because local sockets and Cloud.ru SSH are denied.",
     "2026-11-20: Three source-review batches cover the Git hook, OpenAPI Spectral rules and root architecture overview. The OpenAPI path filter now includes ruleset-only changes. READ-010 adds 25 application-layer files and records BE-038 in the MediatR failure logging path.",
     "2026-11-20: BE-036 and BE-037 logging fix verified locally. Baseline 9 passed and 4 failed. After correction, all 13 HTTP logging and 59 Collaboration cases passed in process. Release solution build passed with 12 existing deprecation warnings.",
-    "2026-11-20: READ-015 reviewed three shared infrastructure files. BE-038 and BE-039 reproduced on synthetic data and fixed. Release build, 41 targeted application and logging cases, 59 Collaboration cases and four Cloud.ru config tests passed locally."
+    "2026-11-20: READ-015 reviewed three shared infrastructure files. BE-038 and BE-039 reproduced on synthetic data and fixed. Release build, 41 targeted application and logging cases, 59 Collaboration cases and four Cloud.ru config tests passed locally.",
+    "2026-11-20: T04 BE-001 stages the CategoryDeleted outbox row in the owner save. Fault injection showed zero staged rows before and one after the fix. Release build and 168 selected local backend cases passed. The PostgreSQL rollback test still needs a database-enabled run."
   ],
-  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. T12 full-history Gitleaks triage and the outstanding audit batches remain open.",
+  "next_step": "For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T04, run the Category deletion rollback scenario in OutboxStagingPostgresTests. T12 full-history Gitleaks triage and the outstanding audit batches remain open.",
   "commands": [
     {
       "id": "http-logging-be036-be037-20261120",
@@ -3502,6 +3503,7 @@
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
   "evidence": [
+    "results/T04.md",
     "results/evidence/read-015-review.md",
     "results/evidence/read-010-review.md",
     "results/evidence/read-005-008-009-review.md",
@@ -3592,6 +3594,12 @@
     "results/evidence/repository-sync-gitleaks-metadata.json"
   ],
   "local_commits": [
+    {
+      "task": "fix(category): commit deletion and outbox message together",
+      "sha": "70f44cd9a7423afabf15023578b004dac97bbb28",
+      "pushed": true,
+      "local_ref_updated": false
+    },
     {
       "task": "fix(logging): keep request content out of error and analytics logs",
       "sha": "8027df849008703c7c01027521e45e6e3b5618fd",

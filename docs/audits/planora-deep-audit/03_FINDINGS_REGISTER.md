@@ -44,6 +44,9 @@ Baseline `dc6b1781a24d43d967c418de30acda10fcafb8f9`. CONFIRMED означает 
 
 ## BE-001 — Удаление категории фиксируется раньше durable CategoryDeleted event
 
+PASS_LOCAL. The owner save now includes the category deletion and its
+outbox row. The PostgreSQL rollback check remains open. See [T04](results/T04.md).
+
 Severity high; likelihood medium; confidence CONFIRMED.
 
 - `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/CategoryDbContext.cs:44-66` — ClearDomainEvents, base.SaveChanges, затем dispatch
