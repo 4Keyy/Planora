@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_sha": "dc6b1781a24d43d967c418de30acda10fcafb8f9",
   "session_start_sha": "915a430547e7138027704adb976bb9394ab78ffe",
-  "current_sha": "0f470e7156e214418c830e45d0e4acf78552363f",
+  "current_sha": "da6256d3d39dd134e463365249e234bf891ccb04",
   "status": "in_progress",
   "current_task": "T03",
   "completed_tasks": [
@@ -295,10 +295,27 @@
     "81667d0a pushed to main. CI 43624802796 and Migration Scripts 43624913094 passed. The Cloud.ru restore rehearsal applied the same SQL twice and matched all three previous Realtime tables. Collaboration AddComment also crosses the deletion boundary after its remote access check. A later disposable PostgreSQL test confirmed one active comment and two outbox rows after cleanup.",
     "Cloud.ru 2026-11-14 21:38 MSK: six current local dumps archived, 137 product rows reconciled with cloud state, fresh frozen cloud dump set copied off-VM and hash verified. Realtime 81667d0a deployed with its additive migration after a second pre-upgrade dump. Health and public HTTPS passed. CI and Security passed on docs-only 64d09c9e; E2E 43624802756 had five successful jobs and one running at promotion.",
     "2026-11-19: GitHub confirms six successful E2E jobs for 43624802756. Cloud.ru retention disabled by the migration overlay; fix 8901021 reached GitHub main after the Compose RED/GREEN check. Cloud access and local Git index writes were denied. Live activation remains open. Five additional baseline files reviewed.",
-    "2026-11-20: T03 Collaboration now records transaction-scoped task and subtask deletion markers. Scoped Release builds, 59 in-process Collaboration test cases and the EF snapshot/SQL checks passed. Current PostgreSQL and rollout gates remain open because local sockets and Cloud.ru SSH are denied."
+    "2026-11-20: T03 Collaboration now records transaction-scoped task and subtask deletion markers. Scoped Release builds, 59 in-process Collaboration test cases and the EF snapshot/SQL checks passed. Current PostgreSQL and rollout gates remain open because local sockets and Cloud.ru SSH are denied.",
+    "2026-11-20: Three source-review batches cover the Git hook, OpenAPI Spectral rules and root architecture overview. The OpenAPI path filter now includes ruleset-only changes. READ-010 adds 25 application-layer files and records BE-038 in the MediatR failure logging path.",
+    "2026-11-20: BE-036 and BE-037 logging fix verified locally. Baseline 9 passed and 4 failed. After correction, all 13 HTTP logging and 59 Collaboration cases passed in process. Release solution build passed with 12 existing deprecation warnings."
   ],
-  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. T12 full-history Gitleaks triage, BE-036, BE-037 and the outstanding audit batches remain open.",
+  "next_step": "For T03, run BranchDeletionPostgresTests, SubtaskActivityIdentityPostgresTests, CommentMutationOutboxPostgresTests and startup migration checks on isolated PostgreSQL. For T14, verify a current Cloud.ru recovery checkpoint, rehearse the Collaboration upgrade, verify TodoApi dry-run counts and only then activate retention. Address BE-038 with a payload-omission regression. T12 full-history Gitleaks triage and the outstanding audit batches remain open.",
   "commands": [
+    {
+      "id": "http-logging-be036-be037-20261120",
+      "cwd": "Planora",
+      "command": [
+        "dotnet build Planora.sln -c Release --no-restore --nologo -m:1 -nr:false",
+        "dotnet exec with built test runtime and isolated HTTP logging and Collaboration harnesses"
+      ],
+      "red_exit_code": 1,
+      "red_passed": 9,
+      "red_failed": 4,
+      "green_exit_code": 0,
+      "green_http_passed": 13,
+      "green_collaboration_passed": 59,
+      "evidence": "results/evidence/read-013-review.md"
+    },
     {
       "id": "collaboration-dist012-20261120",
       "cwd": "Planora",
@@ -3447,9 +3464,9 @@
   "audit_coverage": {
     "baseline_inventory": 1558,
     "baseline_read_or_reviewed": 230,
-    "pending_batches": 56,
+    "pending_batches": 52,
     "complete": false,
-    "current_read_or_reviewed": 652,
+    "current_read_or_reviewed": 680,
     "completed_batches": [
       "READ-011",
       "READ-014",
@@ -3474,11 +3491,17 @@
       "READ-004",
       "READ-007",
       "READ-048",
-      "READ-049"
+      "READ-049",
+      "READ-005",
+      "READ-008",
+      "READ-009",
+      "READ-010"
     ],
     "current_index": "02_FILE_AUDIT_INDEX.csv"
   },
   "evidence": [
+    "results/evidence/read-010-review.md",
+    "results/evidence/read-005-008-009-review.md",
     "results/T14.md",
     "results/evidence/read-001-004-007-048-049-review.md",
     "results/evidence/t01-verification.json",
@@ -3870,6 +3893,7 @@
     "BE-035",
     "BE-036",
     "BE-037",
-    "CONT001001"
+    "CONT001001",
+    "BE-038"
   ]
 }

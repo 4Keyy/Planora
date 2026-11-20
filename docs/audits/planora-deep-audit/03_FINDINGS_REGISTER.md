@@ -1170,6 +1170,10 @@ fallback candidates remain observations pending activation proof.
 | ID | Priority | Status / scope |
 | --- | --- | --- |
 | CONT001001 | P3 | Confirmed source drift. Git checks out LF while the editor requests CRLF for PowerShell and .NET. See [source review](results/evidence/read-001-004-007-048-049-review.md). |
+| BE-038 | P2 | Confirmed in source. A failed MediatR request logs its sanitized payload at Error, where ordinary user content can still appear. See [application review](results/evidence/read-010-review.md). |
+
+BE-036 and BE-037 passed the local response-stream and subject attribution
+regressions. See the [logging follow-up](results/evidence/read-013-review.md#be-036-and-be-037-follow-up).
 
 The Cloud.ru completed-task cleanup configuration fix and its outstanding
 production checks are recorded in [T14](results/T14.md).

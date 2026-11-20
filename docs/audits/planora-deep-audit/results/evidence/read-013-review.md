@@ -36,3 +36,19 @@ OPS-015 logging-content evidence дополнено без дублирован�
 Другие HTTP body/claim нарушения этим узким исправлением не устранены.
 Дальнейший порядок задают PROGRESS и TASKS; этот review не сертифицирует
 полноту всех файлов, E2E, restore или production rollout.
+
+## BE-036 and BE-037 follow-up
+
+On 2026-11-20 the original HTTP logger failed four new cases. A flush of
+the first event did not reach the original response stream before the handler
+returned, and an exception left a disposed stream attached to the response.
+A mapped subject recorded `Anonymous`. The raw subject case also showed
+that the old byte count came from the buffer rather than the declared length.
+
+The middleware now leaves the response stream in place, reports the declared
+length when available and resolves both subject claim forms. It still
+rethrows the original handler exception. Local verification used isolated
+in-process xUnit case invocation against the built test assembly: 13 HTTP
+logging cases passed (including all nine redaction cases) and 59 Collaboration
+cases passed. The Release solution build completed with zero errors and
+12 existing deprecation warnings. Live transport and production rollout remain open.

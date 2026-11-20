@@ -64,7 +64,9 @@ for the precise boundaries and remaining reliability gaps.
   middleware, logging/telemetry/metrics, outbox/inbox, cache helpers, retention and health probes.
 - `GrpcContracts/Protos/`: five server contracts; Auth, Category and Todo have in-repository clients.
 - `tools/Planora.Migrator/`: schema runner for all six service contexts, plus Collaboration
-  backfill/reply-column upgrade.
+  backfill and guarded schema upgrades.
+- [Cloud.ru single-server deployment](deploy/cloudru/README.md): production Compose overlay,
+  cutover, recovery and completed-task cleanup.
 - `deploy/fly/`: hosting templates; [production prerequisites](docs/production.md) record
   the current pipeline and schema blockers.
 - `perf/`: load-test scenarios and measurement instructions.

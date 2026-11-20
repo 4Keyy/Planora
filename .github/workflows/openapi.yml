@@ -20,6 +20,7 @@ on:
       - 'Services/**'
       - 'GrpcContracts/**'
       - '.config/dotnet-tools.json'
+      - '.spectral.yaml'
       - 'Directory.Packages.props'
       - '.github/workflows/openapi.yml'
   workflow_dispatch:

@@ -1,13 +1,13 @@
 # Spectral configuration for Planora OpenAPI artifacts.
 #
 # Lints the swagger.json documents produced by .github/workflows/openapi.yml
-# (one per HTTP service: auth, category, todo, messaging, realtime) against
+# (one per HTTP service: auth, category, todo, collaboration, messaging, realtime) against
 # the OpenAPI 3.0 specification plus a small set of Planora-specific quality
 # rules.
 #
 # Severity philosophy:
-#   error / warn -- contract-stability rules that catch real client-breakage
-#                   potential. These show up in the PR diff.
+#   error       -- contract errors that fail the OpenAPI workflow.
+#   warn        -- contract quality findings reported in the workflow log.
 #   hint         -- documentation niceties that the controller XML docs do
 #                   not yet cover completely. Surfaced, not blocking.
 #   off          -- rules that conflict with the chosen controller routing
