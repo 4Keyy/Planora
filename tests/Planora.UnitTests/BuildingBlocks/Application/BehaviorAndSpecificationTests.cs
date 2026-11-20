@@ -44,21 +44,32 @@ public class BehaviorAndSpecificationTests
 
     [Fact]
     [Trait("TestType", "Module")]
-    public async Task LoggingBehavior_ShouldLogAndRethrowHandlerExceptions()
+    [Trait("TestType", "Regression")]
+    public async Task LoggingBehavior_ShouldLogAndRethrowHandlerExceptionsWithoutRequestPayload()
     {
+        const string requestContent = "private-task-title";
         var logger = new CapturingLogger<LoggingBehavior<SampleQuery, string>>();
-        var behavior = new LoggingBehavior<SampleQuery, string>(logger);
+        var accessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext { TraceIdentifier = "failed-query-trace" }
+        };
+        var behavior = new LoggingBehavior<SampleQuery, string>(logger, accessor);
+        var handlerException = new InvalidOperationException("handler failed");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             behavior.Handle(
-                new SampleQuery("boom"),
-                _ => Task.FromException<string>(new InvalidOperationException("handler failed")),
+                new SampleQuery(requestContent),
+                _ => Task.FromException<string>(handlerException),
                 CancellationToken.None));
 
+        Assert.Same(handlerException, exception);
+        var error = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Same(handlerException, error.Exception);
+        Assert.Contains("Query Failed", error.Message);
+        Assert.Contains("failed-query-trace", error.Message);
+        Assert.DoesNotContain(requestContent, error.Message, StringComparison.Ordinal);
         Assert.Contains(logger.Entries, entry =>
-            entry.Level == LogLevel.Error &&
-            entry.Exception is InvalidOperationException &&
-            entry.Message.Contains("Query Failed"));
+            entry.Level == LogLevel.Debug && entry.Message.Contains(requestContent, StringComparison.Ordinal));
     }
 
     [Fact]

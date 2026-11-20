@@ -220,7 +220,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             _businessLogger.LogBusinessEvent(
                 UserLoggedIn,
                 $"User {user.Id} logged in",
-                new { UserId = user.Id, Email = user.Email.Value, IpAddress = _currentUserService.IpAddress },
+                new { UserId = user.Id },
                 user.Id.ToString());
 
             var response = new LoginResponse

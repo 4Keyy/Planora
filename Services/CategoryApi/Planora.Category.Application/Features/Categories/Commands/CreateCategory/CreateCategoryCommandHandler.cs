@@ -55,7 +55,7 @@ namespace Planora.Category.Application.Features.Categories.Commands.CreateCatego
                         _businessLogger.LogBusinessEvent(
                             FirstCategoryCreated,
                             $"User {userId} created their first category",
-                            new { CategoryId = category.Id, category.Name },
+                            new { CategoryId = category.Id },
                             userId.ToString());
                     }
                 }

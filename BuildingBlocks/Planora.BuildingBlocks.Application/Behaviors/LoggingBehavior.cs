@@ -57,12 +57,9 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         }
 
         var stopwatch = Stopwatch.StartNew();
-        TResponse? response = default;
-        Exception? caughtException = null;
-
         try
         {
-            response = await next();
+            var response = await next();
             stopwatch.Stop();
 
             // Determine log level based on performance
@@ -94,12 +91,10 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         catch (Exception ex)
         {
             stopwatch.Stop();
-            caughtException = ex;
-
             _logger.LogError(
                 ex,
-                "❌ {RequestType} Failed | Name: {RequestName} | ElapsedMs: {ElapsedMs} | UserId: {UserId} | CorrelationId: {CorrelationId} | ErrorType: {ErrorType} | Request: {@Request}",
-                requestType, requestName, stopwatch.ElapsedMilliseconds, userId, correlationId, ex.GetType().Name, SanitizeRequest(request));
+                "❌ {RequestType} Failed | Name: {RequestName} | ElapsedMs: {ElapsedMs} | UserId: {UserId} | CorrelationId: {CorrelationId} | ErrorType: {ErrorType}",
+                requestType, requestName, stopwatch.ElapsedMilliseconds, userId, correlationId, ex.GetType().Name);
 
             throw;
         }

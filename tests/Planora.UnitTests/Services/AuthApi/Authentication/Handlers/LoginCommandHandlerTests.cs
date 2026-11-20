@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Application.Features.Authentication.Commands.Login;
 using Planora.Auth.Application.Features.Authentication.Handlers.Login;
@@ -184,13 +185,17 @@ public sealed class LoginCommandHandlerTests
             addedRefreshToken!, null, user.PasswordHash, It.IsAny<CancellationToken>()), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         fixture.LoginHistory.Verify(x => x.AddAsync(
-            It.Is<LoginHistory>(history => history.IsSuccessful),
+            It.Is<LoginHistory>(history => history.IsSuccessful && history.IpAddress == "10.0.0.1"),
             It.IsAny<CancellationToken>()), Times.Once);
         fixture.BusinessLogger.Verify(x => x.LogBusinessEvent(
             BusinessEvents.UserLoggedIn,
             It.IsAny<string>(),
             It.IsAny<object>(),
             user.Id.ToString()), Times.Once);
+        var loginEvent = Assert.Single(fixture.BusinessLogger.Invocations);
+        var property = Assert.Single(JsonSerializer.SerializeToElement(loginEvent.Arguments[2]).EnumerateObject());
+        Assert.Equal("UserId", property.Name);
+        Assert.Equal(user.Id, property.Value.GetGuid());
     }
 
     [Fact]

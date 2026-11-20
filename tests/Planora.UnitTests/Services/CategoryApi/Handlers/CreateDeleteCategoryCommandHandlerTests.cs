@@ -1,4 +1,7 @@
+using System.Linq.Expressions;
+using System.Text.Json;
 using AutoMapper;
+using Planora.BuildingBlocks.Application.Services;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.Category.Application.DTOs;
@@ -19,13 +22,17 @@ public sealed class CreateDeleteCategoryCommandHandlerTests
     {
         var userId = Guid.NewGuid();
         var fixture = new Fixture(userId);
+        var businessLogger = new Mock<IBusinessEventLogger>();
         CategoryEntity? created = null;
         fixture.Repository
             .Setup(x => x.AddAsync(It.IsAny<CategoryEntity>(), It.IsAny<CancellationToken>()))
             .Callback<CategoryEntity, CancellationToken>((category, _) => created = category)
             .ReturnsAsync((CategoryEntity category, CancellationToken _) => category);
+        fixture.Repository
+            .Setup(x => x.CountAsync(It.IsAny<Expression<Func<CategoryEntity, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
         fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = fixture.CreateCreateHandler();
+        var handler = fixture.CreateCreateHandler(businessLogger.Object);
 
         var result = await handler.Handle(
             new CreateCategoryCommand(Guid.NewGuid(), "Inbox", "default", null, "tray", 3),
@@ -38,6 +45,12 @@ public sealed class CreateDeleteCategoryCommandHandlerTests
         Assert.Equal("#000000", created.Color);
         Assert.Equal("Inbox", result.Value!.Name);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        businessLogger.Verify(x => x.LogBusinessEvent(
+            BusinessEvents.FirstCategoryCreated, It.IsAny<string>(), It.IsAny<object>(), userId.ToString()), Times.Once);
+        var categoryEvent = Assert.Single(businessLogger.Invocations);
+        var property = Assert.Single(JsonSerializer.SerializeToElement(categoryEvent.Arguments[2]).EnumerateObject());
+        Assert.Equal("CategoryId", property.Name);
+        Assert.Equal(created.Id, property.Value.GetGuid());
     }
 
     [Fact]
@@ -161,13 +174,14 @@ public sealed class CreateDeleteCategoryCommandHandlerTests
         public Mock<IMapper> Mapper { get; } = new();
         public Mock<ICurrentUserContext> CurrentUserContext { get; } = new();
 
-        public CreateCategoryCommandHandler CreateCreateHandler()
+        public CreateCategoryCommandHandler CreateCreateHandler(IBusinessEventLogger? businessLogger = null)
             => new(
                 Repository.Object,
                 UnitOfWork.Object,
                 Mapper.Object,
                 Mock.Of<ILogger<CreateCategoryCommandHandler>>(),
-                CurrentUserContext.Object);
+                CurrentUserContext.Object,
+                businessLogger);
 
         public DeleteCategoryCommandHandler CreateDeleteHandler()
             => new(
